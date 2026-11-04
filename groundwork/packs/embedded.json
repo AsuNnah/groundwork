@@ -1,0 +1,54 @@
+{
+  "id": "embedded",
+  "title": "Embedded / firmware",
+  "stacks": {
+    "zephyr": {
+      "detect": [
+        "west.yml",
+        "prj.conf"
+      ]
+    },
+    "esp-idf": {
+      "detect": [
+        "sdkconfig"
+      ]
+    },
+    "platformio": {
+      "detect": [
+        "platformio.ini"
+      ]
+    }
+  },
+  "tools": [
+    {
+      "id": "cmake",
+      "severity": "block"
+    },
+    {
+      "id": "qemu",
+      "severity": "warn",
+      "why": "board emulation (S2)"
+    }
+  ],
+  "sandbox": {
+    "S0": {
+      "run": "host unit tests (Unity/Ceedling, Zephyr native_sim)"
+    },
+    "S2": {
+      "how": "QEMU / Renode board emulation (KVM not required, faster with it)"
+    },
+    "S3": {
+      "how": "hardware-in-the-loop with a real board"
+    }
+  },
+  "min_release_tier": "S3",
+  "test_tooling": [
+    "Unity/Ceedling",
+    "Zephyr Twister",
+    "Renode"
+  ],
+  "release": [
+    "signed firmware image",
+    "OTA plan"
+  ]
+}

@@ -1,0 +1,51 @@
+{
+  "id": "macos",
+  "title": "macOS desktop app",
+  "host_only": [
+    "macos"
+  ],
+  "stacks": {
+    "swiftui": {
+      "detect": [
+        "*.xcodeproj"
+      ]
+    },
+    "electron": {
+      "detect": [
+        "electron-builder.*"
+      ]
+    },
+    "tauri": {
+      "detect": [
+        "src-tauri/tauri.conf.json"
+      ]
+    }
+  },
+  "tools": [
+    {
+      "id": "xcodebuild",
+      "severity": "block",
+      "host": "macos"
+    }
+  ],
+  "sandbox": {
+    "S2": {
+      "needs": [
+        "build_ios"
+      ],
+      "how": "native run + XCUITest / Appium Mac2"
+    },
+    "S3": {
+      "how": "GitHub Actions macos runner"
+    }
+  },
+  "min_release_tier": "S3",
+  "test_tooling": [
+    "XCUITest",
+    "playwright (electron)"
+  ],
+  "release": [
+    "Developer ID signing",
+    "notarization"
+  ]
+}

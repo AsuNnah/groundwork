@@ -1,0 +1,59 @@
+{
+  "id": "linux-desktop",
+  "title": "Linux desktop app",
+  "stacks": {
+    "gtk": {
+      "detect": [
+        "meson.build"
+      ]
+    },
+    "qt": {
+      "detect": [
+        "CMakeLists.txt",
+        "*.pro"
+      ]
+    },
+    "electron": {
+      "detect": [
+        "electron-builder.*"
+      ]
+    },
+    "tauri": {
+      "detect": [
+        "src-tauri/tauri.conf.json"
+      ]
+    }
+  },
+  "tools": [
+    {
+      "id": "git",
+      "severity": "block"
+    },
+    {
+      "id": "xvfb",
+      "severity": "warn",
+      "why": "headless GUI tests"
+    }
+  ],
+  "sandbox": {
+    "S1": {
+      "needs_any": [
+        "containers",
+        "gui_tests"
+      ],
+      "how": "container with Xvfb + noVNC; xdotool/AT-SPI/playwright(electron); screenshot diff"
+    },
+    "S3": {
+      "how": "ubuntu runner with xvfb-run"
+    }
+  },
+  "min_release_tier": "S1",
+  "test_tooling": [
+    "xvfb-run",
+    "dogtail/AT-SPI",
+    "playwright (electron)"
+  ],
+  "release": [
+    "AppImage / Flatpak / .deb"
+  ]
+}

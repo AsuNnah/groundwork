@@ -1,0 +1,14 @@
+# third-party research clones (clone them yourself, see research/README.md)
+research/ecc/
+# legacy single-skill orchestrator (merged into groundwork/)
+app-development-orchestrator/
+# personal feedback reports: keep folders, not contents
+feedback/inbox/*
+feedback/processed/*
+!feedback/inbox/.gitkeep
+!feedback/processed/.gitkeep
+# groundwork state if the framework is ever run inside this repo
+.groundwork/
+.claude/settings.local.json
+node_modules/
+.DS_Store

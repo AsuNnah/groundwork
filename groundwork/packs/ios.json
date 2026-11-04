@@ -1,0 +1,63 @@
+{
+  "id": "ios",
+  "title": "iOS / iPadOS app",
+  "host_only": [
+    "macos"
+  ],
+  "stacks": {
+    "swiftui": {
+      "detect": [
+        "*.xcodeproj",
+        "Package.swift"
+      ],
+      "scaffold": "Xcode > New Project > App"
+    },
+    "flutter": {
+      "detect": [
+        "pubspec.yaml",
+        "ios/"
+      ],
+      "scaffold": "flutter create {name}"
+    },
+    "react-native": {
+      "detect": [
+        "app.json",
+        "ios/"
+      ],
+      "scaffold": "npx create-expo-app@latest {name}"
+    }
+  },
+  "tools": [
+    {
+      "id": "xcodebuild",
+      "severity": "block",
+      "host": "macos"
+    }
+  ],
+  "sandbox": {
+    "S0": {
+      "run": "shared-logic unit tests (any host)"
+    },
+    "S2": {
+      "needs": [
+        "build_ios"
+      ],
+      "how": "xcodebuild test on iOS Simulator; Maestro iOS"
+    },
+    "S3": {
+      "how": "GitHub Actions macos runner, Tart VM on Apple Silicon, or Xcode Cloud"
+    }
+  },
+  "min_release_tier": "S2",
+  "non_mac_note": "Cannot build or test iOS UI on Linux/Windows. Develop shared code locally; build + UI-test on a macOS runner (S3).",
+  "test_tooling": [
+    "XCTest",
+    "XCUITest",
+    "maestro"
+  ],
+  "release": [
+    "Apple Developer account",
+    "signing certificates + provisioning (fastlane match)",
+    "App Store privacy labels"
+  ]
+}

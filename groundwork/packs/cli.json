@@ -1,0 +1,83 @@
+{
+  "id": "cli",
+  "title": "Command-line tool",
+  "stacks": {
+    "go": {
+      "detect": [
+        "go.mod"
+      ]
+    },
+    "rust": {
+      "detect": [
+        "Cargo.toml"
+      ]
+    },
+    "python": {
+      "detect": [
+        "pyproject.toml"
+      ]
+    },
+    "node": {
+      "detect": [
+        "package.json"
+      ]
+    }
+  },
+  "tools": [
+    {
+      "id": "git",
+      "severity": "block"
+    }
+  ],
+  "stack_tools": {
+    "go": [
+      {
+        "id": "go",
+        "severity": "block"
+      }
+    ],
+    "rust": [
+      {
+        "id": "rustc",
+        "severity": "block"
+      }
+    ],
+    "python": [
+      {
+        "id": "python",
+        "min": "3.11",
+        "severity": "block"
+      }
+    ],
+    "node": [
+      {
+        "id": "node",
+        "min": "20",
+        "severity": "block"
+      }
+    ]
+  },
+  "sandbox": {
+    "S0": {
+      "run": "unit + golden/snapshot tests"
+    },
+    "S1": {
+      "needs": [
+        "containers"
+      ],
+      "how": "run in clean container per distro; docker buildx + qemu for arm64"
+    },
+    "S3": {
+      "how": "CI matrix ubuntu/windows/macos"
+    }
+  },
+  "min_release_tier": "S1",
+  "test_tooling": [
+    "bats",
+    "snapshot tests"
+  ],
+  "release": [
+    "cross-compiled binaries + checksums",
+    "package registry (npm/PyPI/crates/Homebrew/winget)"
+  ]
+}

@@ -1,0 +1,72 @@
+{
+  "id": "web",
+  "title": "Web app (browser)",
+  "stacks": {
+    "vite-react": {
+      "detect": [
+        "vite.config.*"
+      ],
+      "scaffold": "npm create vite@latest {name} -- --template react-ts"
+    },
+    "nextjs": {
+      "detect": [
+        "next.config.*"
+      ],
+      "scaffold": "npx create-next-app@latest {name} --ts"
+    },
+    "vue": {
+      "detect": [
+        "vue.config.*",
+        "nuxt.config.*"
+      ],
+      "scaffold": "npm create vue@latest {name}"
+    },
+    "svelte": {
+      "detect": [
+        "svelte.config.*"
+      ],
+      "scaffold": "npx sv create {name}"
+    }
+  },
+  "tools": [
+    {
+      "id": "node",
+      "min": "20",
+      "severity": "block"
+    },
+    {
+      "id": "git",
+      "severity": "block"
+    },
+    {
+      "id": "playwright",
+      "severity": "warn",
+      "project_local": true
+    }
+  ],
+  "sandbox": {
+    "S0": {
+      "run": "npm test"
+    },
+    "S1": {
+      "needs": [
+        "containers"
+      ],
+      "how": "docker run --rm -v $PWD:/app -w /app mcr.microsoft.com/playwright:<pinned> npx playwright test"
+    },
+    "S3": {
+      "how": "GitHub Actions ubuntu + windows + macos matrix for cross-browser"
+    }
+  },
+  "min_release_tier": "S1",
+  "test_tooling": [
+    "vitest/jest",
+    "playwright",
+    "axe-core",
+    "lighthouse"
+  ],
+  "release": [
+    "build static/SSR bundle",
+    "hosting checklist (env vars, HTTPS, caching)"
+  ]
+}

@@ -1,0 +1,97 @@
+{
+  "id": "android",
+  "title": "Android app",
+  "stacks": {
+    "kotlin-compose": {
+      "detect": [
+        "build.gradle.kts",
+        "**/AndroidManifest.xml"
+      ],
+      "scaffold": "Android Studio 'Empty Activity' template or templates from https://github.com/android/architecture-templates"
+    },
+    "flutter": {
+      "detect": [
+        "pubspec.yaml"
+      ],
+      "scaffold": "flutter create --org com.example {name}"
+    },
+    "react-native": {
+      "detect": [
+        "app.json",
+        "metro.config.*"
+      ],
+      "scaffold": "npx create-expo-app@latest {name}"
+    }
+  },
+  "tools": [
+    {
+      "id": "java",
+      "min": "17",
+      "severity": "block"
+    },
+    {
+      "id": "sdkmanager",
+      "severity": "block"
+    },
+    {
+      "id": "adb",
+      "severity": "block"
+    },
+    {
+      "id": "emulator",
+      "severity": "warn",
+      "why": "local UI tests (S2)"
+    },
+    {
+      "id": "maestro",
+      "severity": "warn"
+    }
+  ],
+  "stack_tools": {
+    "flutter": [
+      {
+        "id": "flutter",
+        "severity": "block"
+      }
+    ],
+    "react-native": [
+      {
+        "id": "node",
+        "min": "20",
+        "severity": "block"
+      }
+    ]
+  },
+  "sandbox": {
+    "S0": {
+      "run": "./gradlew test (unit, Robolectric)"
+    },
+    "S1": {
+      "needs": [
+        "containers"
+      ],
+      "how": "gradle build + unit tests in an android-sdk container image"
+    },
+    "S2": {
+      "needs": [
+        "android_emulator_local"
+      ],
+      "how": "headless emulator (-no-window) or budtmo/docker-android; Maestro/Espresso UI tests; or USB device via adb"
+    },
+    "S3": {
+      "how": "GitHub Actions reactivecircus/android-emulator-runner, or Firebase Test Lab"
+    }
+  },
+  "min_release_tier": "S2",
+  "test_tooling": [
+    "junit",
+    "robolectric",
+    "espresso",
+    "maestro",
+    "appium"
+  ],
+  "release": [
+    "AAB signed with upload key (keystore never committed)",
+    "Play Console: data safety form, target SDK policy, permissions rationale"
+  ]
+}

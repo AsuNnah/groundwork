@@ -1,0 +1,115 @@
+{
+  "id": "backend",
+  "title": "Backend / API service",
+  "stacks": {
+    "node": {
+      "detect": [
+        "package.json"
+      ],
+      "scaffold": "npm init -y (Hono / Fastify / NestJS)"
+    },
+    "python": {
+      "detect": [
+        "pyproject.toml",
+        "requirements.txt"
+      ],
+      "scaffold": "uv init {name} && uv add fastapi uvicorn"
+    },
+    "go": {
+      "detect": [
+        "go.mod"
+      ],
+      "scaffold": "go mod init {name}"
+    },
+    "java-spring": {
+      "detect": [
+        "pom.xml",
+        "build.gradle*"
+      ],
+      "scaffold": "https://start.spring.io"
+    },
+    "dotnet": {
+      "detect": [
+        "*.csproj"
+      ],
+      "scaffold": "dotnet new webapi -n {name}"
+    }
+  },
+  "tools": [
+    {
+      "id": "git",
+      "severity": "block"
+    },
+    {
+      "id": "docker",
+      "severity": "warn",
+      "why": "real database/queue in tests"
+    }
+  ],
+  "stack_tools": {
+    "node": [
+      {
+        "id": "node",
+        "min": "20",
+        "severity": "block"
+      }
+    ],
+    "python": [
+      {
+        "id": "python",
+        "min": "3.11",
+        "severity": "block"
+      },
+      {
+        "id": "uv",
+        "severity": "warn"
+      }
+    ],
+    "go": [
+      {
+        "id": "go",
+        "min": "1.22",
+        "severity": "block"
+      }
+    ],
+    "java-spring": [
+      {
+        "id": "java",
+        "min": "17",
+        "severity": "block"
+      }
+    ],
+    "dotnet": [
+      {
+        "id": "dotnet",
+        "min": "8",
+        "severity": "block"
+      }
+    ]
+  },
+  "sandbox": {
+    "S0": {
+      "run": "unit tests on host"
+    },
+    "S1": {
+      "needs": [
+        "containers"
+      ],
+      "how": "docker compose with real DB (postgres/redis) + integration/contract tests; Testcontainers"
+    },
+    "S3": {
+      "how": "CI with service containers"
+    }
+  },
+  "min_release_tier": "S1",
+  "test_tooling": [
+    "language test runner",
+    "contract tests (OpenAPI)",
+    "k6 load"
+  ],
+  "release": [
+    "Docker image (pinned base, non-root)",
+    "migrations plan",
+    "secrets via env / secret manager"
+  ]
+}

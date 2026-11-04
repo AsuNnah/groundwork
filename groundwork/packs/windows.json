@@ -1,0 +1,84 @@
+{
+  "id": "windows",
+  "title": "Windows desktop app",
+  "stacks": {
+    "dotnet-wpf-winui": {
+      "detect": [
+        "*.csproj"
+      ],
+      "scaffold": "dotnet new wpf -n {name}  (or winui template)"
+    },
+    "electron": {
+      "detect": [
+        "electron-builder.*",
+        "forge.config.*"
+      ],
+      "scaffold": "npx create-electron-app@latest {name}"
+    },
+    "tauri": {
+      "detect": [
+        "src-tauri/tauri.conf.json"
+      ],
+      "scaffold": "npm create tauri-app@latest"
+    }
+  },
+  "tools": [
+    {
+      "id": "git",
+      "severity": "block"
+    }
+  ],
+  "stack_tools": {
+    "dotnet-wpf-winui": [
+      {
+        "id": "dotnet",
+        "min": "8",
+        "severity": "block"
+      }
+    ],
+    "electron": [
+      {
+        "id": "node",
+        "min": "20",
+        "severity": "block"
+      }
+    ],
+    "tauri": [
+      {
+        "id": "node",
+        "min": "20",
+        "severity": "block"
+      },
+      {
+        "id": "rustc",
+        "severity": "block"
+      }
+    ]
+  },
+  "sandbox": {
+    "S0": {
+      "run": "unit tests"
+    },
+    "S2": {
+      "needs_any": [
+        "host_windows",
+        "kvm_vms"
+      ],
+      "how": "native on Windows; on Linux: dockur/windows VM (own licence) + FlaUI/pywinauto/Appium NovaWindows"
+    },
+    "S3": {
+      "how": "GitHub Actions windows runner"
+    }
+  },
+  "min_release_tier": "S2",
+  "test_tooling": [
+    "FlaUI",
+    "pywinauto",
+    "Appium NovaWindows",
+    "playwright (electron)"
+  ],
+  "release": [
+    "MSIX / MSI / winget manifest",
+    "Authenticode signing (cert never committed)"
+  ]
+}
