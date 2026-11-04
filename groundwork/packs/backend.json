@@ -111,5 +111,71 @@
     "Docker image (pinned base, non-root)",
     "migrations plan",
     "secrets via env / secret manager"
+  ],
+  "maintain": {
+    "node": {
+      "outdated": "npm outdated && npx npm-check-updates",
+      "upgrade_safe": "npx npm-check-updates -u --target minor && npm install",
+      "upgrade_major": "npx npm-check-updates -u --filter <pkg> && npm install",
+      "audit": "npm audit --omit=dev  (or: osv-scanner scan -r .)",
+      "deadcode": "npx knip",
+      "why_installed": "npm ls <pkg>",
+      "override": "package.json \"overrides\" (pnpm: pnpm.overrides, yarn: resolutions)",
+      "eol": "nodejs",
+      "ecosystem": "node"
+    },
+    "python": {
+      "outdated": "uv tree --outdated  (pip: pip list --outdated)",
+      "upgrade_safe": "uv lock --upgrade && uv sync",
+      "upgrade_major": "uv lock --upgrade-package <pkg>",
+      "audit": "uvx pip-audit  (or: osv-scanner scan -r .)",
+      "deadcode": "uvx vulture src/ --min-confidence 80 && uvx deptry .",
+      "why_installed": "uv tree --invert --package <pkg>",
+      "override": "[tool.uv] override-dependencies",
+      "eol": "python",
+      "ecosystem": "python"
+    },
+    "go": {
+      "outdated": "go list -u -m all",
+      "upgrade_safe": "go get -u=patch ./... && go mod tidy",
+      "upgrade_major": "go get -u ./... && go mod tidy  (new major = new /vN import path)",
+      "audit": "govulncheck ./...",
+      "deadcode": "go run golang.org/x/tools/cmd/deadcode@latest ./...",
+      "why_installed": "go mod why -m <module>",
+      "override": "replace / direct require in go.mod",
+      "eol": "go",
+      "ecosystem": "go"
+    },
+    "java-spring": {
+      "outdated": "./gradlew dependencyUpdates (ben-manes plugin)  |  mvn versions:display-dependency-updates",
+      "upgrade_safe": "bump patch/minor in gradle/libs.versions.toml",
+      "upgrade_major": "OpenRewrite recipe (./gradlew rewriteRun), one major at a time",
+      "audit": "osv-scanner scan -r .",
+      "deadcode": "IntelliJ inspections / detekt (Kotlin)",
+      "why_installed": "./gradlew dependencies --configuration runtimeClasspath",
+      "override": "Gradle constraints {} / Maven dependencyManagement",
+      "eol": "eclipse-temurin",
+      "ecosystem": "java",
+      "codemod": "OpenRewrite: org.openrewrite.java.spring.boot3.UpgradeSpringBoot_3_x"
+    },
+    "dotnet": {
+      "outdated": "dotnet list package --outdated",
+      "upgrade_safe": "dotnet outdated -u:Auto -vl:Minor  (dotnet tool install -g dotnet-outdated-tool)",
+      "upgrade_major": "edit TargetFramework / package version, one at a time",
+      "audit": "dotnet list package --vulnerable --include-transitive",
+      "deadcode": "IDE0051/IDE0052 analyzers + dotnet format",
+      "why_installed": "dotnet list package --include-transitive",
+      "override": "Directory.Packages.props central version",
+      "eol": "dotnet",
+      "ecosystem": "dotnet"
+    }
+  },
+  "rollback": "Redeploy the previous image tag/digest (kubectl rollout undo / fly deploy --image <prev> / compose with previous tag); blue-green switch back; canary weight 0. DB: expand/contract only.",
+  "observe": [
+    "/healthz (liveness) + /readyz (deps) returning 200/503 within 1s",
+    "structured JSON logs to stdout: ts, level, msg, request_id, version (pino / structlog / slog / Serilog)",
+    "error tracking tagged with release version",
+    "uptime check on /readyz",
+    "SLO: availability 99.5%/30d + p95 latency; alert on burn rate, not single errors"
   ]
 }

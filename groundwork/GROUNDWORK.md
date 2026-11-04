@@ -28,6 +28,12 @@ CLI: `node groundwork/bin/gw.js <command>` (written as `gw` below).
 | P10 Release + **GATE 2** | `phases/P10.md` | release artifacts, G2 receipt |
 | P11 Learn | `phases/P11.md` | `docs/lessons.md` |
 | Change in an existing project | `phases/CHANGE.md` | `docs/changes/<id>/` |
+| Upgrade deps / SDKs / runtimes | `phases/UPGRADE.md` | `docs/upgrades/<date>.md` |
+| Refactor / tech debt (reactive) | `phases/MAINTAIN.md` | `docs/tech-debt.md` |
+| Production: monitoring, incident, hotfix, rollback | `phases/OPERATE.md` | `docs/runbook.md`, `docs/incidents/` |
+| Security patching / advisories / secrets | `phases/SECURITY.md` | `docs/security/` |
+
+Maintenance commands per stack (outdated, upgrade, audit, dead code, rollback, observability, store policies): `gw maintain`. Runtime end-of-life check: `gw eol`. Recommended agent skills for this project: `gw skills`.
 
 Record progress with `gw phase <id> <done|skipped|in_progress|blocked> "note"`.
 

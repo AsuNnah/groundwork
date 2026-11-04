@@ -72,4 +72,37 @@ t('install command prefers mise, then OS package manager', () => {
   assert.equal(gw.installCommand(base(), 'node').via, 'mise');
   assert.equal(gw.installCommand(base(), 'git').via, 'apt');
 });
+t('MANIFEST.json matches the folder (run scripts/release.js if this fails)', () => {
+  const i = gw.integrity(require('path').join(__dirname, '..'));
+  if (!i.manifest) return;   // not built yet
+  assert.deepEqual([i.modified, i.stale, i.missing], [[], [], []], JSON.stringify(i));
+});
+t('changelog filter returns only newer sections', () => {
+  const fs = require('fs'), os = require('os'), path = require('path');
+  const d = fs.mkdtempSync(path.join(os.tmpdir(), 'gw-'));
+  fs.writeFileSync(path.join(d, 'CHANGELOG.md'), '# Changelog\n\n## 0.3.0\nnew\n\n## 0.2.0\nold\n');
+  const out = gw.changelogSince('0.2.0', d);
+  assert.match(out, /0\.3\.0/); assert.doesNotMatch(out, /old/);
+});
+t('skill catalogue: every entry has a known MIT source and pinned ref', () => {
+  const c = gw.catalog();
+  assert.ok(c.skills.length > 30);
+  for (const s of c.skills) { const src = c.sources[s.source]; assert.ok(src, s.id); assert.equal(src.license, 'MIT'); assert.match(src.ref, /^[0-9a-f]{40}$/); }
+  assert.equal(new Set(c.skills.map(s => s.id)).size, c.skills.length, 'duplicate ids');
+});
+t('skill suggestions follow targets, stacks and phase', () => {
+  const ids = gw.suggestSkills({ targets: ['android'], stacks: { android: 'flutter' } }, 'P7').map(s => s.id);
+  assert.ok(ids.includes('ecc/dart-flutter-patterns')); assert.ok(!ids.includes('ecc/kotlin-patterns')); assert.ok(!ids.includes('ecc/vue-patterns'));
+  assert.ok(ids.includes('agent-skills/test-driven-development'));
+  const inc = gw.suggestSkills({ targets: ['backend'], stacks: { backend: 'go' }, stage: 'incident' }, 'P0').map(s => s.id);
+  assert.ok(inc.includes('agent-skills/observability-and-instrumentation'));
+});
+t('every pack stack with an ecosystem has maintain commands, and every pack has rollback', () => {
+  for (const id of ['web', 'backend', 'android', 'ios', 'macos', 'windows', 'linux-desktop', 'cli', 'embedded']) {
+    const m = gw.maintainInfo({ targets: [id], stacks: {} })[0];
+    assert.ok(m.rollback, id + ' rollback');
+  }
+  const m = gw.maintainInfo({ targets: ['backend'], stacks: { backend: 'python' } })[0];
+  assert.match(m.commands.audit, /pip-audit|osv/);
+});
 console.log(`\n${n} checks passed`);

@@ -9,7 +9,7 @@ scan host → intake & size → requirements → target & stack → environment 
 → review → release [GATE 2] → learn
 ```
 
-> Status: **alpha (v0.2.0)**. The Linux scanner, CLI, gates, hooks, and feedback loop are tested on Linux. The Windows scanner (`scan.ps1`) and the macOS path are untested. Feedback from real runs is how it improves (see [Learning from real runs](#learning-from-real-runs)).
+> Status: **alpha (v0.3.0)**. The Linux scanner, CLI, gates, hooks, and feedback loop are tested on Linux. The Windows scanner (`scan.ps1`) and the macOS path are untested. Feedback from real runs is how it improves (see [Learning from real runs](#learning-from-real-runs)).
 
 ---
 
@@ -81,6 +81,31 @@ Problems are **notifications, not dead ends**. Each one has a status (`missing`,
 `groundwork/packs/*.json`: **web, backend, android, ios, macos, windows, linux-desktop, cli, embedded**.
 Each pack declares stacks (with detection markers and scaffolds), required tools with minimum versions, sandbox recipes per tier, test tooling, and release steps. `packs/tools.json` maps each tool to install commands per package manager (mise, winget, brew, apt, dnf, pacman, official installers). To add a target, add a JSON file; the core code doesn't change.
 
+### 6. After release: upgrade, maintain, operate, patch
+| Scenario | Playbook | What it gives you |
+|---|---|---|
+| Dependency / SDK / runtime updates | `UPGRADE` | outdated → classify (patch/minor/major/0.x/SDK) → one major at a time → codemods → tests at release tier. `gw eol` checks runtime end of life live via endoflife.date. Pack `policies` track store deadlines (Play target API, Apple Xcode minimum). |
+| Refactoring, tech debt (reactive) | `MAINTAIN` | debt registry with `(impact × frequency) / cost`, boy-scout rule, characterization tests before touching legacy code, strangler fig, dead-code tools per stack |
+| Production | `OPERATE` | minimal observability per target, SEV1–4 incident flow (mitigate first), hotfix from the release tag, **rollback per target** (mobile: halt the staged rollout and roll forward, since there's no rollback), blameless postmortems |
+| Security | `SECURITY` | osv-scanner, gitleaks, stack audits; priority from KEV, EPSS, reachability and exposure (P0 = 72 h … P3 = next upgrade); reactive advisory flow; leaked-secret response |
+
+`gw maintain` prints the exact outdated, upgrade, audit, dead-code, override, rollback and observability commands for your project's stacks.
+
+### 7. Skill catalogue
+`gw skills` recommends agent skills for the current phase and stack from a curated catalogue of **69 skills** from [ECC](https://github.com/affaan-m/ecc), [Superpowers](https://github.com/obra/superpowers) and [agent-skills](https://github.com/addyosmani/agent-skills), all MIT and pinned to exact commits.
+- Fetch is review-only and flags executable files.
+- Install copies the skill and its LICENSE into the project and records it in a lockfile.
+- Groundwork doesn't vendor third-party skills; it points to them.
+
+### 8. Updating Groundwork itself
+`gw upgrade <new-folder>`:
+- backs up the old folder;
+- **replaces** it rather than merging, so no stale instructions remain;
+- warns about local edits using the shipped `MANIFEST.json` checksums;
+- migrates the project state.
+
+Project data in `.groundwork/` and `docs/` is never touched. Project-specific packs and tools go in `.groundwork/packs/` and `.groundwork/tools.json`, so upgrades never clobber them. Manual copies are detected and migrated automatically, and `gw verify --clean` removes leftovers.
+
 ## Learning from real runs
 
 While it works, the agent **silently** logs framework-level friction with `gw note <category> "…"`, and the CLI logs automatic signals: errors, blocked edits, failed gates, checks and runs, skipped phases. The agent never asks the user for feedback.
@@ -98,6 +123,8 @@ gw set tier=standard targets=web,android stacks.android=flutter
 gw phase <H0..P11> <done|skipped|in_progress|blocked> ["note"]
 gw run <target> <S0..S3> -- <cmd> gw gate <G1|G2> [--approve "user's words"]
 gw note <category> "text"         gw feedback
+gw maintain | eol | skills [--all|fetch <id>|install <id>]
+gw version | verify [--clean] | upgrade <new-groundwork-folder>
 ```
 `gw` = `node groundwork/bin/gw.js` (Node 18+, no dependencies).
 
@@ -109,11 +136,13 @@ gw note <category> "text"         gw feedback
 | [`docs/FRAMEWORK-DESIGN.md`](docs/FRAMEWORK-DESIGN.md) | full design, rationale, roadmap |
 | [`research/`](research/README.md) | notes on ECC, BMAD, Spec Kit, Superpowers, GSD, Kiro, AI-DLC, OpenSpec, sandboxing |
 | [`feedback/`](feedback/README.md) | inbox and backlog for real-run feedback |
+| [`scripts/release.js`](scripts/release.js) | regenerates `groundwork/MANIFEST.json` before each release |
 
 ## Development
 
 ```bash
-node groundwork/test/selftest.js   # decision rules against synthetic hosts
+node groundwork/test/selftest.js   # decision rules, catalogue, packs, manifest
+node scripts/release.js            # after changing groundwork/: refresh MANIFEST.json (bump VERSION + CHANGELOG for releases)
 sh -n groundwork/scan/scan.sh      # scanner syntax
 ```
 Rules: keep `groundwork/` dependency-free (POSIX sh, PowerShell 5.1+, Node stdlib) and in English. Platform knowledge goes in packs, not in core code.
@@ -121,6 +150,7 @@ Rules: keep `groundwork/` dependency-free (POSIX sh, PowerShell 5.1+, Node stdli
 ## Roadmap
 - [x] Host scan, capability rules, dev-method selection, target feasibility
 - [x] Phases H0–P11, templates, gates, hooks, run receipts, silent feedback loop
+- [x] Post-release playbooks (upgrade, maintain, operate, security), skill catalogue, framework upgrade/verify
 - [ ] Verified Windows (`scan.ps1`) and macOS runs
 - [ ] Ready-to-use CI workflow templates per pack (Android emulator, macOS, Windows runners)
 - [ ] Devcontainer generation per stack

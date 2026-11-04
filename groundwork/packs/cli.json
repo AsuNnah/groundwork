@@ -79,5 +79,55 @@
   "release": [
     "cross-compiled binaries + checksums",
     "package registry (npm/PyPI/crates/Homebrew/winget)"
+  ],
+  "maintain": {
+    "go": {
+      "outdated": "go list -u -m all",
+      "upgrade_safe": "go get -u=patch ./... && go mod tidy",
+      "upgrade_major": "go get -u ./... && go mod tidy  (new major = new /vN import path)",
+      "audit": "govulncheck ./...",
+      "deadcode": "go run golang.org/x/tools/cmd/deadcode@latest ./...",
+      "why_installed": "go mod why -m <module>",
+      "override": "replace / direct require in go.mod",
+      "eol": "go",
+      "ecosystem": "go"
+    },
+    "rust": {
+      "outdated": "cargo outdated -R  (cargo install cargo-outdated)",
+      "upgrade_safe": "cargo update",
+      "upgrade_major": "cargo upgrade --incompatible  (cargo install cargo-edit; check --help)",
+      "audit": "cargo audit  (cargo install cargo-audit)",
+      "deadcode": "cargo machete",
+      "why_installed": "cargo tree -i <crate>",
+      "override": "[patch] in Cargo.toml",
+      "eol": null,
+      "ecosystem": "rust"
+    },
+    "python": {
+      "outdated": "uv tree --outdated  (pip: pip list --outdated)",
+      "upgrade_safe": "uv lock --upgrade && uv sync",
+      "upgrade_major": "uv lock --upgrade-package <pkg>",
+      "audit": "uvx pip-audit  (or: osv-scanner scan -r .)",
+      "deadcode": "uvx vulture src/ --min-confidence 80 && uvx deptry .",
+      "why_installed": "uv tree --invert --package <pkg>",
+      "override": "[tool.uv] override-dependencies",
+      "eol": "python",
+      "ecosystem": "python"
+    },
+    "node": {
+      "outdated": "npm outdated && npx npm-check-updates",
+      "upgrade_safe": "npx npm-check-updates -u --target minor && npm install",
+      "upgrade_major": "npx npm-check-updates -u --filter <pkg> && npm install",
+      "audit": "npm audit --omit=dev  (or: osv-scanner scan -r .)",
+      "deadcode": "npx knip",
+      "why_installed": "npm ls <pkg>",
+      "override": "package.json \"overrides\" (pnpm: pnpm.overrides, yarn: resolutions)",
+      "eol": "nodejs",
+      "ecosystem": "node"
+    }
+  },
+  "rollback": "Prefer deprecate/yank + patch release: npm deprecate pkg@x \"msg\" (unpublish only within 72h), PyPI yank, cargo yank --version x, Go retract directive, NuGet unlist. Versions can't be reused.",
+  "observe": [
+    "download/error telemetry only if opt-in; issue tracker as primary signal"
   ]
 }

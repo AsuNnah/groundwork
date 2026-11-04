@@ -1,5 +1,5 @@
 # third-party research clones (clone them yourself, see research/README.md)
-research/ecc/
+research/*/
 # legacy single-skill orchestrator (merged into groundwork/)
 app-development-orchestrator/
 # personal feedback reports: keep folders, not contents

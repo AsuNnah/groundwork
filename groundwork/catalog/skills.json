@@ -1,0 +1,1215 @@
+{
+  "_doc": "Curated agent skills from MIT-licensed frameworks, pinned to exact commits. 'gw skills' suggests, 'gw skills fetch <id>' downloads for review, 'gw skills install <id>' installs into .claude/skills with the source LICENSE. Third-party content: review before installing (phases/P4.md).",
+  "as_of": "2026-11-04",
+  "sources": {
+    "ecc": {
+      "repo": "https://github.com/affaan-m/ecc",
+      "ref": "b38be6a7f6350964d59328b52f0624e1d1d552d1",
+      "license": "MIT",
+      "license_file": "LICENSE",
+      "copyright": "Affaan Mustafa"
+    },
+    "superpowers": {
+      "repo": "https://github.com/obra/superpowers",
+      "ref": "22f0b463e7a5e579904dd6211a520321035526f7",
+      "license": "MIT",
+      "license_file": "LICENSE",
+      "copyright": "Jesse Vincent"
+    },
+    "agent-skills": {
+      "repo": "https://github.com/addyosmani/agent-skills",
+      "ref": "301b02b12bff98e4688e6984af6556802322bbde",
+      "license": "MIT",
+      "license_file": "LICENSE",
+      "copyright": "Addy Osmani"
+    }
+  },
+  "skills": [
+    {
+      "id": "agent-skills/interview-me",
+      "source": "agent-skills",
+      "path": "skills/interview-me",
+      "name": "interview-me",
+      "phases": [
+        "P1"
+      ],
+      "targets": [
+        "*"
+      ],
+      "stacks": [
+        "*"
+      ],
+      "why": "one-question-at-a-time requirements interview"
+    },
+    {
+      "id": "agent-skills/idea-refine",
+      "source": "agent-skills",
+      "path": "skills/idea-refine",
+      "name": "idea-refine",
+      "phases": [
+        "P1"
+      ],
+      "targets": [
+        "*"
+      ],
+      "stacks": [
+        "*"
+      ],
+      "why": "sharpen a vague idea before the PRD"
+    },
+    {
+      "id": "superpowers/brainstorming",
+      "source": "superpowers",
+      "path": "skills/brainstorming",
+      "name": "brainstorming",
+      "phases": [
+        "P1",
+        "P5"
+      ],
+      "targets": [
+        "*"
+      ],
+      "stacks": [
+        "*"
+      ],
+      "why": "Socratic design exploration, presented in chunks"
+    },
+    {
+      "id": "agent-skills/api-and-interface-design",
+      "source": "agent-skills",
+      "path": "skills/api-and-interface-design",
+      "name": "api-and-interface-design",
+      "phases": [
+        "P5"
+      ],
+      "targets": [
+        "backend",
+        "web",
+        "cli"
+      ],
+      "stacks": [
+        "*"
+      ],
+      "why": "stable API and module boundaries"
+    },
+    {
+      "id": "agent-skills/planning-and-task-breakdown",
+      "source": "agent-skills",
+      "path": "skills/planning-and-task-breakdown",
+      "name": "planning-and-task-breakdown",
+      "phases": [
+        "P6"
+      ],
+      "targets": [
+        "*"
+      ],
+      "stacks": [
+        "*"
+      ],
+      "why": "split a spec into small ordered tasks"
+    },
+    {
+      "id": "superpowers/writing-plans",
+      "source": "superpowers",
+      "path": "skills/writing-plans",
+      "name": "writing-plans",
+      "phases": [
+        "P6"
+      ],
+      "targets": [
+        "*"
+      ],
+      "stacks": [
+        "*"
+      ],
+      "why": "2\u20135 minute tasks with exact files and verification"
+    },
+    {
+      "id": "agent-skills/constraint-driven-development",
+      "source": "agent-skills",
+      "path": "skills/constraint-driven-development",
+      "name": "constraint-driven-development",
+      "phases": [
+        "P6"
+      ],
+      "targets": [
+        "*"
+      ],
+      "stacks": [
+        "*"
+      ],
+      "why": "CONSTRAINTS.md quality bar; stops agents weakening tests"
+    },
+    {
+      "id": "agent-skills/test-driven-development",
+      "source": "agent-skills",
+      "path": "skills/test-driven-development",
+      "name": "test-driven-development",
+      "phases": [
+        "P7"
+      ],
+      "targets": [
+        "*"
+      ],
+      "stacks": [
+        "*"
+      ],
+      "why": "red-green-refactor with evidence"
+    },
+    {
+      "id": "agent-skills/incremental-implementation",
+      "source": "agent-skills",
+      "path": "skills/incremental-implementation",
+      "name": "incremental-implementation",
+      "phases": [
+        "P7"
+      ],
+      "targets": [
+        "*"
+      ],
+      "stacks": [
+        "*"
+      ],
+      "why": "thin verifiable slices"
+    },
+    {
+      "id": "superpowers/subagent-driven-development",
+      "source": "superpowers",
+      "path": "skills/subagent-driven-development",
+      "name": "subagent-driven-development",
+      "phases": [
+        "P7"
+      ],
+      "targets": [
+        "*"
+      ],
+      "stacks": [
+        "*"
+      ],
+      "why": "fresh subagent per task (large tier)"
+    },
+    {
+      "id": "superpowers/using-git-worktrees",
+      "source": "superpowers",
+      "path": "skills/using-git-worktrees",
+      "name": "using-git-worktrees",
+      "phases": [
+        "P7"
+      ],
+      "targets": [
+        "*"
+      ],
+      "stacks": [
+        "*"
+      ],
+      "why": "isolated branch per feature with a clean baseline"
+    },
+    {
+      "id": "agent-skills/debugging-and-error-recovery",
+      "source": "agent-skills",
+      "path": "skills/debugging-and-error-recovery",
+      "name": "debugging-and-error-recovery",
+      "phases": [
+        "P7",
+        "OPERATE"
+      ],
+      "targets": [
+        "*"
+      ],
+      "stacks": [
+        "*"
+      ],
+      "why": "root-cause debugging instead of guessing"
+    },
+    {
+      "id": "superpowers/verification-before-completion",
+      "source": "superpowers",
+      "path": "skills/verification-before-completion",
+      "name": "verification-before-completion",
+      "phases": [
+        "P8"
+      ],
+      "targets": [
+        "*"
+      ],
+      "stacks": [
+        "*"
+      ],
+      "why": "no 'done' without evidence"
+    },
+    {
+      "id": "ecc/verification-loop",
+      "source": "ecc",
+      "path": "skills/verification-loop",
+      "name": "verification-loop",
+      "phases": [
+        "P8"
+      ],
+      "targets": [
+        "*"
+      ],
+      "stacks": [
+        "*"
+      ],
+      "why": "build \u2192 types \u2192 lint \u2192 tests \u2192 security \u2192 diff report",
+      "note": "mentions ECC commands; follow the steps, ignore the command names"
+    },
+    {
+      "id": "agent-skills/code-review-and-quality",
+      "source": "agent-skills",
+      "path": "skills/code-review-and-quality",
+      "name": "code-review-and-quality",
+      "phases": [
+        "P9"
+      ],
+      "targets": [
+        "*"
+      ],
+      "stacks": [
+        "*"
+      ],
+      "why": "multi-axis code review"
+    },
+    {
+      "id": "agent-skills/security-and-hardening",
+      "source": "agent-skills",
+      "path": "skills/security-and-hardening",
+      "name": "security-and-hardening",
+      "phases": [
+        "P5",
+        "P9",
+        "SECURITY"
+      ],
+      "targets": [
+        "*"
+      ],
+      "stacks": [
+        "*"
+      ],
+      "why": "security requirements and hardening"
+    },
+    {
+      "id": "ecc/security-review",
+      "source": "ecc",
+      "path": "skills/security-review",
+      "name": "security-review",
+      "phases": [
+        "P9",
+        "SECURITY"
+      ],
+      "targets": [
+        "*"
+      ],
+      "stacks": [
+        "*"
+      ],
+      "why": "checklist for auth, input, secrets, APIs"
+    },
+    {
+      "id": "agent-skills/shipping-and-launch",
+      "source": "agent-skills",
+      "path": "skills/shipping-and-launch",
+      "name": "shipping-and-launch",
+      "phases": [
+        "P10"
+      ],
+      "targets": [
+        "*"
+      ],
+      "stacks": [
+        "*"
+      ],
+      "why": "pre-launch checklist"
+    },
+    {
+      "id": "agent-skills/ci-cd-and-automation",
+      "source": "agent-skills",
+      "path": "skills/ci-cd-and-automation",
+      "name": "ci-cd-and-automation",
+      "phases": [
+        "P8",
+        "P10"
+      ],
+      "targets": [
+        "*"
+      ],
+      "stacks": [
+        "*"
+      ],
+      "why": "CI pipeline and quality gates (S3 tier)"
+    },
+    {
+      "id": "agent-skills/observability-and-instrumentation",
+      "source": "agent-skills",
+      "path": "skills/observability-and-instrumentation",
+      "name": "observability-and-instrumentation",
+      "phases": [
+        "OPERATE",
+        "P10"
+      ],
+      "targets": [
+        "*"
+      ],
+      "stacks": [
+        "*"
+      ],
+      "why": "logs, metrics, tracing, alerts"
+    },
+    {
+      "id": "ecc/production-audit",
+      "source": "ecc",
+      "path": "skills/production-audit",
+      "name": "production-audit",
+      "phases": [
+        "P10",
+        "OPERATE"
+      ],
+      "targets": [
+        "*"
+      ],
+      "stacks": [
+        "*"
+      ],
+      "why": "evidence-based production readiness audit"
+    },
+    {
+      "id": "ecc/canary-watch",
+      "source": "ecc",
+      "path": "skills/canary-watch",
+      "name": "canary-watch",
+      "phases": [
+        "OPERATE"
+      ],
+      "targets": [
+        "web",
+        "backend"
+      ],
+      "stacks": [
+        "*"
+      ],
+      "why": "verify a deployed URL after release"
+    },
+    {
+      "id": "agent-skills/deprecation-and-migration",
+      "source": "agent-skills",
+      "path": "skills/deprecation-and-migration",
+      "name": "deprecation-and-migration",
+      "phases": [
+        "UPGRADE",
+        "MAINTAIN"
+      ],
+      "targets": [
+        "*"
+      ],
+      "stacks": [
+        "*"
+      ],
+      "why": "deprecations, migrations, expand/contract"
+    },
+    {
+      "id": "agent-skills/code-simplification",
+      "source": "agent-skills",
+      "path": "skills/code-simplification",
+      "name": "code-simplification",
+      "phases": [
+        "MAINTAIN"
+      ],
+      "targets": [
+        "*"
+      ],
+      "stacks": [
+        "*"
+      ],
+      "why": "refactor for clarity without behaviour change"
+    },
+    {
+      "id": "ecc/change-impact",
+      "source": "ecc",
+      "path": "skills/change-impact",
+      "name": "change-impact",
+      "phases": [
+        "CHANGE",
+        "MAINTAIN",
+        "UPGRADE"
+      ],
+      "targets": [
+        "*"
+      ],
+      "stacks": [
+        "*"
+      ],
+      "why": "evidence-backed blast-radius analysis before a change"
+    },
+    {
+      "id": "ecc/codebase-onboarding",
+      "source": "ecc",
+      "path": "skills/codebase-onboarding",
+      "name": "codebase-onboarding",
+      "phases": [
+        "CHANGE",
+        "P0"
+      ],
+      "targets": [
+        "*"
+      ],
+      "stacks": [
+        "*"
+      ],
+      "why": "map an unfamiliar codebase first"
+    },
+    {
+      "id": "ecc/database-migrations",
+      "source": "ecc",
+      "path": "skills/database-migrations",
+      "name": "database-migrations",
+      "phases": [
+        "P5",
+        "MAINTAIN",
+        "OPERATE"
+      ],
+      "targets": [
+        "backend"
+      ],
+      "stacks": [
+        "*"
+      ],
+      "why": "reversible, expand/contract migrations"
+    },
+    {
+      "id": "ecc/accessibility",
+      "source": "ecc",
+      "path": "skills/accessibility",
+      "name": "accessibility",
+      "phases": [
+        "P5",
+        "P9"
+      ],
+      "targets": [
+        "web",
+        "android",
+        "ios"
+      ],
+      "stacks": [
+        "*"
+      ],
+      "why": "WCAG 2.2 AA across web, iOS, Android"
+    },
+    {
+      "id": "ecc/contract-first",
+      "source": "ecc",
+      "path": "skills/contract-first",
+      "name": "contract-first",
+      "phases": [
+        "P5"
+      ],
+      "targets": [
+        "backend",
+        "web"
+      ],
+      "stacks": [
+        "*"
+      ],
+      "why": "one OpenAPI/schema as the source of truth"
+    },
+    {
+      "id": "ecc/deployment-patterns",
+      "source": "ecc",
+      "path": "skills/deployment-patterns",
+      "name": "deployment-patterns",
+      "phases": [
+        "P10",
+        "OPERATE"
+      ],
+      "targets": [
+        "backend",
+        "web"
+      ],
+      "stacks": [
+        "*"
+      ],
+      "why": "CI/CD, health checks, rollback"
+    },
+    {
+      "id": "ecc/docker-patterns",
+      "source": "ecc",
+      "path": "skills/docker-patterns",
+      "name": "docker-patterns",
+      "phases": [
+        "P3",
+        "P10"
+      ],
+      "targets": [
+        "backend",
+        "web",
+        "cli"
+      ],
+      "stacks": [
+        "*"
+      ],
+      "why": "Dockerfile and compose patterns",
+      "note": "contains many ECC-specific harness sections; use the general Docker parts"
+    },
+    {
+      "id": "agent-skills/frontend-ui-engineering",
+      "source": "agent-skills",
+      "path": "skills/frontend-ui-engineering",
+      "name": "frontend-ui-engineering",
+      "phases": [
+        "P5",
+        "P7"
+      ],
+      "targets": [
+        "web"
+      ],
+      "stacks": [
+        "*"
+      ],
+      "why": "accessible, production-quality UI"
+    },
+    {
+      "id": "agent-skills/browser-testing-with-devtools",
+      "source": "agent-skills",
+      "path": "skills/browser-testing-with-devtools",
+      "name": "browser-testing-with-devtools",
+      "phases": [
+        "P8"
+      ],
+      "targets": [
+        "web"
+      ],
+      "stacks": [
+        "*"
+      ],
+      "why": "real-browser checks via DevTools MCP"
+    },
+    {
+      "id": "ecc/e2e-testing",
+      "source": "ecc",
+      "path": "skills/e2e-testing",
+      "name": "e2e-testing",
+      "phases": [
+        "P8"
+      ],
+      "targets": [
+        "web"
+      ],
+      "stacks": [
+        "*"
+      ],
+      "why": "Playwright patterns, page objects, CI artifacts",
+      "note": "mentions ECC commands"
+    },
+    {
+      "id": "ecc/browser-qa",
+      "source": "ecc",
+      "path": "skills/browser-qa",
+      "name": "browser-qa",
+      "phases": [
+        "P8",
+        "OPERATE"
+      ],
+      "targets": [
+        "web"
+      ],
+      "stacks": [
+        "*"
+      ],
+      "why": "post-deploy UI verification"
+    },
+    {
+      "id": "ecc/frontend-patterns",
+      "source": "ecc",
+      "path": "skills/frontend-patterns",
+      "name": "frontend-patterns",
+      "phases": [
+        "P7"
+      ],
+      "targets": [
+        "web"
+      ],
+      "stacks": [
+        "vite-react",
+        "nextjs"
+      ],
+      "why": "React/Next.js state and performance patterns"
+    },
+    {
+      "id": "ecc/react-patterns",
+      "source": "ecc",
+      "path": "skills/react-patterns",
+      "name": "react-patterns",
+      "phases": [
+        "P7"
+      ],
+      "targets": [
+        "web",
+        "android"
+      ],
+      "stacks": [
+        "vite-react",
+        "nextjs",
+        "react-native"
+      ],
+      "why": "React 18/19 hooks and server/client boundaries"
+    },
+    {
+      "id": "ecc/react-testing",
+      "source": "ecc",
+      "path": "skills/react-testing",
+      "name": "react-testing",
+      "phases": [
+        "P7",
+        "P8"
+      ],
+      "targets": [
+        "web"
+      ],
+      "stacks": [
+        "vite-react",
+        "nextjs"
+      ],
+      "why": "RTL + Vitest/Jest + MSW"
+    },
+    {
+      "id": "ecc/nextjs-turbopack",
+      "source": "ecc",
+      "path": "skills/nextjs-turbopack",
+      "name": "nextjs-turbopack",
+      "phases": [
+        "P7"
+      ],
+      "targets": [
+        "web"
+      ],
+      "stacks": [
+        "nextjs"
+      ],
+      "why": "Next.js 16 + Turbopack"
+    },
+    {
+      "id": "ecc/vite-patterns",
+      "source": "ecc",
+      "path": "skills/vite-patterns",
+      "name": "vite-patterns",
+      "phases": [
+        "P7"
+      ],
+      "targets": [
+        "web"
+      ],
+      "stacks": [
+        "vite-react",
+        "vue",
+        "svelte"
+      ],
+      "why": "Vite config, env, SSR"
+    },
+    {
+      "id": "ecc/vue-patterns",
+      "source": "ecc",
+      "path": "skills/vue-patterns",
+      "name": "vue-patterns",
+      "phases": [
+        "P7"
+      ],
+      "targets": [
+        "web"
+      ],
+      "stacks": [
+        "vue"
+      ],
+      "why": "Vue 3 Composition API, Pinia"
+    },
+    {
+      "id": "ecc/nuxt4-patterns",
+      "source": "ecc",
+      "path": "skills/nuxt4-patterns",
+      "name": "nuxt4-patterns",
+      "phases": [
+        "P7"
+      ],
+      "targets": [
+        "web"
+      ],
+      "stacks": [
+        "vue"
+      ],
+      "why": "Nuxt 4 SSR and hydration safety"
+    },
+    {
+      "id": "ecc/typescript-patterns",
+      "source": "ecc",
+      "path": "skills/typescript-patterns",
+      "name": "typescript-patterns",
+      "phases": [
+        "P7"
+      ],
+      "targets": [
+        "web",
+        "backend",
+        "cli"
+      ],
+      "stacks": [
+        "vite-react",
+        "nextjs",
+        "vue",
+        "svelte",
+        "node",
+        "react-native",
+        "electron"
+      ],
+      "why": "strict TypeScript"
+    },
+    {
+      "id": "ecc/backend-patterns",
+      "source": "ecc",
+      "path": "skills/backend-patterns",
+      "name": "backend-patterns",
+      "phases": [
+        "P5",
+        "P7"
+      ],
+      "targets": [
+        "backend"
+      ],
+      "stacks": [
+        "*"
+      ],
+      "why": "server architecture and DB optimisation"
+    },
+    {
+      "id": "ecc/fastapi-patterns",
+      "source": "ecc",
+      "path": "skills/fastapi-patterns",
+      "name": "fastapi-patterns",
+      "phases": [
+        "P7"
+      ],
+      "targets": [
+        "backend"
+      ],
+      "stacks": [
+        "python"
+      ],
+      "why": "FastAPI + Pydantic v2"
+    },
+    {
+      "id": "ecc/django-patterns",
+      "source": "ecc",
+      "path": "skills/django-patterns",
+      "name": "django-patterns",
+      "phases": [
+        "P7"
+      ],
+      "targets": [
+        "backend"
+      ],
+      "stacks": [
+        "python"
+      ],
+      "why": "Django + DRF"
+    },
+    {
+      "id": "ecc/python-testing",
+      "source": "ecc",
+      "path": "skills/python-testing",
+      "name": "python-testing",
+      "phases": [
+        "P7",
+        "P8"
+      ],
+      "targets": [
+        "backend",
+        "cli"
+      ],
+      "stacks": [
+        "python"
+      ],
+      "why": "pytest patterns"
+    },
+    {
+      "id": "ecc/golang-patterns",
+      "source": "ecc",
+      "path": "skills/golang-patterns",
+      "name": "golang-patterns",
+      "phases": [
+        "P7"
+      ],
+      "targets": [
+        "backend",
+        "cli"
+      ],
+      "stacks": [
+        "go"
+      ],
+      "why": "idiomatic Go"
+    },
+    {
+      "id": "ecc/golang-testing",
+      "source": "ecc",
+      "path": "skills/golang-testing",
+      "name": "golang-testing",
+      "phases": [
+        "P7",
+        "P8"
+      ],
+      "targets": [
+        "backend",
+        "cli"
+      ],
+      "stacks": [
+        "go"
+      ],
+      "why": "table-driven tests, fuzzing"
+    },
+    {
+      "id": "ecc/springboot-patterns",
+      "source": "ecc",
+      "path": "skills/springboot-patterns",
+      "name": "springboot-patterns",
+      "phases": [
+        "P7"
+      ],
+      "targets": [
+        "backend"
+      ],
+      "stacks": [
+        "java-spring"
+      ],
+      "why": "Spring Boot layering"
+    },
+    {
+      "id": "ecc/nestjs-patterns",
+      "source": "ecc",
+      "path": "skills/nestjs-patterns",
+      "name": "nestjs-patterns",
+      "phases": [
+        "P7"
+      ],
+      "targets": [
+        "backend"
+      ],
+      "stacks": [
+        "node"
+      ],
+      "why": "NestJS modules, DTOs, guards"
+    },
+    {
+      "id": "ecc/prisma-patterns",
+      "source": "ecc",
+      "path": "skills/prisma-patterns",
+      "name": "prisma-patterns",
+      "phases": [
+        "P7"
+      ],
+      "targets": [
+        "backend"
+      ],
+      "stacks": [
+        "node"
+      ],
+      "why": "Prisma schema and queries"
+    },
+    {
+      "id": "ecc/dotnet-patterns",
+      "source": "ecc",
+      "path": "skills/dotnet-patterns",
+      "name": "dotnet-patterns",
+      "phases": [
+        "P7"
+      ],
+      "targets": [
+        "backend",
+        "windows"
+      ],
+      "stacks": [
+        "dotnet",
+        "dotnet-wpf-winui"
+      ],
+      "why": "idiomatic C#/.NET"
+    },
+    {
+      "id": "ecc/csharp-testing",
+      "source": "ecc",
+      "path": "skills/csharp-testing",
+      "name": "csharp-testing",
+      "phases": [
+        "P7",
+        "P8"
+      ],
+      "targets": [
+        "backend",
+        "windows"
+      ],
+      "stacks": [
+        "dotnet",
+        "dotnet-wpf-winui"
+      ],
+      "why": "xUnit, mocking, integration tests"
+    },
+    {
+      "id": "ecc/android-clean-architecture",
+      "source": "ecc",
+      "path": "skills/android-clean-architecture",
+      "name": "android-clean-architecture",
+      "phases": [
+        "P5",
+        "P7"
+      ],
+      "targets": [
+        "android"
+      ],
+      "stacks": [
+        "kotlin-compose"
+      ],
+      "why": "module structure, DI, layers"
+    },
+    {
+      "id": "ecc/kotlin-patterns",
+      "source": "ecc",
+      "path": "skills/kotlin-patterns",
+      "name": "kotlin-patterns",
+      "phases": [
+        "P7"
+      ],
+      "targets": [
+        "android"
+      ],
+      "stacks": [
+        "kotlin-compose"
+      ],
+      "why": "idiomatic Kotlin"
+    },
+    {
+      "id": "ecc/kotlin-coroutines-flows",
+      "source": "ecc",
+      "path": "skills/kotlin-coroutines-flows",
+      "name": "kotlin-coroutines-flows",
+      "phases": [
+        "P7"
+      ],
+      "targets": [
+        "android"
+      ],
+      "stacks": [
+        "kotlin-compose"
+      ],
+      "why": "structured concurrency, Flow"
+    },
+    {
+      "id": "ecc/kotlin-testing",
+      "source": "ecc",
+      "path": "skills/kotlin-testing",
+      "name": "kotlin-testing",
+      "phases": [
+        "P7",
+        "P8"
+      ],
+      "targets": [
+        "android"
+      ],
+      "stacks": [
+        "kotlin-compose"
+      ],
+      "why": "Kotest, MockK, coroutine tests"
+    },
+    {
+      "id": "ecc/compose-multiplatform-patterns",
+      "source": "ecc",
+      "path": "skills/compose-multiplatform-patterns",
+      "name": "compose-multiplatform-patterns",
+      "phases": [
+        "P7"
+      ],
+      "targets": [
+        "android"
+      ],
+      "stacks": [
+        "kotlin-compose"
+      ],
+      "why": "Compose state and navigation"
+    },
+    {
+      "id": "ecc/dart-flutter-patterns",
+      "source": "ecc",
+      "path": "skills/dart-flutter-patterns",
+      "name": "dart-flutter-patterns",
+      "phases": [
+        "P7"
+      ],
+      "targets": [
+        "android",
+        "ios"
+      ],
+      "stacks": [
+        "flutter"
+      ],
+      "why": "Flutter state, null safety, Freezed"
+    },
+    {
+      "id": "ecc/flutter-dart-code-review",
+      "source": "ecc",
+      "path": "skills/flutter-dart-code-review",
+      "name": "flutter-dart-code-review",
+      "phases": [
+        "P9"
+      ],
+      "targets": [
+        "android",
+        "ios"
+      ],
+      "stacks": [
+        "flutter"
+      ],
+      "why": "Flutter review checklist"
+    },
+    {
+      "id": "ecc/react-native-patterns",
+      "source": "ecc",
+      "path": "skills/react-native-patterns",
+      "name": "react-native-patterns",
+      "phases": [
+        "P7"
+      ],
+      "targets": [
+        "android",
+        "ios"
+      ],
+      "stacks": [
+        "react-native"
+      ],
+      "why": "Expo Router, state separation"
+    },
+    {
+      "id": "ecc/swiftui-patterns",
+      "source": "ecc",
+      "path": "skills/swiftui-patterns",
+      "name": "swiftui-patterns",
+      "phases": [
+        "P7"
+      ],
+      "targets": [
+        "ios",
+        "macos"
+      ],
+      "stacks": [
+        "swiftui"
+      ],
+      "why": "SwiftUI + @Observable"
+    },
+    {
+      "id": "ecc/swift-concurrency-6-2",
+      "source": "ecc",
+      "path": "skills/swift-concurrency-6-2",
+      "name": "swift-concurrency-6-2",
+      "phases": [
+        "P7"
+      ],
+      "targets": [
+        "ios",
+        "macos"
+      ],
+      "stacks": [
+        "swiftui"
+      ],
+      "why": "Swift 6.2 concurrency"
+    },
+    {
+      "id": "ecc/swift-protocol-di-testing",
+      "source": "ecc",
+      "path": "skills/swift-protocol-di-testing",
+      "name": "swift-protocol-di-testing",
+      "phases": [
+        "P7",
+        "P8"
+      ],
+      "targets": [
+        "ios",
+        "macos"
+      ],
+      "stacks": [
+        "swiftui"
+      ],
+      "why": "protocol-based DI for testability"
+    },
+    {
+      "id": "ecc/windows-desktop-e2e",
+      "source": "ecc",
+      "path": "skills/windows-desktop-e2e",
+      "name": "windows-desktop-e2e",
+      "phases": [
+        "P8"
+      ],
+      "targets": [
+        "windows"
+      ],
+      "stacks": [
+        "*"
+      ],
+      "why": "pywinauto / UIA E2E for WPF, WinForms, Win32, Qt",
+      "note": "mentions ECC commands"
+    },
+    {
+      "id": "ecc/rust-patterns",
+      "source": "ecc",
+      "path": "skills/rust-patterns",
+      "name": "rust-patterns",
+      "phases": [
+        "P7"
+      ],
+      "targets": [
+        "cli",
+        "windows",
+        "macos",
+        "linux-desktop"
+      ],
+      "stacks": [
+        "rust",
+        "tauri"
+      ],
+      "why": "idiomatic Rust"
+    },
+    {
+      "id": "ecc/rust-testing",
+      "source": "ecc",
+      "path": "skills/rust-testing",
+      "name": "rust-testing",
+      "phases": [
+        "P7",
+        "P8"
+      ],
+      "targets": [
+        "cli",
+        "windows",
+        "macos",
+        "linux-desktop"
+      ],
+      "stacks": [
+        "rust",
+        "tauri"
+      ],
+      "why": "unit/integration/property tests"
+    },
+    {
+      "id": "ecc/cpp-testing",
+      "source": "ecc",
+      "path": "skills/cpp-testing",
+      "name": "cpp-testing",
+      "phases": [
+        "P7",
+        "P8"
+      ],
+      "targets": [
+        "embedded",
+        "linux-desktop"
+      ],
+      "stacks": [
+        "zephyr",
+        "esp-idf",
+        "platformio",
+        "qt"
+      ],
+      "why": "GoogleTest/CTest"
+    }
+  ]
+}

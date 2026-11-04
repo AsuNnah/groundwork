@@ -68,5 +68,59 @@
   "release": [
     "build static/SSR bundle",
     "hosting checklist (env vars, HTTPS, caching)"
+  ],
+  "maintain": {
+    "vite-react": {
+      "outdated": "npm outdated && npx npm-check-updates",
+      "upgrade_safe": "npx npm-check-updates -u --target minor && npm install",
+      "upgrade_major": "npx npm-check-updates -u --filter <pkg> && npm install",
+      "audit": "npm audit --omit=dev  (or: osv-scanner scan -r .)",
+      "deadcode": "npx knip",
+      "why_installed": "npm ls <pkg>",
+      "override": "package.json \"overrides\" (pnpm: pnpm.overrides, yarn: resolutions)",
+      "eol": "nodejs",
+      "ecosystem": "node",
+      "codemod": "npx codemod@latest react/19/migration-recipe (verify recipe name)"
+    },
+    "nextjs": {
+      "outdated": "npm outdated && npx npm-check-updates",
+      "upgrade_safe": "npx npm-check-updates -u --target minor && npm install",
+      "upgrade_major": "npx npm-check-updates -u --filter <pkg> && npm install",
+      "audit": "npm audit --omit=dev  (or: osv-scanner scan -r .)",
+      "deadcode": "npx knip",
+      "why_installed": "npm ls <pkg>",
+      "override": "package.json \"overrides\" (pnpm: pnpm.overrides, yarn: resolutions)",
+      "eol": "nodejs",
+      "ecosystem": "node",
+      "codemod": "npx @next/codemod@latest upgrade latest"
+    },
+    "vue": {
+      "outdated": "npm outdated && npx npm-check-updates",
+      "upgrade_safe": "npx npm-check-updates -u --target minor && npm install",
+      "upgrade_major": "npx npm-check-updates -u --filter <pkg> && npm install",
+      "audit": "npm audit --omit=dev  (or: osv-scanner scan -r .)",
+      "deadcode": "npx knip",
+      "why_installed": "npm ls <pkg>",
+      "override": "package.json \"overrides\" (pnpm: pnpm.overrides, yarn: resolutions)",
+      "eol": "nodejs",
+      "ecosystem": "node"
+    },
+    "svelte": {
+      "outdated": "npm outdated && npx npm-check-updates",
+      "upgrade_safe": "npx npm-check-updates -u --target minor && npm install",
+      "upgrade_major": "npx npm-check-updates -u --filter <pkg> && npm install",
+      "audit": "npm audit --omit=dev  (or: osv-scanner scan -r .)",
+      "deadcode": "npx knip",
+      "why_installed": "npm ls <pkg>",
+      "override": "package.json \"overrides\" (pnpm: pnpm.overrides, yarn: resolutions)",
+      "eol": "nodejs",
+      "ecosystem": "node"
+    }
+  },
+  "rollback": "Redeploy the previous immutable build/image (host: 'promote previous deployment'); feature flag off is fastest. DB: expand/contract migrations so the previous build still runs.",
+  "observe": [
+    "error tracking (Sentry or self-hosted GlitchTip) tagged with release version",
+    "uptime check (Uptime Kuma self-hosted, or UptimeRobot free)",
+    "Core Web Vitals (web-vitals lib)"
   ]
 }

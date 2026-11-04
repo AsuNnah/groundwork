@@ -33,18 +33,51 @@ gw gate <G1|G2> [--approve "user's words"]
 | Path | What |
 |---|---|
 | `GROUNDWORK.md` | agent entry point: rules + phase map |
-| `phases/` | one file per phase: H0 host scan → P0 intake … P10 release → P11 learn, plus CHANGE for brownfield work |
+| `phases/` | one file per phase: H0 host scan → P0 intake … P10 release → P11 learn; playbooks CHANGE, UPGRADE, MAINTAIN, OPERATE, SECURITY |
 | `scan/` | zero-dependency host scanners (`scan.sh`, `scan.ps1`) |
 | `bin/gw.js` | CLI (Node 18+, no dependencies) |
 | `packs/` | one JSON per target (web, backend, android, ios, macos, windows, linux-desktop, cli, embedded) + the `tools.json` install catalogue |
-| `templates/` | PRD, FSD, TRD, SRD, ADR, plan, test strategy, skill requirements |
+| `templates/` | PRD, FSD, TRD, SRD, ADR, plan, test strategy, skill requirements, tech debt, incident, runbook |
+| `catalog/skills.json` | pinned skill catalogue |
+| `MANIFEST.json`, `CHANGELOG.md`, `VERSION` | release metadata used by `gw upgrade` / `gw verify` |
 | `test/selftest.js` | `node groundwork/test/selftest.js` |
 
-## Updating
-Replace the `groundwork/` folder with a newer copy. Project state is in `.groundwork/` and `docs/`, so nothing is lost.
+## Updating Groundwork in a project
+Your project data is never in this folder. It lives in `.groundwork/` and `docs/`, so an update only replaces framework files.
+
+**Recommended:**
+`node groundwork/bin/gw.js upgrade /path/to/new/groundwork`
+1. Backs up the current folder to `.groundwork/backups/` (gitignored).
+2. **Replaces** the folder rather than merging: files the new version removed are deleted, so no stale instructions stay behind.
+3. Warns about any files you edited locally. Each release ships a `MANIFEST.json` of file checksums to compare against.
+4. Runs the new version's state migration and prints the changelog since your version.
+
+Downgrades are refused unless you pass `--force`.
+
+**Manual copy also works:** delete the old `groundwork/` and copy the new one in. If you copied over the old folder instead, run `gw verify --clean` to remove leftovers. Either way, the next `gw` command or session start migrates the state automatically. `gw version` shows the framework version and the project's state version.
+
+**Don't edit files inside `groundwork/`.** Put project-specific changes where upgrades don't touch them:
+- `.groundwork/packs/<id>.json`: adds a pack, or replaces a shipped pack with the same id;
+- `.groundwork/tools.json`: adds or overrides tool install commands;
+- `CLAUDE.md`: project rules.
+
+If a change would help every project, it belongs in the framework instead: the agent logs it as feedback (`gw note improve …`).
+
+## After release: maintenance playbooks
+| Situation | Playbook | Helpers |
+|---|---|---|
+| Dependency / SDK / runtime updates, store deadlines | `phases/UPGRADE.md` | `gw maintain`, `gw eol` |
+| Refactoring, tech debt (reactive) | `phases/MAINTAIN.md` | `templates/tech-debt.md` |
+| Monitoring, incidents, hotfix, rollback | `phases/OPERATE.md` | `templates/incident.md`, `templates/runbook.md` |
+| Vulnerabilities, advisories, leaked secrets | `phases/SECURITY.md` | osv-scanner, gitleaks, trivy, syft via `gw plan-install` |
+
+## Skill catalogue
+`gw skills` suggests agent skills for the current phase, stage, targets and stacks. They come from `catalog/skills.json`: 69 curated skills from [ECC](https://github.com/affaan-m/ecc), [Superpowers](https://github.com/obra/superpowers) and [agent-skills](https://github.com/addyosmani/agent-skills), all MIT-licensed and pinned to exact commits.
+- `gw skills fetch <id>` downloads one for review only.
+- `gw skills install <id>` installs it into `.claude/skills/` with its LICENSE and records it in `.groundwork/skills.lock.json`.
 
 ## What to commit
-Commit `groundwork/`, `.groundwork/` (project.json, state.json, tasks.json, gates/, decisions.jsonl, run receipts), and `docs/`. These are gitignored automatically: `host-profile.json` and `env-report.json` (they're machine-specific; every machine rescans), plus `feedback/` and `FEEDBACK.md` (personal).
+Commit `groundwork/`, `.groundwork/` (project.json, state.json, tasks.json, gates/, decisions.jsonl, run receipts), and `docs/`. These are gitignored automatically: `host-profile.json` and `env-report.json` (they're machine-specific; every machine rescans), plus `feedback/`, `FEEDBACK.md`, `backups/` and `cache/` (personal or regenerable). Commit `skills.lock.json`.
 
 ## Adding a target
 Add `packs/<id>.json` (copy an existing pack) and any missing tools to `packs/tools.json`. The core code doesn't change.

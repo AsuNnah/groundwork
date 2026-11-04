@@ -50,5 +50,10 @@
   "release": [
     "signed firmware image",
     "OTA plan"
+  ],
+  "rollback": "A/B slots with test-then-confirm: MCUboot swap mode + boot_set_confirmed(); ESP-IDF CONFIG_BOOTLOADER_APP_ROLLBACK_ENABLE + esp_ota_mark_app_valid_cancel_rollback(); Linux devices RAUC/SWUpdate/Mender. Staged fleet rollout, watchdog, signed images.",
+  "observe": [
+    "device heartbeat + firmware version reporting",
+    "bootcount / rollback events"
   ]
 }

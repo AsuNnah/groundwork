@@ -139,12 +139,13 @@ function devMethod(h, c) {
     : { id: 'native-user-scope', why: 'no usable container engine: mise/uv in ~/.local' + (c.admin ? '' : ', no sudo') };
   return { id: 'manual', why: 'unknown host' };
 }
+// project overrides live in .groundwork/ so the framework folder can be replaced on upgrade
 function packs() {
-  const dir = path.join(FW, 'packs');
-  return Object.fromEntries(fs.readdirSync(dir).filter(f => f.endsWith('.json') && f !== 'tools.json')
-    .map(f => [f.replace(/\.json$/, ''), readJson(path.join(dir, f))]));
+  const load = dir => !exists(dir) ? {} : Object.fromEntries(fs.readdirSync(dir).filter(f => f.endsWith('.json') && f !== 'tools.json')
+    .map(f => [f.replace(/\.json$/, ''), readJson(path.join(dir, f))]).filter(([, v]) => v));
+  return { ...load(path.join(FW, 'packs')), ...load(P('packs')) };
 }
-const tools = () => readJson(path.join(FW, 'packs', 'tools.json'), {});
+const tools = () => ({ ...readJson(path.join(FW, 'packs', 'tools.json'), {}), ...readJson(P('tools.json'), {}) });
 function tierAvailable(pack, tier, c) {
   const s = pack.sandbox && pack.sandbox[tier];
   if (!s) return false;
@@ -315,24 +316,164 @@ function runs() {
   return fs.readdirSync(d).map(r => readJson(path.join(d, r, 'receipt.json'))).filter(Boolean);
 }
 
+// ---------- wiring (shared by init and migrate) ----------
+function wireGitignore() {
+  const gi = path.join(ROOT, '.gitignore'), giLines = ['.groundwork/host-profile.json', '.groundwork/env-report.json', '.groundwork/runs/*/logs/', '.groundwork/feedback/', '.groundwork/FEEDBACK.md', '.groundwork/backups/', '.groundwork/cache/'];
+  const giText = exists(gi) ? fs.readFileSync(gi, 'utf8') : '';
+  const add = giLines.filter(l => !giText.includes(l));
+  if (add.length) fs.appendFileSync(gi, (giText && !giText.endsWith('\n') ? '\n' : '') + '# groundwork (machine-specific / personal)\n' + add.join('\n') + '\n');
+}
+function wireSkill() {
+  const sk = path.join(ROOT, '.claude', 'skills', 'groundwork', 'SKILL.md');
+  fs.mkdirSync(path.dirname(sk), { recursive: true });
+  fs.copyFileSync(path.join(FW, 'hooks', 'SKILL.md'), sk);
+}
+
+// ---------- framework integrity & upgrade ----------
+const crypto = require('crypto');
+const SKIP = new Set(['MANIFEST.json']);
+function walk(dir, base = dir) {
+  return fs.readdirSync(dir, { withFileTypes: true }).flatMap(e => {
+    const f = path.join(dir, e.name);
+    return e.isDirectory() ? walk(f, base) : [path.relative(base, f).split(path.sep).join('/')];
+  }).filter(f => !SKIP.has(f)).sort();
+}
+// hash with normalised line endings so a Windows checkout (CRLF) still verifies
+const sha = f => crypto.createHash('sha256').update(fs.readFileSync(f).toString('utf8').replace(/\r\n/g, '\n')).digest('hex').slice(0, 16);
+const readVersion = dir => { try { return fs.readFileSync(path.join(dir, 'VERSION'), 'utf8').trim(); } catch { return '?'; } };
+function buildManifest(dir = FW) {
+  return { version: readVersion(dir), files: Object.fromEntries(walk(dir).map(f => [f, sha(path.join(dir, f))])) };
+}
+function integrity(dir = FW) {
+  const m = readJson(path.join(dir, 'MANIFEST.json'));
+  if (!m) return { manifest: false, modified: [], stale: [], missing: [] };
+  const have = walk(dir);
+  return {
+    manifest: true, version: m.version,
+    modified: have.filter(f => m.files[f] && m.files[f] !== sha(path.join(dir, f))),
+    stale: have.filter(f => !m.files[f]),                        // left over from an older version (or user-added)
+    missing: Object.keys(m.files).filter(f => !have.includes(f)),
+  };
+}
+// state migrations: each runs once when a project moves past its `to` version
+const MIGRATIONS = [
+  { to: '0.3.0', run: () => { /* 0.3.0 only adds fields/files; nothing to rewrite */ } },
+];
+function migrate({ quiet = false } = {}) {
+  if (!exists(P('project.json'))) return null;
+  const p = project(), from = p.framework_version || '0.2.0';
+  if (from === VERSION) return null;
+  if (vcmp(from, VERSION) > 0) { if (!quiet) console.log(`Groundwork: project state is from a newer framework (${from}) than this copy (${VERSION}). Upgrade the groundwork/ folder.`); return null; }
+  for (const m of MIGRATIONS) if (vcmp(m.to, from) > 0 && vcmp(m.to, VERSION) <= 0) m.run(p);
+  p.framework_version = VERSION; writeJson(P('project.json'), p);
+  wireGitignore();
+  if (exists(path.join(ROOT, '.claude', 'skills', 'groundwork'))) wireSkill();
+  fs.appendFileSync(P('decisions.jsonl'), JSON.stringify({ at: now(), kind: 'framework-upgrade', from, to: VERSION }) + '\n');
+  fb('upgrade', { from, to: VERSION });
+  const notes = changelogSince(from);
+  if (!quiet) console.log(`Groundwork upgraded ${from} → ${VERSION}. State migrated.` + (notes ? '\n' + notes : ''));
+  return { from, to: VERSION };
+}
+function changelogSince(from, dir = FW) {
+  let t; try { t = fs.readFileSync(path.join(dir, 'CHANGELOG.md'), 'utf8'); } catch { return ''; }
+  return t.split(/^## /m).slice(1).filter(sec => { const v = (sec.match(/^\[?([\d.]+)/) || [])[1]; return v && vcmp(v, from) > 0; })
+    .map(sec => '## ' + sec.trim()).join('\n\n');
+}
+function upgrade(src, args) {
+  if (!src) throw new Error('usage: gw upgrade <path-to-new-groundwork-folder>');
+  src = path.resolve(src);
+  if (!exists(path.join(src, 'VERSION')) || !exists(path.join(src, 'bin', 'gw.js')) || !exists(path.join(src, 'GROUNDWORK.md'))) throw new Error(src + ' is not a groundwork folder');
+  if (src === FW) throw new Error('source is this same folder');
+  const newV = readVersion(src), oldV = VERSION;
+  if (vcmp(newV, oldV) < 0 && !args.includes('--force')) throw new Error(`downgrade ${oldV} → ${newV} refused (use --force)`);
+  const integ = integrity();
+  const backup = P('backups', `groundwork-${oldV}-${now().replace(/[:.]/g, '-')}`);
+  fs.mkdirSync(path.dirname(backup), { recursive: true });
+  fs.cpSync(FW, backup, { recursive: true });
+  const incoming = new Set(walk(src));
+  for (const f of walk(FW)) if (!incoming.has(f)) fs.rmSync(path.join(FW, f));   // replace, not merge: drop files the new version removed
+  fs.cpSync(src, FW, { recursive: true, force: true });
+  console.log(`Replaced groundwork/ ${oldV} → ${newV}. Backup of the old folder: ${path.relative(ROOT, backup)}`);
+  if (integ.modified.length) console.log('Local edits found in the old folder (kept only in the backup; move them to .groundwork/packs/, .groundwork/tools.json or CLAUDE.md):\n  ' + integ.modified.join('\n  '));
+  const r = cp.spawnSync(process.execPath, [path.join(FW, 'bin', 'gw.js'), 'migrate'], { stdio: 'inherit', cwd: ROOT, env: { ...process.env, GW_PROJECT_DIR: ROOT } });
+  return r.status || 0;
+}
+
+// ---------- skill catalogue ----------
+const catalog = () => readJson(path.join(FW, 'catalog', 'skills.json'), { sources: {}, skills: [] });
+function skillInstalled(name) {
+  const home = os.homedir();
+  const direct = [path.join(ROOT, '.claude', 'skills', name), path.join(home, '.claude', 'skills', name)];
+  if (direct.some(d => exists(path.join(d, 'SKILL.md')))) return true;
+  const plug = path.join(home, '.claude', 'plugins');   // plugin caches: look a few levels deep for skills/<name>/SKILL.md
+  const seek = (d, depth) => { if (depth < 0 || !exists(d)) return false;
+    try { for (const e of fs.readdirSync(d, { withFileTypes: true })) { if (!e.isDirectory()) continue;
+      const f = path.join(d, e.name); if (e.name === name && exists(path.join(f, 'SKILL.md'))) return true; if (seek(f, depth - 1)) return true; } } catch { }
+    return false; };
+  return seek(plug, 6);
+}
+function suggestSkills(proj, phase, all = false) {
+  const targets = proj.targets || [], stacks = Object.values(proj.stacks || {});
+  const stagePlaybook = { upgrade: 'UPGRADE', refactor: 'MAINTAIN', incident: 'OPERATE', security: 'SECURITY', feature: 'CHANGE', bugfix: 'CHANGE', migration: 'CHANGE' }[proj.stage];
+  return catalog().skills.filter(s =>
+    (s.targets.includes('*') || s.targets.some(t => targets.includes(t))) &&
+    (s.stacks.includes('*') || s.stacks.some(t => stacks.includes(t))) &&
+    (all || !phase || s.phases.includes(phase) || (stagePlaybook && s.phases.includes(stagePlaybook))));
+}
+function fetchSkill(s) {
+  const src = catalog().sources[s.source];
+  const dir = P('cache', 'skills', s.source + '-' + src.ref.slice(0, 12));
+  const git = (...a) => { const r = cp.spawnSync('git', ['-C', dir, ...a], { encoding: 'utf8' }); if (r.status !== 0) throw new Error('git ' + a.join(' ') + ': ' + (r.stderr || '').trim()); return r.stdout; };
+  if (!exists(path.join(dir, '.git'))) {
+    fs.mkdirSync(dir, { recursive: true });
+    git('init', '-q'); git('remote', 'add', 'origin', src.repo);
+    git('sparse-checkout', 'set', '--no-cone', '/' + src.license_file, '/' + s.path + '/');
+    git('fetch', '-q', '--depth', '1', 'origin', src.ref); git('checkout', '-q', 'FETCH_HEAD');
+  } else { git('sparse-checkout', 'add', '/' + s.path + '/'); }
+  const skillDir = path.join(dir, s.path);
+  if (!exists(path.join(skillDir, 'SKILL.md'))) throw new Error('fetched, but ' + s.path + '/SKILL.md is missing at ' + src.ref);
+  return { dir, skillDir, src };
+}
+
+// ---------- maintenance info ----------
+function maintainInfo(proj) {
+  const all = packs(), out = [];
+  for (const t of proj.targets || []) {
+    const pk = all[t]; if (!pk) continue;
+    const st = (proj.stacks || {})[t], m = (pk.maintain || {})[st];
+    out.push({ target: t, stack: st || null, commands: m || null, rollback: pk.rollback || null, observe: pk.observe || [], policies: pk.policies || [] });
+  }
+  return out;
+}
+const EOL_PRODUCTS = { node: 'nodejs', python: 'python', dotnet: 'dotnet', java: 'eclipse-temurin', go: 'go' };
+async function eolCheck(h) {
+  const rows = [];
+  for (const [tool, product] of Object.entries(EOL_PRODUCTS)) {
+    const v = (h.toolchains || {})[tool]; if (!v || v === 'present') continue;
+    let data; try { const r = await fetch(`https://endoflife.date/api/v1/products/${product}`, { signal: AbortSignal.timeout(8000) }); data = await r.json(); }
+    catch (e) { rows.push({ tool, version: v, status: 'unknown', note: 'endoflife.date unreachable: ' + e.message }); continue; }
+    const rel = ((data.result || {}).releases || []).find(x => v === x.name || v.startsWith(x.name + '.'));
+    if (!rel) { rows.push({ tool, version: v, status: 'unknown', note: 'release line not found' }); continue; }
+    const days = rel.eolFrom ? Math.round((Date.parse(rel.eolFrom) - Date.now()) / 864e5) : null;
+    rows.push({ tool, version: v, line: rel.name, eol: rel.eolFrom || null, days_left: days, lts: !!rel.isLts,
+      status: rel.isEol || (days !== null && days < 0) ? 'eol' : days !== null && days < 180 ? 'soon' : 'ok' });
+  }
+  return rows;
+}
+
 // ---------- init ----------
 const HOOK_CMD = 'node "$CLAUDE_PROJECT_DIR/groundwork/bin/gw.js" hook';
 function init(args) {
   const profile = flag(args, '--profile') || 'standard';
   if (!exists(P('project.json'))) writeJson(P('project.json'), { name: path.basename(ROOT), stage: null, tier: null, targets: [], stacks: {}, profile, created_at: now() });
   if (!exists(P('state.json'))) writeJson(P('state.json'), { phase: 'H0', phases: {}, waivers: [] });
-  const gi = path.join(ROOT, '.gitignore'), giLines = ['.groundwork/host-profile.json', '.groundwork/env-report.json', '.groundwork/runs/*/logs/', '.groundwork/feedback/', '.groundwork/FEEDBACK.md'];
-  const giText = exists(gi) ? fs.readFileSync(gi, 'utf8') : '';
-  const add = giLines.filter(l => !giText.includes(l));
-  if (add.length) fs.appendFileSync(gi, (giText && !giText.endsWith('\n') ? '\n' : '') + '# groundwork (machine-specific)\n' + add.join('\n') + '\n');
+  wireGitignore();
   const cm = path.join(ROOT, 'CLAUDE.md'), imp = '@groundwork/GROUNDWORK.md';
   const cmText = exists(cm) ? fs.readFileSync(cm, 'utf8') : '';
   if (!cmText.includes(imp)) fs.appendFileSync(cm, (cmText ? '\n' : '') + '## Groundwork framework\n' + imp + '\n');
   const ag = path.join(ROOT, 'AGENTS.md');
   if (exists(ag) && !fs.readFileSync(ag, 'utf8').includes('groundwork/GROUNDWORK.md')) fs.appendFileSync(ag, '\n## Groundwork framework\nRead and follow groundwork/GROUNDWORK.md before any development work.\n');
-  const sk = path.join(ROOT, '.claude', 'skills', 'groundwork', 'SKILL.md');
-  fs.mkdirSync(path.dirname(sk), { recursive: true });
-  fs.copyFileSync(path.join(FW, 'hooks', 'SKILL.md'), sk);
+  wireSkill();
   if (profile !== 'minimal' && !args.includes('--no-hooks')) {
     const sf = path.join(ROOT, '.claude', 'settings.json'), s = readJson(sf, {});
     if (exists(sf) && !readJson(sf)) throw new Error('.claude/settings.json is not valid JSON; fix it or pass --no-hooks');
@@ -346,7 +487,7 @@ function init(args) {
     addHook('PreToolUse', 'Edit|Write|MultiEdit|NotebookEdit', 'pre-edit');
     writeJson(sf, s);
   }
-  const p = project(); p.profile = profile; writeJson(P('project.json'), p);
+  const p = project(); p.profile = profile; p.framework_version = VERSION; writeJson(P('project.json'), p);
   const r = doctor(hostProfile({ fresh: true }), project());
   const st = state(); st.phases.H0 = { status: 'done', at: now() }; writeJson(P('state.json'), st);
   return r;
@@ -356,13 +497,17 @@ function init(args) {
 function hook(sub) {
   const p = project(); if (!exists(P('project.json'))) return 0;   // not initialised: stay silent
   if (sub === 'session-start') {
+    try { migrate(); } catch (e) { console.log('Groundwork: migration failed: ' + e.message); }
+    const integ = integrity();
+    if (integ.stale.length || integ.missing.length) console.log(`Groundwork: framework folder has ${integ.stale.length} leftover and ${integ.missing.length} missing file(s) vs its manifest (copied over an old version?). Run: gw verify --clean`);
     const h = readJson(P('host-profile.json'));
     if (hostChanged(h)) { try { doctor(scan(), p); fb('host-rescan', { reason: h ? 'host changed or scan stale' : 'first scan' }); console.log('Groundwork: host changed or scan older than 7 days, re-scanned.'); } catch (e) { console.log('Groundwork: re-scan failed: ' + e.message); } }
     console.log(statusText());
     return 0;
   }
   if (sub === 'pre-edit') {
-    if (p.profile === 'minimal' || !['standard', 'large'].includes(p.tier) || exists(P('gates', 'G1.json'))) return 0;
+    // incidents and security fixes are emergencies: their playbooks (OPERATE/SECURITY) replace GATE 1
+    if (p.profile === 'minimal' || !['standard', 'large'].includes(p.tier) || ['incident', 'security'].includes(p.stage) || exists(P('gates', 'G1.json'))) return 0;
     let input = {}; try { input = JSON.parse(fs.readFileSync(0, 'utf8') || '{}'); } catch { }
     const f = path.relative(ROOT, (input.tool_input || {}).file_path || (input.tool_input || {}).notebook_path || '').split(path.sep).join('/');
     const allowed = /^(docs\/|\.groundwork\/|groundwork\/|\.claude\/|tests?\/|spec\/|__tests__\/)|(\.md|\.test\.[a-z]+|_test\.[a-z]+|\.spec\.[a-z]+)$|^(CLAUDE|AGENTS|README|CONSTRAINTS)/i;
@@ -389,6 +534,7 @@ function printDoctor(r) {
 }
 function main(argv) {
   const [cmd, ...args] = argv;
+  if (!['upgrade', 'migrate', 'hook', 'help', undefined].includes(cmd)) migrate();
   switch (cmd) {
     case 'init': { const r = init(args); printDoctor(r); console.log('\nInitialised. Next: ' + nextStep().do); return 0; }
     case 'scan': { const h = scan(); console.log(JSON.stringify(h, null, 2)); return 0; }
@@ -461,16 +607,83 @@ function main(argv) {
       fb('note', { category, text }); fbRefresh(); return 0;   // prints nothing on purpose
     }
     case 'feedback': { console.log(feedbackReport()); return 0; }
+    case 'skills': {  // gw skills [--all] | fetch <id> | install <id> [--force]
+      const sub = args[0], cat = catalog();
+      if (sub === 'fetch' || sub === 'install') {
+        const s = cat.skills.find(x => x.id === args[1]);
+        if (!s) throw new Error('unknown skill id; see gw skills --all');
+        const { skillDir, src, dir } = fetchSkill(s);
+        const files = walk(skillDir), scripts = files.filter(f => /\.(sh|bash|ps1|js|mjs|cjs|ts|py|rb|exe|bat|cmd)$/i.test(f));
+        if (sub === 'fetch') {
+          console.log(`Fetched ${s.id} @ ${src.ref.slice(0, 12)} (${src.license}) to ${path.relative(ROOT, skillDir)}\nFiles: ${files.join(', ')}` +
+            (scripts.length ? `\n⚠ contains executable files: ${scripts.join(', ')}. Read them before installing.` : '\nNo executable files.') +
+            (s.note ? `\nNote: ${s.note}` : '') + `\nReview SKILL.md (third-party content, phases/P4.md), then: gw skills install ${s.id}`);
+          return 0;
+        }
+        const dest = path.join(ROOT, '.claude', 'skills', s.name);
+        if (exists(dest) && !args.includes('--force')) throw new Error(`${path.relative(ROOT, dest)} already exists (use --force to replace)`);
+        fs.rmSync(dest, { recursive: true, force: true });
+        fs.cpSync(skillDir, dest, { recursive: true });
+        fs.copyFileSync(path.join(dir, src.license_file), path.join(dest, 'LICENSE'));   // MIT requires keeping the notice
+        const lock = readJson(P('skills.lock.json'), {});
+        lock[s.name] = { id: s.id, repo: src.repo, ref: src.ref, path: s.path, license: src.license, installed_at: now(), files: Object.fromEntries(walk(dest).map(f => [f, sha(path.join(dest, f))])) };
+        writeJson(P('skills.lock.json'), lock);
+        console.log(`Installed ${s.id} → ${path.relative(ROOT, dest)} (with LICENSE). Recorded in .groundwork/skills.lock.json. Add it to docs/skill-requirements.md.`);
+        return 0;
+      }
+      const proj = project(), phase = nextStep().phase, list = suggestSkills(proj, phase, args.includes('--all'));
+      console.log(`Skills for ${args.includes('--all') ? 'all phases' : 'phase ' + phase}${proj.stage ? ' · stage ' + proj.stage : ''} · targets ${(proj.targets || []).join(',') || 'any'} (${list.length}):`);
+      for (const s of list) console.log(`  ${skillInstalled(s.name) ? '✓ installed ' : '  available '} ${s.id.padEnd(46)} [${s.phases.join(',')}] ${s.why}`);
+      console.log('\nInstalled-check looks for the same skill name in .claude/skills, ~/.claude/skills and plugin caches; a same-named skill from another source counts as installed.');
+      console.log('Fetch for review: gw skills fetch <id>   ·   install into this project: gw skills install <id>');
+      return 0;
+    }
+    case 'maintain': {
+      const info = maintainInfo(project());
+      if (!info.length) { console.log('No targets set yet: gw set targets=…'); return 0; }
+      for (const m of info) {
+        console.log(`\n== ${m.target}${m.stack ? ' / ' + m.stack : ''}`);
+        if (m.commands) { for (const [k, v] of Object.entries(m.commands)) if (!['ecosystem', 'eol'].includes(k) && v) console.log(`  ${k.padEnd(14)} ${v}`); }
+        else console.log('  (no stack set, or no maintain data for it: gw set stacks.<target>=<stack>)');
+        if (m.rollback) console.log(`  rollback       ${m.rollback}`);
+        for (const o of m.observe) console.log(`  observe        ${o}`);
+        for (const p of m.policies) console.log(`  POLICY         ${p.what} (as of ${p.as_of}; re-check ${p.check})`);
+      }
+      console.log('\nPlaybooks: phases/UPGRADE.md · MAINTAIN.md · OPERATE.md · SECURITY.md · end-of-life check: gw eol');
+      return 0;
+    }
+    case 'eol': return eolCheck(hostProfile()).then(rows => {
+      if (!rows.length) { console.log('No runtimes with end-of-life data detected (node, python, dotnet, java, go).'); return 0; }
+      for (const r of rows) console.log(`  ${r.status === 'eol' ? '✗ EOL ' : r.status === 'soon' ? '! SOON' : r.status === 'ok' ? '✓ ok  ' : '? ' + r.status}  ${r.tool} ${r.version}${r.line ? ` (line ${r.line}${r.lts ? ', LTS' : ''}, end of life ${r.eol || 'n/a'}${r.days_left !== null ? ', ' + r.days_left + ' days' : ''})` : ''}${r.note ? ' · ' + r.note : ''}`);
+      console.log('Checks this machine\'s runtimes. Project pins (.nvmrc, global.json, TargetFramework, toolchain files) may differ: check those too (phases/UPGRADE.md).');
+      return rows.some(r => r.status === 'eol') ? 1 : 0;
+    });
+    case 'version': console.log(`groundwork ${VERSION}` + (exists(P('project.json')) ? ` · project state ${project().framework_version || '0.2.0'}` : '')); return 0;
+    case 'migrate': migrate(); return 0;
+    case 'upgrade': return upgrade(args[0], args);
+    case 'verify': {  // gw verify [--clean]: compare the framework folder with its manifest
+      const i = integrity();
+      if (!i.manifest) { console.log('No MANIFEST.json in groundwork/: cannot verify.'); return 1; }
+      console.log(`groundwork ${VERSION} (manifest ${i.version})`);
+      const list = (t, a) => a.length && console.log(`${t} (${a.length}):\n  ` + a.join('\n  '));
+      list('Modified locally (lost on upgrade; move to .groundwork/ overrides)', i.modified);
+      list('Leftover files not in this version (stale instructions)', i.stale);
+      list('Missing files (incomplete copy)', i.missing);
+      if (args.includes('--clean')) for (const f of i.stale) { fs.rmSync(path.join(FW, f)); console.log('removed ' + f); }
+      if (!i.modified.length && !i.stale.length && !i.missing.length) console.log('Clean: matches the shipped version.');
+      return i.missing.length ? 1 : 0;
+    }
+
     default:
       console.log('Groundwork CLI\n  init [--profile minimal|standard|strict] [--no-hooks]   set up this project (state, CLAUDE.md import, hooks) and scan the host\n' +
         '  doctor [--fresh] [--json]   scan host if needed, check tools for the chosen targets\n  plan-install   list install/fix commands for this machine (never runs them)\n' +
         '  status | next   show phase, blockers, next step\n  set k=v ...   e.g. set tier=standard stage=greenfield targets=web,android stacks.android=flutter\n' +
-        '  phase <id> <status> ["note"]   record phase progress\n  run <target> <tier> -- <cmd>   run tests and write a receipt\n  gate <G1|G2> [--approve "..."]   check / approve a gate\n  scan   print raw host profile\n  note <category> "text"   silent framework feedback (agent)\n  feedback   write .groundwork/FEEDBACK.md');
+        '  phase <id> <status> ["note"]   record phase progress\n  run <target> <tier> -- <cmd>   run tests and write a receipt\n  gate <G1|G2> [--approve "..."]   check / approve a gate\n  scan   print raw host profile\n  note <category> "text"   silent framework feedback (agent)\n  feedback   write .groundwork/FEEDBACK.md\n  skills [--all] | skills fetch <id> | skills install <id>   catalogue of vetted-source skills\n  maintain   upgrade/audit/dead-code/rollback/observability commands for this project\n  eol   runtime end-of-life check (endoflife.date)\n  version | verify [--clean] | upgrade <new-groundwork-folder> [--force] | migrate');
       return cmd ? 1 : 0;
   }
 }
 
-module.exports = { capabilities, devMethod, feasibility, kvmCheck, dockerCheck, toolCheck, vcmp, installCommand };
+module.exports = { suggestSkills, maintainInfo, catalog, buildManifest, integrity, changelogSince, capabilities, devMethod, feasibility, kvmCheck, dockerCheck, toolCheck, vcmp, installCommand };
 if (require.main === module) {
-  try { process.exitCode = main(process.argv.slice(2)); } catch (e) { fb('error', { cmd: process.argv[2] || '', message: e.message }); console.error('gw: ' + e.message); process.exitCode = 1; }
+  try { const r = main(process.argv.slice(2)); if (r && r.then) r.then(c => { process.exitCode = c; }, e => { fb('error', { cmd: process.argv[2] || '', message: e.message }); console.error('gw: ' + e.message); process.exitCode = 1; }); else process.exitCode = r; } catch (e) { fb('error', { cmd: process.argv[2] || '', message: e.message }); console.error('gw: ' + e.message); process.exitCode = 1; }
 }
