@@ -11,7 +11,7 @@ git clone --depth 1 --branch v0.3.2 https://github.com/AsuNnah/groundwork /tmp/g
 # or the latest main
 git clone --depth 1 https://github.com/AsuNnah/groundwork /tmp/groundwork-new
 ```
-You can also download the zip from the [Releases page](https://github.com/AsuNnah/groundwork/releases) and unpack it. The framework folder is `groundwork/` inside it.
+You can also download a version's zip from the [Tags page](https://github.com/AsuNnah/groundwork/tags) and unpack it. The framework folder is `groundwork/` inside it.
 
 Read the [CHANGELOG](groundwork/CHANGELOG.md) for what changed.
 
