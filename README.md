@@ -106,7 +106,7 @@ Recommendations are **automatic and context-aware**. They appear at session star
 - warns about local edits using the shipped `MANIFEST.json` checksums;
 - migrates the project state.
 
-Project data in `.groundwork/` and `docs/` is never touched. Project-specific packs and tools go in `.groundwork/packs/` and `.groundwork/tools.json`, so upgrades never clobber them. Manual copies are detected and migrated automatically, and `gw verify --clean` removes leftovers.
+Project data in `.groundwork/` and `docs/` is never touched. Project-specific packs and tools go in `.groundwork/packs/` and `.groundwork/tools.json`, so upgrades never clobber them. Manual copies are detected and migrated automatically, and `gw verify --clean` removes leftovers. **Step-by-step guide: [UPGRADING.md](UPGRADING.md).**
 
 ## Learning from real runs
 
@@ -135,6 +135,7 @@ gw version | verify [--clean] | upgrade <new-groundwork-folder>
 | Path | Contents |
 |---|---|
 | [`groundwork/`](groundwork/README.md) | **the framework**: copy this folder into projects |
+| [`UPGRADING.md`](UPGRADING.md) | how to update Groundwork in your projects |
 | [`docs/FRAMEWORK-DESIGN.md`](docs/FRAMEWORK-DESIGN.md) | full design, rationale, roadmap |
 | [`research/`](research/README.md) | notes on ECC, BMAD, Spec Kit, Superpowers, GSD, Kiro, AI-DLC, OpenSpec, sandboxing |
 | [`feedback/`](feedback/README.md) | inbox and backlog for real-run feedback |
