@@ -76,6 +76,20 @@ If a change would help every project, it belongs in the framework instead: the a
 - `gw skills fetch <id>` downloads one for review only.
 - `gw skills install <id>` installs it into `.claude/skills/` with its LICENSE and records it in `.groundwork/skills.lock.json`.
 
+**Inspection before install (required):** every skill fetched from a GitHub repo is vetted with [`skill-inspector`](https://github.com/nvidia/skillspector/tree/main/skills/skill-inspector), NVIDIA SkillSpector's static scan plus semantic review.
+1. `gw skills fetch <id>`.
+2. Run `skill-inspector` on the folder and save the report to `docs/skill-reviews/<name>.md`.
+3. `gw skills verdict <id> <APPROVE|CAUTION|REJECT> "<reason>" --report …`.
+4. `gw skills install <id>`.
+
+| Verdict | What happens |
+|---|---|
+| APPROVE | installs |
+| CAUTION | needs your approval (`--accept-caution`) |
+| **REJECT** | stops and shows why; you decide. To install anyway: `--override-reject "<your words>"`, recorded in the lock file |
+
+If `skill-inspector` isn't on the machine, Groundwork suggests installing it first: `gw skills install skillspector/skill-inspector --global`, pinned to the official NVIDIA repo. The SkillSpector CLI is optional and listed by `gw plan-install`.
+
 **Weekly trending discovery (silent):**
 1. Once a week, at the first session start, a background job reads the [skills.sh](https://skills.sh) trending list.
 2. It drops:

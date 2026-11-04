@@ -9,7 +9,7 @@ scan host → intake & size → requirements → target & stack → environment 
 → review → release [GATE 2] → learn
 ```
 
-> Status: **alpha (v0.3.2)**. The Linux scanner, CLI, gates, hooks, and feedback loop are tested on Linux. The Windows scanner (`scan.ps1`) and the macOS path are untested. Feedback from real runs is how it improves (see [Learning from real runs](#learning-from-real-runs)).
+> Status: **alpha (v0.3.3)**. The Linux scanner, CLI, gates, hooks, and feedback loop are tested on Linux. The Windows scanner (`scan.ps1`) and the macOS path are untested. Feedback from real runs is how it improves (see [Learning from real runs](#learning-from-real-runs)).
 
 ---
 
@@ -97,6 +97,11 @@ Recommendations are **automatic and context-aware**. They appear at session star
 - Install copies the skill and its LICENSE into the project and records it in a lockfile.
 - Groundwork doesn't vendor third-party skills; it points to them.
 
+**Inspected before install.** Every skill from a GitHub repo must pass [`skill-inspector`](https://github.com/nvidia/skillspector) (NVIDIA SkillSpector) with a verdict recorded for its exact commit.
+- APPROVE installs; CAUTION needs your approval.
+- REJECT shows the reasons and lets you decide.
+- If the inspector is missing, Groundwork suggests installing it first.
+
 **Weekly trending discovery.** Once a week, silently, Groundwork reads the skills.sh trending list and keeps up to 10 skills that fit your project's targets, stacks, services and phases. It filters out non-dev skills, evasion tools, vendor skills you don't use, and **lookalikes impersonating known sources**. Picks appear in recommendations as ★ "trending, not reviewed".
 
 ### 8. Updating Groundwork itself
@@ -160,7 +165,7 @@ Rules: keep `groundwork/` dependency-free (POSIX sh, PowerShell 5.1+, Node stdli
 - [ ] More packs (game engines, browser extensions, cross-platform presets)
 
 ## Acknowledgements
-Ideas borrowed (with thanks) from [ECC](https://github.com/affaan-m/ecc), [BMAD Method](https://github.com/bmad-code-org/BMAD-METHOD), [GitHub Spec Kit](https://github.com/github/spec-kit), [Superpowers](https://github.com/obra/superpowers), [GSD](https://github.com/open-gsd/gsd-core), [Kiro](https://kiro.dev), [OpenSpec](https://github.com/Fission-AI/OpenSpec), [AWS AI-DLC](https://github.com/awslabs/aidlc-workflows), and [agent-skills](https://github.com/addyosmani/agent-skills). See [`docs/FRAMEWORK-DESIGN.md`](docs/FRAMEWORK-DESIGN.md) §2 for what was taken from each.
+Skill inspection by [NVIDIA SkillSpector](https://github.com/nvidia/skillspector) (Apache-2.0). Ideas borrowed (with thanks) from [ECC](https://github.com/affaan-m/ecc), [BMAD Method](https://github.com/bmad-code-org/BMAD-METHOD), [GitHub Spec Kit](https://github.com/github/spec-kit), [Superpowers](https://github.com/obra/superpowers), [GSD](https://github.com/open-gsd/gsd-core), [Kiro](https://kiro.dev), [OpenSpec](https://github.com/Fission-AI/OpenSpec), [AWS AI-DLC](https://github.com/awslabs/aidlc-workflows), and [agent-skills](https://github.com/addyosmani/agent-skills). See [`docs/FRAMEWORK-DESIGN.md`](docs/FRAMEWORK-DESIGN.md) §2 for what was taken from each.
 
 ## License
 [MIT](LICENSE)

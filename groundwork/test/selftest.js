@@ -87,7 +87,7 @@ t('changelog filter returns only newer sections', () => {
 t('skill catalogue: every entry has a known MIT source and pinned ref', () => {
   const c = gw.curatedCatalog();
   assert.ok(c.skills.length > 30);
-  for (const s of c.skills) { const src = c.sources[s.source]; assert.ok(src, s.id); assert.equal(src.license, 'MIT'); assert.match(src.ref, /^[0-9a-f]{40}$/); }
+  for (const s of c.skills) { const src = c.sources[s.source]; assert.ok(src, s.id); assert.ok(['MIT', 'Apache-2.0'].includes(src.license), s.id); assert.match(src.ref, /^[0-9a-f]{40}$/); }
   assert.equal(new Set(c.skills.map(s => s.id)).size, c.skills.length, 'duplicate ids');
 });
 t('skill suggestions follow targets, stacks and phase', () => {
@@ -147,5 +147,21 @@ t('trending: parse, classify, fit, lookalike', () => {
   assert.ok(gw.isLookalike('skills-shell/superpowers'), 'impersonation of obra/superpowers');
   assert.ok(!gw.isLookalike('obra/superpowers'));
   assert.ok(!gw.isLookalike('vercel-labs/agent-skills'), 'generic repo name is not impersonation');
+});
+t('install gate: inspector bootstrap, verdicts, pinned ref', () => {
+  const g = gw.installGate;
+  assert.ok(g(null, 'r1', [], { role: 'inspector', source: 'skillspector' }).ok, 'inspector bootstraps');
+  assert.ok(!g(null, 'r1', [], { role: 'inspector', source: 'someone-else' }).ok, 'only the official inspector source bootstraps');
+  assert.ok(!g(null, 'r1').ok, 'no verdict');
+  assert.ok(g({ ref: 'r1', verdict: 'APPROVE' }, 'r1').ok);
+  assert.ok(!g({ ref: 'r0', verdict: 'APPROVE' }, 'r1').ok, 'verdict for another commit');
+  assert.ok(!g({ ref: 'r1', verdict: 'CAUTION' }, 'r1').ok); assert.ok(g({ ref: 'r1', verdict: 'CAUTION' }, 'r1', ['--accept-caution']).ok);
+  const rj = g({ ref: 'r1', verdict: 'REJECT', summary: 'sends tokens to a remote host', report: 'docs/skill-reviews/x.md' }, 'r1');
+  assert.ok(!rj.ok && rj.rejected && /sends tokens/.test(rj.msg) && /x\.md/.test(rj.msg), 'REJECT explains why');
+  assert.ok(!g({ ref: 'r1', verdict: 'REJECT' }, 'r1', ['--accept-caution', '--force']).ok, 'only an explicit user decision overrides REJECT');
+  assert.ok(g({ ref: 'r1', verdict: 'REJECT' }, 'r1', ['--override-reject', 'I read it, install anyway']).overridden, 'user decides');
+  assert.ok(!g({ ref: 'r0', verdict: 'REJECT' }, 'r1', ['--override-reject', 'yes']).ok, 'override is per inspected commit');
+  assert.ok(g(null, 'r1', ['--skip-inspection', 'reviewed by hand']).ok);
+  assert.ok(!g({ ref: 'r1', verdict: 'REJECT' }, 'r1', ['--skip-inspection', 'trust me']).ok, '--skip-inspection is not a REJECT override'); assert.ok(!g(null, 'r1', ['--skip-inspection', '--force']).ok, 'skip needs a reason');
 });
 console.log(`\n${n} checks passed`);

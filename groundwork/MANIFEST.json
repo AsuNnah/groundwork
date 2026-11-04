@@ -1,12 +1,12 @@
 {
-  "version": "0.3.2",
+  "version": "0.3.3",
   "files": {
-    "CHANGELOG.md": "50ae36834d4fcc86",
-    "GROUNDWORK.md": "65f5f98f80c9dfac",
-    "README.md": "86ff066d2fa53e51",
-    "VERSION": "511a100eedfb9ea6",
-    "bin/gw.js": "147d570ead87abce",
-    "catalog/skills.json": "1262b07f6c4deec9",
+    "CHANGELOG.md": "2cb34d8e7609865b",
+    "GROUNDWORK.md": "aedd166f20e522ab",
+    "README.md": "84490f06169d6c4f",
+    "VERSION": "a0dc8325e2fbe558",
+    "bin/gw.js": "be1ec7267d81acb3",
+    "catalog/skills.json": "a34badbfa502b988",
     "hooks/SKILL.md": "50629d5cb9267d5d",
     "packs/android.json": "8c28a2a42430e7f1",
     "packs/backend.json": "50c21d0bc8dc88d7",
@@ -15,7 +15,7 @@
     "packs/ios.json": "14a1b2e3872d80a8",
     "packs/linux-desktop.json": "3d6b733376f83d93",
     "packs/macos.json": "33f8ce4ec0a32ab0",
-    "packs/tools.json": "901b17d8d7baae01",
+    "packs/tools.json": "564d7e472bf19771",
     "packs/web.json": "0b041eab29903af1",
     "packs/windows.json": "0fa803cfc27f4276",
     "phases/CHANGE.md": "c47eec3c323fd047",
@@ -28,7 +28,7 @@
     "phases/P11.md": "cb7f3a4c660b3baf",
     "phases/P2.md": "5ecc4781466e601c",
     "phases/P3.md": "aa86d7ee5e18d0c0",
-    "phases/P4.md": "7509a30784648014",
+    "phases/P4.md": "4de3e1ce9e4014cb",
     "phases/P5.md": "73ca838658e12895",
     "phases/P6.md": "507792dd8985e586",
     "phases/P7.md": "0eca171d65e40929",
@@ -36,8 +36,8 @@
     "phases/P9.md": "9c9b9ffc81623c2f",
     "phases/SECURITY.md": "7222253613e7a45d",
     "phases/UPGRADE.md": "abb188d42cd900d8",
-    "scan/scan.ps1": "60c6118936746e79",
-    "scan/scan.sh": "ec5eab6ec3f1b196",
+    "scan/scan.ps1": "4e77637c03a160d3",
+    "scan/scan.sh": "60fd7052606bea90",
     "templates/adr.md": "b05246acefbb157e",
     "templates/fsd.md": "75ed389b4019963b",
     "templates/incident.md": "5460f59c08e3a636",
@@ -51,6 +51,6 @@
     "templates/tech-debt.md": "b7a05f226bd82186",
     "templates/test-strategy.md": "843fb6a780ec46b2",
     "templates/trd.md": "e9fe4a690cb6c9e6",
-    "test/selftest.js": "ad0a5961589eeb41"
+    "test/selftest.js": "0439a1f2c01b4bbb"
   }
 }

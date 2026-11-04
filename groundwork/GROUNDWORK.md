@@ -53,6 +53,17 @@ Record progress with `gw phase <id> <done|skipped|in_progress|blocked> "note"`.
 - **Smallest complete change.** No speculative abstractions, options, or "for later" code. Finish the callers, tests, and docs that a change touches.
 - **Language.** All documents, code, commits, and reports are in English.
 
+## Skill inspection (required)
+- Groundwork vets every skill fetched from a GitHub repo with the **`skill-inspector`** skill (NVIDIA SkillSpector: static scan + semantic review) before it can be installed.
+- **If `skill-inspector` is not installed on this machine, suggest installing it first,** before any other skill work: `gw skills install skillspector/skill-inspector --global`. It comes from the pinned official `nvidia/skillspector` source. The SkillSpector CLI is optional but raises confidence; `gw plan-install` lists it. Ask before installing either.
+- The flow:
+  1. `gw skills fetch <id>`
+  2. run `skill-inspector` on the fetched folder and save the report to `docs/skill-reviews/<name>.md`
+  3. `gw skills verdict <id> <APPROVE|CAUTION|REJECT> "<reason>" --report docs/skill-reviews/<name>.md`
+  4. `gw skills install <id>`
+- CAUTION installs only after the user approves the guardrails (`--accept-caution`).
+- **REJECT: show the user why.** Give the verdict reason, the key evidence (file:line), and the report path. Then let them decide. Install only on their explicit decision: `gw skills install <id> --override-reject "<the user's words>"`. Never suggest overriding, never pick it yourself, and never re-ask after they say no.
+
 ## Skill recommendations (automatic)
 - At the **start of every user task**, run `gw skills --for "<one-line summary of the task>"`. Groundwork also prints suggestions at session start, after `gw phase`, and after `gw set` of stage, targets or stacks.
 - If a **missing** skill is recommended, tell the user once, in one or two lines: the skill, what it does, and the "why now" reason. Then offer to fetch it for review and install it (P4 vetting rules apply).

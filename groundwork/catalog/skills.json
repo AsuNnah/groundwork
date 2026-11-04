@@ -1,5 +1,5 @@
 {
-  "_doc": "Curated agent skills from MIT-licensed frameworks, pinned to exact commits. 'gw skills' suggests, 'gw skills fetch <id>' downloads for review, 'gw skills install <id>' installs into .claude/skills with the source LICENSE. Third-party content: review before installing (phases/P4.md).",
+  "_doc": "Curated agent skills from permissively licensed (MIT / Apache-2.0) sources, pinned to exact commits. 'gw skills' suggests, 'gw skills fetch <id>' downloads for review, 'gw skills install <id>' installs into .claude/skills with the source LICENSE. Third-party content: review before installing (phases/P4.md).",
   "as_of": "2026-11-04",
   "sources": {
     "ecc": {
@@ -22,9 +22,40 @@
       "license": "MIT",
       "license_file": "LICENSE",
       "copyright": "Addy Osmani"
+    },
+    "skillspector": {
+      "repo": "https://github.com/nvidia/skillspector",
+      "ref": "62c2fe8622f580ac292d4078c3b71f790194dbbd",
+      "license": "Apache-2.0",
+      "license_file": "LICENSE",
+      "copyright": "NVIDIA"
     }
   },
   "skills": [
+    {
+      "id": "skillspector/skill-inspector",
+      "source": "skillspector",
+      "path": "skills/skill-inspector",
+      "name": "skill-inspector",
+      "phases": [
+        "P4"
+      ],
+      "targets": [
+        "*"
+      ],
+      "stacks": [
+        "*"
+      ],
+      "why": "inspects agent skills before install (SkillSpector static scan + semantic review); Groundwork requires it",
+      "keywords": [
+        "inspect",
+        "vet",
+        "safe to install",
+        "skill review"
+      ],
+      "role": "inspector",
+      "note": "bootstrap: the inspector itself is installed from this pinned official NVIDIA source without an inspection verdict"
+    },
     {
       "id": "agent-skills/interview-me",
       "source": "agent-skills",

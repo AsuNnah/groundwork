@@ -1,5 +1,17 @@
 # Changelog
 
+## 0.3.3 (2026-11-05)
+- **Required skill inspection with `skill-inspector`** (NVIDIA SkillSpector):
+  - Every skill fetched from a GitHub repo, curated or trending, must have a recorded verdict for its exact commit before `gw skills install` accepts it (`gw skills verdict <id> APPROVE|CAUTION|REJECT "reason"`).
+  - CAUTION needs `--accept-caution` after user approval.
+  - **REJECT shows why** (reason, evidence, report path) and stops the install; the user decides. An install anyway needs `--override-reject "<user's words>"` and is recorded in the lock file and feedback log. A REJECT also stops future suggestions.
+  - `--skip-inspection "<reason>"` exists for manual reviews and is logged.
+- If `skill-inspector` is missing, Groundwork suggests installing it **first**: at session start, at the top of every recommendation list, in `gw doctor`, and when fetching.
+  - It comes from the pinned official `nvidia/skillspector` repo (Apache-2.0).
+  - `gw skills install skillspector/skill-inspector --global` bootstraps it without a verdict.
+- `gw skills install --global` installs into `~/.claude/skills`.
+- The SkillSpector CLI install is pinned in `tools.json`, and the scanners detect it.
+
 ## 0.3.2 (2026-11-04)
 - **Weekly trending skill discovery (silent).**
   - Once a week, at the first session start, a background process reads skills.sh trending.

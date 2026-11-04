@@ -113,6 +113,7 @@ tool xvfb Xvfb -help;        tool playwright playwright --version
 tool appium appium --version; tool maestro maestro --version
 tool mise mise --version;    tool asdf asdf --version
 tool claude claude --version
+tool skillspector skillspector --version
 
 json=$(cat <<EOF
 {

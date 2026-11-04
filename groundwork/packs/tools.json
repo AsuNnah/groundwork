@@ -209,5 +209,12 @@
       "apt": "see https://trivy.dev/latest/getting-started/installation/",
       "any": "release binary pinned by checksum; pin the GitHub Action by commit SHA"
     }
+  },
+  "skillspector": {
+    "name": "NVIDIA SkillSpector CLI (static scanner used by skill-inspector)",
+    "install": {
+      "uv": "uv tool install git+https://github.com/NVIDIA/skillspector.git@62c2fe8622f580ac292d4078c3b71f790194dbbd",
+      "any": "install uv first, then: uv tool install git+https://github.com/NVIDIA/skillspector.git@62c2fe8622f580ac292d4078c3b71f790194dbbd"
+    }
   }
 }

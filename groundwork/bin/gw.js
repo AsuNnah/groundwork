@@ -226,6 +226,12 @@ function doctor(h, proj) {
   checks.push(toolCheck(h, { id: 'git', severity: 'block' }, 'version control'));
   checks.push(dockerCheck(h));
   checks.push(kvmCheck(h, c));
+  { const ins = inspectorStatus();   // vetting third-party skills before install (phases/P4.md)
+    checks.push(ins.skill && ins.cli ? { id: 'skill-vetting', name: 'Skill vetting (skill-inspector + SkillSpector)', status: 'ok', severity: 'warn' }
+      : { id: ins.skill ? 'skillspector' : 'skill-vetting', name: 'Skill vetting (skill-inspector + SkillSpector)', status: ins.skill ? 'misconfigured' : 'missing', severity: 'warn',
+          found: ins.skill ? 'skill-inspector installed, SkillSpector CLI missing' : (ins.cli ? 'SkillSpector CLI only' : 'neither installed'),
+          impact: ins.skill ? 'skill reviews are semantic-only (lower confidence)' : 'skill reviews fall back to the manual checklist in phases/P4.md',
+          fix: ins.skill ? 'install the SkillSpector CLI (see gw plan-install), with approval' : `install it first, Groundwork uses it to vet every skill: ${INSPECTOR_INSTALL}; optional scanner: see gw plan-install`, install: ins.skill }); }
   if (!c.ci_remote) checks.push({ id: 'gh', name: 'GitHub CLI (CI sandboxes, S3)', status: 'missing', severity: 'warn', install: true });
   if ((h.memory.total_gb || 0) < 8) checks.push({ id: 'ram', name: 'RAM', status: 'misconfigured', severity: 'warn', found: h.memory.total_gb + ' GB', required: '>= 8 GB for emulators' });
   if ((h.disk.free_gb_workdir || 0) < 20) checks.push({ id: 'disk', name: 'Free disk', status: 'misconfigured', severity: 'warn', found: h.disk.free_gb_workdir + ' GB', required: '>= 20 GB' });
@@ -474,6 +480,11 @@ function recommendSkills(proj, phase, text = '', { limit = 5, includeInstalled =
     out.push({ id: s.id, name: s.name, why: s.why, note: s.note, score, reasons, installed, trending: !!s.trending });
   }
   out.sort((a, b) => b.score - a.score || a.id.localeCompare(b.id));
+  if (!skillInstalled(INSPECTOR)) {   // required by Groundwork itself: always first while missing
+    const ins = catalog().skills.find(x => x.id === INSPECTOR_ID);
+    if (ins) { const i = out.findIndex(r => r.id === INSPECTOR_ID); if (i >= 0) out.splice(i, 1);
+      out.unshift({ id: ins.id, name: ins.name, why: ins.why, score: 99, reasons: ['required by Groundwork to inspect every skill before install; install it first: ' + INSPECTOR_INSTALL], installed: false, trending: false }); }
+  }
   const trend = out.filter(r => r.trending), cur = out.filter(r => !r.trending), slots = Math.min(trend.length, limit >= 5 ? 2 : 1);
   return [...cur.slice(0, limit - slots), ...trend.slice(0, slots)];
 }
@@ -650,6 +661,32 @@ async function refreshTrending({ quiet = false, force = false } = {}) {
   return picked;
 }
 
+// ---------- skill inspection (skill-inspector + SkillSpector) ----------
+const INSPECTOR = 'skill-inspector', INSPECTOR_ID = 'skillspector/skill-inspector';
+const INSPECTOR_INSTALL = `gw skills install ${INSPECTOR_ID} --global`;
+function inspectorStatus() {
+  const r = cp.spawnSync('skillspector', ['--version'], { encoding: 'utf8', shell: process.platform === 'win32' });
+  return { skill: skillInstalled(INSPECTOR), cli: !r.error && r.status === 0 };
+}
+const reviews = () => readJson(P('skills-reviews.json'), {});
+const skillRef = s => s.repo ? s.ref : (catalog().sources[s.source] || {}).ref;
+// decides whether `gw skills install` may proceed for a fetched skill
+function installGate(review, ref, args = [], s = {}) {
+  if (s.role === 'inspector' && s.source === 'skillspector') return { ok: true, bootstrap: true, msg: 'bootstrap install of the inspector from its pinned official source' };
+  if (review && review.verdict === 'REJECT') {   // the user decides, after seeing why
+    const o = args.indexOf('--override-reject'), words = o >= 0 ? args[o + 1] : null;
+    if (review.ref === ref && words && !words.startsWith('--')) return { ok: true, overridden: true, msg: `installed despite REJECT, user decision: "${words}"` };
+    return { ok: false, rejected: true, msg: `skill-inspector verdict REJECT: ${review.summary || '(no reason recorded)'}` + (review.report ? ` · full report: ${review.report}` : '') +
+      `\n  Show the user these reasons. Only if they decide to install anyway: gw skills install <id> --override-reject "<the user's words>"` };
+  }
+  const skip = args.indexOf('--skip-inspection'), skipReason = skip >= 0 ? args[skip + 1] : null;
+  if (skipReason && !skipReason.startsWith('--')) return { ok: true, skipped: true, msg: 'inspection skipped: ' + skipReason };
+  if (!review) return { ok: false, msg: 'not inspected yet' };
+  if (review.ref !== ref) return { ok: false, msg: `inspected at ${String(review.ref).slice(0, 12)}, but the catalogue now pins ${String(ref).slice(0, 12)}: inspect again` };
+  if (review.verdict === 'CAUTION' && !args.includes('--accept-caution')) return { ok: false, msg: 'verdict CAUTION: show the user the guardrails, and on their approval re-run with --accept-caution' };
+  return { ok: true, msg: 'verdict ' + review.verdict };
+}
+
 // ---------- maintenance info ----------
 function maintainInfo(proj) {
   const all = packs(), out = [];
@@ -714,12 +751,13 @@ function hook(sub) {
   if (sub === 'session-start') {
     try { migrate(); } catch (e) { console.log('Groundwork: migration failed: ' + e.message); }
     maybeRefreshInBackground();   // weekly, silent, detached
+    if (!skillInstalled(INSPECTOR)) console.log(`Groundwork: the ${INSPECTOR} skill is not installed on this machine. Groundwork uses it to vet every skill before install. Suggest installing it first: ${INSPECTOR_INSTALL}`);
     const integ = integrity();
     if (integ.stale.length || integ.missing.length) console.log(`Groundwork: framework folder has ${integ.stale.length} leftover and ${integ.missing.length} missing file(s) vs its manifest (copied over an old version?). Run: gw verify --clean`);
     const h = readJson(P('host-profile.json'));
     if (hostChanged(h)) { try { doctor(scan(), p); fb('host-rescan', { reason: h ? 'host changed or scan stale' : 'first scan' }); console.log('Groundwork: host changed or scan older than 7 days, re-scanned.'); } catch (e) { console.log('Groundwork: re-scan failed: ' + e.message); } }
     console.log(statusText());
-    try { const t = recText(recommendSkills(p, nextStep().phase, currentTaskText(), { limit: 3 }), 'Groundwork skill suggestions for the current phase/task:'); if (t) console.log(t); } catch { }
+    try { const t = recText(recommendSkills(p, nextStep().phase, currentTaskText(), { limit: 3 }).filter(r => r.id !== INSPECTOR_ID), 'Groundwork skill suggestions for the current phase/task:'); if (t) console.log(t); } catch { }   // inspector already has its own banner
     return 0;
   }
   if (sub === 'pre-edit') {
@@ -838,20 +876,47 @@ function main(argv) {
         if (sub === 'fetch') {
           console.log(`Fetched ${s.id} @ ${src.ref.slice(0, 12)} (${src.license}) to ${path.relative(ROOT, skillDir)}\nFiles: ${files.join(', ')}` +
             (scripts.length ? `\n⚠ contains executable files: ${scripts.join(', ')}. Read them before installing.` : '\nNo executable files.') +
-            (s.note ? `\nNote: ${s.note}` : '') + `\nReview SKILL.md (third-party content, phases/P4.md), then: gw skills install ${s.id}`);
+            (s.note ? `\nNote: ${s.note}` : ''));
+          const ins = inspectorStatus(), target = skillDir;
+          console.log('\nNext: inspect before installing (required).');
+          if (ins.skill) console.log(`  Run the ${INSPECTOR} skill on: ${target}` + (ins.cli ? '  (SkillSpector CLI found: static scan + semantic review)' : '  (SkillSpector CLI not found: semantic review only, lower confidence; gw plan-install lists it)'));
+          else if (s.role !== 'inspector') console.log(`  ${INSPECTOR} is not installed. Groundwork uses it to vet skills, so install it first: ${INSPECTOR_INSTALL}\n  (or do the manual review in phases/P4.md step 4 on ${target}` + (ins.cli ? `, plus: skillspector scan "${target}" --no-llm --format json --output .groundwork/cache/${s.name}-skillspector.json` : '') + ')');
+          if (s.role === 'inspector') { console.log(`  This is the inspector itself: install it directly with ${INSPECTOR_INSTALL}`); return 0; }
+          console.log(`  Then record the result: gw skills verdict ${s.id} <APPROVE|CAUTION|REJECT> "<one-line reason>" --report docs/skill-reviews/${s.name}.md`);
+          console.log(`  Then: gw skills install ${s.id}  (CAUTION: --accept-caution after user approval · REJECT: show the user why; install only on their decision with --override-reject "<their words>")`);
           return 0;
         }
+        const review = reviews()[s.id], gate = installGate(review, src.ref, args, s);
+        if (!gate.ok && gate.rejected) throw new Error(`${s.id}: ${gate.msg.replace('<id>', s.id)}`);
+        if (gate.overridden) fb('reject-overridden', { id: s.id, decision: gate.msg });
+        if (!gate.ok) throw new Error(`${s.id}: ${gate.msg}. ` + (inspectorStatus().skill ? `Fetch shows the inspection steps: gw skills fetch ${s.id}` : `Install the inspector first: ${INSPECTOR_INSTALL}`));
+        if (gate.skipped) fb('inspection-skipped', { id: s.id, reason: gate.msg });
         const lic = src.license_file ? path.join(dir, src.license_file) : (fs.readdirSync(dir).filter(f => /^LICEN[CS]E/i.test(f)).map(f => path.join(dir, f))[0] || null);
         if (!lic && !args.includes('--force')) throw new Error(`${s.id} has no LICENSE in its repo, so you may not have the right to copy it. Read the repo terms; install anyway with --force.`);
-        const dest = path.join(ROOT, '.claude', 'skills', s.name);
+        const dest = path.join(args.includes('--global') || (s.role === 'inspector' && !args.includes('--project')) ? os.homedir() : ROOT, '.claude', 'skills', s.name);
         if (exists(dest) && !args.includes('--force')) throw new Error(`${path.relative(ROOT, dest)} already exists (use --force to replace)`);
         fs.rmSync(dest, { recursive: true, force: true });
         fs.cpSync(skillDir, dest, { recursive: true });
         if (lic) fs.copyFileSync(lic, path.join(dest, 'LICENSE'));   // keep the licence notice (MIT requires it)
-        const lock = readJson(P('skills.lock.json'), {});
-        lock[s.name] = { id: s.id, repo: src.repo, ref: src.ref, path: s.path, license: src.license, installed_at: now(), files: Object.fromEntries(walk(dest).map(f => [f, sha(path.join(dest, f))])) };
+        const lock = readJson(P('skills.lock.json'), {});   // global installs are recorded too, so the project knows what it relied on
+        lock[s.name] = { id: s.id, repo: src.repo, ref: src.ref, path: s.path, license: src.license, installed_at: now(),
+          inspection: gate.bootstrap ? { bootstrap: gate.msg } : gate.skipped ? { skipped: gate.msg } : gate.overridden ? { verdict: 'REJECT', override: gate.msg, report: review.report || null, at: review.at } : { verdict: review.verdict, reviewer: review.reviewer, scanner: review.scanner, report: review.report || null, at: review.at }, files: Object.fromEntries(walk(dest).map(f => [f, sha(path.join(dest, f))])) };
         writeJson(P('skills.lock.json'), lock);
-        console.log(`Installed ${s.id} → ${path.relative(ROOT, dest)} (with LICENSE). Recorded in .groundwork/skills.lock.json. Add it to docs/skill-requirements.md.`);
+        console.log(`Installed ${s.id} → ${path.relative(ROOT, dest)} (${gate.msg}${lic ? ', with LICENSE' : ''}). Recorded in .groundwork/skills.lock.json. Add it to docs/skill-requirements.md.`);
+        return 0;
+      }
+      if (sub === 'verdict') {   // gw skills verdict <id> <APPROVE|CAUTION|REJECT> "reason" [--report path] [--scanner skillspector|none]
+        const [, id, verdict, ...rest] = args, s = cat.skills.find(x => x.id === id);
+        if (!s) throw new Error('unknown skill id');
+        if (!['APPROVE', 'CAUTION', 'REJECT'].includes(verdict)) throw new Error('verdict must be APPROVE, CAUTION or REJECT');
+        const summary = rest.filter((a, i) => !a.startsWith('--') && !['--report', '--scanner'].includes(rest[i - 1])).join(' ').trim();
+        if (!summary) throw new Error('give a one-line reason');
+        const ins = inspectorStatus(), all = reviews();
+        all[id] = { ref: skillRef(s), verdict, summary, reviewer: ins.skill ? INSPECTOR : 'manual (phases/P4.md)', scanner: flag(args, '--scanner') || (ins.cli ? 'skillspector' : 'none'), report: flag(args, '--report'), at: now() };
+        writeJson(P('skills-reviews.json'), all);
+        fb('skill-verdict', { id, verdict });
+        if (verdict === 'REJECT') { const st = state(); st.skills_declined = [...(st.skills_declined || []).filter(d => d.id !== id), { id, at: now(), reason: 'REJECT: ' + summary }]; writeJson(P('state.json'), st); }
+        console.log(`Recorded ${verdict} for ${id} @ ${String(skillRef(s)).slice(0, 12)}${verdict === 'REJECT' ? '. It will not be suggested again. Tell the user why; they decide whether to install anyway (--override-reject "<their words>")' : ''}.`);
         return 0;
       }
       if (sub === 'refresh') return refreshTrending({ quiet: args.includes('--quiet'), force: args.includes('--force') })
@@ -928,12 +993,12 @@ function main(argv) {
       console.log('Groundwork CLI\n  init [--profile minimal|standard|strict] [--no-hooks]   set up this project (state, CLAUDE.md import, hooks) and scan the host\n' +
         '  doctor [--fresh] [--json]   scan host if needed, check tools for the chosen targets\n  plan-install   list install/fix commands for this machine (never runs them)\n' +
         '  status | next   show phase, blockers, next step\n  set k=v ...   e.g. set tier=standard stage=greenfield targets=web,android stacks.android=flutter\n' +
-        '  phase <id> <status> ["note"]   record phase progress\n  run <target> <tier> -- <cmd>   run tests and write a receipt\n  gate <G1|G2> [--approve "..."]   check / approve a gate\n  scan   print raw host profile\n  note <category> "text"   silent framework feedback (agent)\n  feedback   write .groundwork/FEEDBACK.md\n  skills [--for \"task\"] [--all] | skills fetch|install|decline <id>   context-aware skill recommendations\n  skills refresh [--force] | skills trending on|off | skills refresh-day <mon..sun|off>   weekly trending discovery\n  maintain   upgrade/audit/dead-code/rollback/observability commands for this project\n  eol   runtime end-of-life check (endoflife.date)\n  version | verify [--clean] | upgrade <new-groundwork-folder> [--force] | migrate');
+        '  phase <id> <status> ["note"]   record phase progress\n  run <target> <tier> -- <cmd>   run tests and write a receipt\n  gate <G1|G2> [--approve "..."]   check / approve a gate\n  scan   print raw host profile\n  note <category> "text"   silent framework feedback (agent)\n  feedback   write .groundwork/FEEDBACK.md\n  skills [--for \"task\"] [--all] | skills fetch|install [--global]|decline <id> | skills verdict <id> <APPROVE|CAUTION|REJECT> \"reason\"   context-aware skill recommendations\n  skills refresh [--force] | skills trending on|off | skills refresh-day <mon..sun|off>   weekly trending discovery\n  maintain   upgrade/audit/dead-code/rollback/observability commands for this project\n  eol   runtime end-of-life check (endoflife.date)\n  version | verify [--clean] | upgrade <new-groundwork-folder> [--force] | migrate');
       return cmd ? 1 : 0;
   }
 }
 
-module.exports = { parseTrending, classifySkill, fitsProject, isLookalike, curatedCatalog, recommendSkills, suggestSkills, maintainInfo, catalog, buildManifest, integrity, changelogSince, capabilities, devMethod, feasibility, kvmCheck, dockerCheck, toolCheck, vcmp, installCommand };
+module.exports = { installGate, parseTrending, classifySkill, fitsProject, isLookalike, curatedCatalog, recommendSkills, suggestSkills, maintainInfo, catalog, buildManifest, integrity, changelogSince, capabilities, devMethod, feasibility, kvmCheck, dockerCheck, toolCheck, vcmp, installCommand };
 if (require.main === module) {
   try { const r = main(process.argv.slice(2)); if (r && r.then) r.then(c => { process.exitCode = c; }, e => { fb('error', { cmd: process.argv[2] || '', message: e.message }); console.error('gw: ' + e.message); process.exitCode = 1; }); else process.exitCode = r; } catch (e) { fb('error', { cmd: process.argv[2] || '', message: e.message }); console.error('gw: ' + e.message); process.exitCode = 1; }
 }
