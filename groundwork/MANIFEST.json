@@ -1,11 +1,11 @@
 {
-  "version": "0.3.1",
+  "version": "0.3.2",
   "files": {
-    "CHANGELOG.md": "f5191b9aeabc2fc0",
-    "GROUNDWORK.md": "9d6ae583a2a2a572",
-    "README.md": "fa2671364cbab426",
-    "VERSION": "79e3f22ca37c7fdf",
-    "bin/gw.js": "0417037bf291d7ea",
+    "CHANGELOG.md": "50ae36834d4fcc86",
+    "GROUNDWORK.md": "65f5f98f80c9dfac",
+    "README.md": "86ff066d2fa53e51",
+    "VERSION": "511a100eedfb9ea6",
+    "bin/gw.js": "147d570ead87abce",
     "catalog/skills.json": "1262b07f6c4deec9",
     "hooks/SKILL.md": "50629d5cb9267d5d",
     "packs/android.json": "8c28a2a42430e7f1",
@@ -26,7 +26,7 @@
     "phases/P1.md": "2c25cd4afcdfebcb",
     "phases/P10.md": "ca8fc96a3c810737",
     "phases/P11.md": "cb7f3a4c660b3baf",
-    "phases/P2.md": "e1c91d878095761b",
+    "phases/P2.md": "5ecc4781466e601c",
     "phases/P3.md": "aa86d7ee5e18d0c0",
     "phases/P4.md": "7509a30784648014",
     "phases/P5.md": "73ca838658e12895",
@@ -51,6 +51,6 @@
     "templates/tech-debt.md": "b7a05f226bd82186",
     "templates/test-strategy.md": "843fb6a780ec46b2",
     "templates/trd.md": "e9fe4a690cb6c9e6",
-    "test/selftest.js": "9c95b1935a04aaf3"
+    "test/selftest.js": "ad0a5961589eeb41"
   }
 }

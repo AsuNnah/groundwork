@@ -9,7 +9,7 @@ scan host → intake & size → requirements → target & stack → environment 
 → review → release [GATE 2] → learn
 ```
 
-> Status: **alpha (v0.3.1)**. The Linux scanner, CLI, gates, hooks, and feedback loop are tested on Linux. The Windows scanner (`scan.ps1`) and the macOS path are untested. Feedback from real runs is how it improves (see [Learning from real runs](#learning-from-real-runs)).
+> Status: **alpha (v0.3.2)**. The Linux scanner, CLI, gates, hooks, and feedback loop are tested on Linux. The Windows scanner (`scan.ps1`) and the macOS path are untested. Feedback from real runs is how it improves (see [Learning from real runs](#learning-from-real-runs)).
 
 ---
 
@@ -96,6 +96,8 @@ Recommendations are **automatic and context-aware**. They appear at session star
 - Fetch is review-only and flags executable files.
 - Install copies the skill and its LICENSE into the project and records it in a lockfile.
 - Groundwork doesn't vendor third-party skills; it points to them.
+
+**Weekly trending discovery.** Once a week, silently, Groundwork reads the skills.sh trending list and keeps up to 10 skills that fit your project's targets, stacks, services and phases. It filters out non-dev skills, evasion tools, vendor skills you don't use, and **lookalikes impersonating known sources**. Picks appear in recommendations as ★ "trending, not reviewed".
 
 ### 8. Updating Groundwork itself
 `gw upgrade <new-folder>`:

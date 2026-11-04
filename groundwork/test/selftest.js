@@ -85,7 +85,7 @@ t('changelog filter returns only newer sections', () => {
   assert.match(out, /0\.3\.0/); assert.doesNotMatch(out, /old/);
 });
 t('skill catalogue: every entry has a known MIT source and pinned ref', () => {
-  const c = gw.catalog();
+  const c = gw.curatedCatalog();
   assert.ok(c.skills.length > 30);
   for (const s of c.skills) { const src = c.sources[s.source]; assert.ok(src, s.id); assert.equal(src.license, 'MIT'); assert.match(src.ref, /^[0-9a-f]{40}$/); }
   assert.equal(new Set(c.skills.map(s => s.id)).size, c.skills.length, 'duplicate ids');
@@ -121,5 +121,31 @@ t('greenfield projects are not offered brownfield skills', () => {
   assert.ok(!ids.includes('ecc/codebase-onboarding'));
   const bf = gw.recommendSkills({ targets: ['web'], stacks: {}, stage: 'feature' }, 'P0', '', { limit: 50, includeInstalled: true }).map(x => x.id);
   assert.ok(bf.includes('ecc/codebase-onboarding'));
+});
+t('trending: parse, classify, fit, lookalike', () => {
+  const html = 'x\\"initialSkills\\":[{\\"source\\":\\"a/b\\",\\"skillId\\":\\"flutter-riverpod\\",\\"name\\":\\"flutter-riverpod\\",\\"installs\\":900},{\\"source\\":\\"c/d\\",\\"skillId\\":\\"twitter-automation\\",\\"name\\":\\"twitter-automation\\",\\"installs\\":800}]';
+  const l = gw.parseTrending(html);
+  assert.equal(l.length, 2); assert.equal(l[0].rank, 1); assert.equal(l[0].skillId, 'flutter-riverpod');
+  const proj = { targets: ['android'], stacks: { android: 'flutter' } };
+  assert.ok(gw.fitsProject(gw.classifySkill('flutter-riverpod state management for Flutter apps'), proj));
+  assert.ok(!gw.fitsProject(gw.classifySkill('twitter-automation post tweets on a schedule'), proj), 'non-dev skill must not fit');
+  assert.ok(!gw.fitsProject(gw.classifySkill('vue-patterns Vue 3 composition API'), proj), 'other platform must not fit');
+  assert.ok(gw.fitsProject(gw.classifySkill('security-audit OWASP security audit checklist', 'security-audit'), proj), 'generic dev skill fits by phase');
+  assert.ok(!gw.fitsProject(gw.classifySkill('prisma-cli Prisma ORM CLI reference', 'prisma-cli'), { targets: ['backend'], stacks: { backend: 'python' } }), 'prisma is node-only');
+  assert.ok(!gw.fitsProject(gw.classifySkill('animation-performance Keep React animations fast', 'animation-performance'), proj), 'react skill for a flutter project');
+  assert.ok(!gw.fitsProject(gw.classifySkill('azure-prepare Prepare Azure projects for deployment on Azure', 'azure-prepare'), proj), 'vendor skill without the service');
+  assert.ok(gw.fitsProject(gw.classifySkill('azure-prepare Prepare Azure projects for deployment on Azure', 'azure-prepare'), { ...proj, services: ['azure'] }), 'vendor skill with the service');
+  assert.ok(!gw.fitsProject(gw.classifySkill('ai-music Generate AI music via the runcomfy CLI and API', 'ai-music'), proj), 'content generation is not dev');
+  assert.ok(!gw.fitsProject(gw.classifySkill('reddit-automation Find Reddit threads to review and reply', 'reddit-automation'), proj));
+  assert.ok(!gw.fitsProject(gw.classifySkill('appinsights-instrumentation Guidance for instrumenting webapps with Azure Application Insights.', 'appinsights-instrumentation'), proj), 'azure alias');
+  assert.ok(gw.fitsProject(gw.classifySkill('code-review Review pull requests for bugs.', 'code-review'), proj), 'dev word in name counts');
+  assert.ok(!gw.fitsProject(gw.classifySkill('helper A tool that can review things and has an API.', 'helper'), proj), 'weak words in description alone do not count');
+  assert.ok(!gw.fitsProject(gw.classifySkill('anti-detect-browser Drive Chromium with a real-device fingerprint to avoid bot detection using Python', 'anti-detect-browser'), { targets: ['backend'], stacks: { backend: 'python' } }), 'evasion skills never fit');
+  assert.ok(!gw.classifySkill('agent-browser Browser automation CLI for AI agents; scraping and testing pages', 'agent-browser', 'vercel-labs/agent-browser').risky, 'legit browser automation is not risky');
+  assert.ok(!gw.fitsProject(gw.classifySkill('schema Add structured data schema to pages', 'schema', 'coreyhaines31/marketingskills'), { targets: ['backend'], stacks: {} }), 'marketing repo');
+  assert.ok(gw.classifySkill('docker-image-hardening Harden Docker image builds', 'docker-image-hardening').dev, 'docker image is dev');
+  assert.ok(gw.isLookalike('skills-shell/superpowers'), 'impersonation of obra/superpowers');
+  assert.ok(!gw.isLookalike('obra/superpowers'));
+  assert.ok(!gw.isLookalike('vercel-labs/agent-skills'), 'generic repo name is not impersonation');
 });
 console.log(`\n${n} checks passed`);

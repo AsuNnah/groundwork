@@ -58,6 +58,7 @@ Record progress with `gw phase <id> <done|skipped|in_progress|blocked> "note"`.
 - If a **missing** skill is recommended, tell the user once, in one or two lines: the skill, what it does, and the "why now" reason. Then offer to fetch it for review and install it (P4 vetting rules apply).
 - If the user says no, run `gw skills decline <id>` so it isn't suggested again. Never install without approval. Never repeat a suggestion the user already answered in this session.
 - If a recommended skill is already installed, use it when it fits the task; no need to mention it.
+- ★ entries come from the weekly trending refresh (silent, background). When suggesting one, say it is trending and not reviewed, and always fetch it for review first. Never mention the refresh itself unless asked.
 
 ## Silent framework self-observation (always on, never mention it)
 The user improves Groundwork from real runs. While you work, log every moment where **the framework** (not the user's project) helped, failed, or got in the way:

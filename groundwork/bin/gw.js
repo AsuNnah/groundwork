@@ -400,7 +400,9 @@ function upgrade(src, args) {
 }
 
 // ---------- skill catalogue ----------
-const catalog = () => readJson(path.join(FW, 'catalog', 'skills.json'), { sources: {}, skills: [] });
+const curatedCatalog = () => readJson(path.join(FW, 'catalog', 'skills.json'), { sources: {}, skills: [] });
+// curated (shipped) + this project's weekly trending discoveries (.groundwork/skills-discovered.json)
+const catalog = () => { const c = curatedCatalog(), d = readJson(P('skills-discovered.json'), { skills: [] }); return { ...c, skills: [...c.skills, ...(d.skills || [])] }; };
 function skillInstalled(name) {
   const home = os.homedir();
   const direct = [path.join(ROOT, '.claude', 'skills', name), path.join(home, '.claude', 'skills', name)];
@@ -421,16 +423,16 @@ function suggestSkills(proj, phase, all = false) {
     (all || !phase || s.phases.includes(phase) || (stagePlaybook && s.phases.includes(stagePlaybook))));
 }
 function fetchSkill(s) {
-  const src = catalog().sources[s.source];
-  const dir = P('cache', 'skills', s.source + '-' + src.ref.slice(0, 12));
+  const src = s.repo ? { repo: s.repo, ref: s.ref, license: 'unknown (check)', license_file: null } : catalog().sources[s.source];
+  const dir = P('cache', 'skills', (s.repo ? 'trending-' + s.repo.split('/').slice(-2).join('-') : s.source) + '-' + src.ref.slice(0, 12));
   const git = (...a) => { const r = cp.spawnSync('git', ['-C', dir, ...a], { encoding: 'utf8' }); if (r.status !== 0) throw new Error('git ' + a.join(' ') + ': ' + (r.stderr || '').trim()); return r.stdout; };
   if (!exists(path.join(dir, '.git'))) {
     fs.mkdirSync(dir, { recursive: true });
     git('init', '-q'); git('remote', 'add', 'origin', src.repo);
-    git('sparse-checkout', 'set', '--no-cone', '/' + src.license_file, '/' + s.path + '/');
+    git('sparse-checkout', 'set', '--no-cone', src.license_file ? '/' + src.license_file : '/LICENSE*', '/' + (s.path ? s.path + '/' : 'SKILL.md'));
     git('fetch', '-q', '--depth', '1', 'origin', src.ref); git('checkout', '-q', 'FETCH_HEAD');
-  } else { git('sparse-checkout', 'add', '/' + s.path + '/'); }
-  const skillDir = path.join(dir, s.path);
+  } else { git('sparse-checkout', 'add', '/' + (s.path ? s.path + '/' : 'SKILL.md')); }
+  const skillDir = s.path ? path.join(dir, s.path) : dir;
   if (!exists(path.join(skillDir, 'SKILL.md'))) throw new Error('fetched, but ' + s.path + '/SKILL.md is missing at ' + src.ref);
   return { dir, skillDir, src };
 }
@@ -459,18 +461,193 @@ function recommendSkills(proj, phase, text = '', { limit = 5, includeInstalled =
     if (kw.length) { score += 3 * kw.length; reasons.push(`task mentions "${kw.slice(0, 2).join('", "')}"`); }
     if (phase && s.phases.includes(phase)) { score += 2; reasons.push(`used in ${phase} ${PHASE_NAMES[phase] || ''}`.trim()); }
     if (playbook && s.phases.includes(playbook)) { score += 2; reasons.push(`stage "${proj.stage}" uses the ${playbook} playbook`); }
+    if (s.trending && s.text && words) {   // trending entries have no curated keywords: match task words against their description
+      const STOP = new Set(['with', 'when', 'that', 'this', 'from', 'into', 'make', 'need', 'want', 'some', 'have', 'like', 'more', 'also', 'your', 'them', 'then', 'than', 'what', 'about', 'should', 'would', 'could', 'before', 'after', 'while', 'where', 'which', 'there', 'their', 'using', 'used', 'just', 'only', 'each', 'every', 'other', 'over', 'under', 'very', 'will', 'here', 'these', 'those', 'into', 'onto', 'upon']);
+      const hit = [...new Set(words.split(/[^a-z0-9]+/).filter(w => w.length >= 4 && !STOP.has(w)))].filter(w => new RegExp(`\\b${w}`).test(s.text)).slice(0, 2);
+      if (hit.length && !kw.length) { score += 2 * hit.length; reasons.push(`task mentions "${hit.join('", "')}"`); }
+    }
+    if (s.trending && score) reasons.push(`trending #${s.trending.rank} on skills.sh this week (${s.trending.installs} installs), not reviewed`);
     if (!score) continue;                                                  // platform match alone is not a reason
     if (sHit) { score += 1; reasons.push(`stack ${sHit.join('/')}`); } else if (tHit) { score += 1; reasons.push(`target ${tHit.join('/')}`); }
     const installed = skillInstalled(s.name);
     if (installed && !includeInstalled) continue;
-    out.push({ id: s.id, name: s.name, why: s.why, note: s.note, score, reasons, installed });
+    out.push({ id: s.id, name: s.name, why: s.why, note: s.note, score, reasons, installed, trending: !!s.trending });
   }
-  return out.sort((a, b) => b.score - a.score || a.id.localeCompare(b.id)).slice(0, limit);
+  out.sort((a, b) => b.score - a.score || a.id.localeCompare(b.id));
+  const trend = out.filter(r => r.trending), cur = out.filter(r => !r.trending), slots = Math.min(trend.length, limit >= 5 ? 2 : 1);
+  return [...cur.slice(0, limit - slots), ...trend.slice(0, slots)];
 }
 function recText(recs, header) {
   if (!recs.length) return '';
   return header + '\n' + recs.map(r => `  • ${r.id}: ${r.why}. Why now: ${r.reasons.join('; ')}.`).join('\n') +
     '\n  (Agent: offer these to the user once, with the reason. Fetch for review: gw skills fetch <id> · install: gw skills install <id> · declined: gw skills decline <id>)';
+}
+
+// ---------- weekly trending skill discovery (silent; machine cache + per-project fit) ----------
+const HOME_GW = process.env.GW_HOME || path.join(os.homedir(), '.groundwork');
+const gcfg = () => readJson(path.join(HOME_GW, 'config.json'), {});
+const setGcfg = (k, v) => { const c = gcfg(); c[k] = v; writeJson(path.join(HOME_GW, 'config.json'), c); };
+const TREND_URL = 'https://www.skills.sh/trending';
+function parseTrending(html) {
+  const t = String(html).replace(/\\"/g, '"'), re = /\{"source":"([^"]+)","skillId":"([^"]+)","name":"([^"]+)","installs":(\d+)/g;
+  const out = [], seen = new Set(); let m;
+  while ((m = re.exec(t))) { const k = m[1] + '/' + m[2]; if (seen.has(k)) continue; seen.add(k); out.push({ source: m[1], skillId: m[2], name: m[3], installs: +m[4], rank: out.length + 1 }); }
+  return out;
+}
+// vocabulary → what a skill is about. dev:false entries never fit a software project.
+const VOCAB = [
+  [/\b(react|jsx|tsx)\b/, { targets: ['web', 'android', 'ios'], stacks: ['vite-react', 'nextjs', 'react-native'] }],
+  [/\bnext\.?js\b|\bnextjs\b/, { targets: ['web'], stacks: ['nextjs'] }],
+  [/\b(vue|nuxt|pinia)\b/, { targets: ['web'], stacks: ['vue'] }],
+  [/\bsvelte/, { targets: ['web'], stacks: ['svelte'] }],
+  [/\b(tailwind|css|frontend|front-end|web app|website|landing page|html|browser|vite)\b/, { targets: ['web'] }],
+  [/\b(flutter|dart)\b/, { targets: ['android', 'ios'], stacks: ['flutter'] }],
+  [/\b(mobile app|mobile apps|mobile ui)\b/, { targets: ['android', 'ios'] }],
+  [/\b(react[- ]native|expo)\b/, { targets: ['android', 'ios'], stacks: ['react-native'] }],
+  [/\b(android|kotlin|jetpack|compose|gradle)\b/, { targets: ['android'] }],
+  [/\b(ios|swift|swiftui|xcode|uikit)\b/, { targets: ['ios', 'macos'], stacks: ['swiftui'] }],
+  [/\b(macos|appkit)\b/, { targets: ['macos'] }],
+  [/\b(electron)\b/, { targets: ['windows', 'macos', 'linux-desktop'], stacks: ['electron'] }],
+  [/\b(tauri)\b/, { targets: ['windows', 'macos', 'linux-desktop'], stacks: ['tauri'] }],
+  [/\b(wpf|winui|winforms|windows desktop)\b/, { targets: ['windows'], stacks: ['dotnet-wpf-winui'] }],
+  [/\b(\.net|dotnet|c#|csharp|asp\.net)\b/, { targets: ['backend', 'windows'], stacks: ['dotnet', 'dotnet-wpf-winui'] }],
+  [/\b(fastapi|django|flask|python|pytest|pydantic)\b/, { targets: ['backend', 'cli'], stacks: ['python'] }],
+  [/\b(golang|go module|gin)\b/, { targets: ['backend', 'cli'], stacks: ['go'] }],
+  [/\b(rust|cargo|tokio)\b/, { targets: ['cli', 'backend'], stacks: ['rust', 'tauri'] }],
+  [/\b(spring|java|jvm)\b/, { targets: ['backend'], stacks: ['java-spring'] }],
+  [/\b(node\.?js|express|nestjs|hono|fastify|bun|deno|prisma|drizzle|typeorm|sequelize)\b/, { targets: ['backend'], stacks: ['node'] }],
+  [/\b(postgres|postgresql|mysql|sqlite|sql|supabase|database|schema|orm|redis|mongodb)\b/, { targets: ['backend'], phases: ['P5', 'P7'] }],
+  [/\b(api|rest|graphql|openapi|endpoint|grpc)\b/, { targets: ['backend', 'web'], phases: ['P5'], weak: true }],
+  [/\b(embedded|firmware|arduino|esp32|zephyr|stm32|microcontroller)\b/, { targets: ['embedded'] }],
+  [/\b(cli|command[- ]line|terminal tool)\b/, { targets: ['cli'], weak: true }],
+  [/\b(test|tests|testing|tdd|unit test|jest|vitest)\b/, { phases: ['P7', 'P8'] }],
+  [/\b(e2e|end-to-end|playwright|cypress|selenium|appium|maestro)\b/, { phases: ['P8'] }],
+  [/\b(code review|review|lint|refactor|clean code|simplif|tech debt|dead code)\b/, { phases: ['P9', 'MAINTAIN'] }],
+  [/\b(security|vulnerab|owasp|secret|auth|authentication|oauth|jwt|pentest)\b/, { phases: ['P9', 'SECURITY'] }],
+  [/\b(deploy|deployment|docker|kubernetes|k8s|ci\/cd|ci|github actions|pipeline|vercel|aws|azure|gcp|cloudflare|terraform)\b/, { phases: ['P10', 'OPERATE'] }],
+  [/\b(monitor|observability|logging|tracing|metrics|sentry|incident)\b/, { phases: ['OPERATE'] }],
+  [/\b(upgrade|migration|migrate|deprecat)\b/, { phases: ['UPGRADE'] }],
+  [/\b(prd|spec|requirements|planning|architecture|design system|ux|ui design|accessibility|a11y)\b/, { phases: ['P1', 'P5', 'P6'] }],
+  [/\b(debug|debugging|bug|error handling|performance|profil)\b/, { phases: ['P7', 'OPERATE'] }],
+];
+// cloud/vendor/framework-specific skills only fit projects that declared it (project.json "services", set in P2)
+const VENDORS = { azure: /\b(azure|aks|app insights|appinsights|entra|microsoft foundry)\b/, aws: /\b(aws|amazon web services|lambda|dynamodb|bedrock)\b/,
+  gcp: /\b(gcp|google cloud|vertex|adk|google agents?)\b/, firebase: /\bfirebase\b/, supabase: /\bsupabase\b/, vercel: /\bvercel\b/, netlify: /\bnetlify\b/,
+  cloudflare: /\bcloudflare\b/, heroku: /\bheroku\b/, stripe: /\bstripe\b/, shopify: /\bshopify\b/, salesforce: /\bsalesforce\b/, twilio: /\btwilio\b/,
+neon: /\bneon\b/, planetscale: /\bplanetscale\b/, turso: /\bturso\b/, railway: /\brailway\b/, render: /\brender\.com\b/,
+  remotion: /\bremotion\b/, runcomfy: /\brun ?comfy\b/, heygen: /\bheygen\b/, uizze: /\buizze\b/ };
+// content-generation / marketing skills are not software-development skills
+const NONDEV = /\b(music|song|video generation|video edit\w*|image generation|ai image|ai video|avatar|photo edit\w*|tweet|twitter|reddit|linkedin|instagram|tiktok|youtube|podcast|voice clon\w*|marketing|seo|social media|newsletter|copywriting|trading)\b/;
+// skills for evading detection or abusing services are never recommended
+const RISKY = /\b(anti ?detect|fingerprint spoof\w*|real device fingerprint|captcha (solv|bypass)\w*|evade (bot )?detection|undetectable|bot farm|account farm|multi account isolation|mass (dm|messaging))\b/;
+function classifySkill(text, name = '', source = '') {
+  const s = String(text).toLowerCase().replace(/[-_]/g, ' '), n = String(name).toLowerCase().replace(/[-_]/g, ' '), src = String(source).toLowerCase();
+  const head = n + ' ' + s.split(/(?<=\.)\s/)[0];                     // name + first sentence: what the skill is *about*
+  const c = { targets: new Set(), stacks: new Set(), phases: new Set(), keywords: [], vendors: new Set(), strong: false };
+  for (const [v, re] of Object.entries(VENDORS)) if (re.test(head)) c.vendors.add(v);
+  for (const [re, v] of VOCAB) { const m = s.match(re); if (!m) continue;
+    const platform = !!(v.targets || v.stacks) && !v.weak;
+    if (!platform && !re.test(n)) continue;                            // phase words only count when they are in the skill's name
+    if (platform) c.strong = true; else c.strong = c.strong || re.test(n);
+    (v.targets || []).forEach(x => c.targets.add(x)); (v.stacks || []).forEach(x => c.stacks.add(x)); (v.phases || []).forEach(x => c.phases.add(x));
+    if (!c.keywords.includes(m[0])) c.keywords.push(m[0]); }
+  c.risky = RISKY.test(n + ' ' + s);
+  c.dev = c.strong && !NONDEV.test(head) && !/(marketing|seo|growth|social|content)/.test(src) && !c.risky;   // repo names: plain substring ("marketingskills")
+  return c;
+}
+function fitsProject(c, proj) {
+  if (!c.dev) return false;
+  const targets = proj.targets || [], stacks = Object.values(proj.stacks || {}), services = (proj.services || []).map(x => String(x).toLowerCase());
+  if (c.vendors.size && ![...c.vendors].some(v => services.includes(v))) return false;
+  if (c.targets.size && targets.length && ![...c.targets].some(t => targets.includes(t))) return false;
+  if (c.stacks.size && stacks.length && ![...c.stacks].some(t => stacks.includes(t))) return false;   // tied to a stack this project doesn't use
+  return c.targets.size > 0 || c.phases.size > 0;
+}
+async function fetchText(url, ms = 8000) { const r = await fetch(url, { signal: AbortSignal.timeout(ms), headers: { 'user-agent': 'groundwork-cli' } }); if (!r.ok) throw new Error(url + ' → ' + r.status); return r.text(); }
+async function skillDescription(source, id) {
+  for (const p of [`skills/${id}/SKILL.md`, `${id}/SKILL.md`, `.claude/skills/${id}/SKILL.md`, `plugins/${id}/SKILL.md`, 'SKILL.md']) {
+    let t; try { t = await fetchText(`https://raw.githubusercontent.com/${source}/HEAD/${p}`); } catch { continue; }
+    const fm = (t.match(/^---\n([\s\S]*?)\n---/) || [])[1] || '';
+    const name = ((fm.match(/^name:\s*(.+)$/m) || [])[1] || '').trim().replace(/^["']|["']$/g, '');
+    let desc = ((fm.match(/^description:\s*(.+)$/m) || [])[1] || '').trim().replace(/^["'>|-]+\s*|["']$/g, '');
+    if (!desc) desc = ((fm.match(/^description:\s*[>|]-?\s*\n((?:\s+.+\n?)+)/m) || [])[1] || '').replace(/\s+/g, ' ').trim();
+    if (p === 'SKILL.md' && name && name !== id) continue;
+    return { path: p.replace(/\/?SKILL\.md$/, ''), description: desc };
+  }
+  return null;
+}
+function isLookalike(source) {   // same repo name as a curated source but a different owner → possible impersonation
+  const [owner, repo] = source.toLowerCase().split('/');
+  const GENERIC = new Set(['skills', 'agent-skills', 'claude-skills', 'ai-skills', 'agents', 'awesome-skills', 'claude-code-skills']);   // common names, not impersonation
+  if (GENERIC.has(repo)) return false;
+  return Object.values(curatedCatalog().sources).some(s => { const [o, r] = s.repo.toLowerCase().replace('https://github.com/', '').split('/'); return r === repo && o !== owner; });
+}
+function refreshDue() {
+  const cfg = gcfg(); if (cfg.trending === false) return false;
+  const tr = readJson(path.join(HOME_GW, 'trending.json')), last = tr ? Date.parse(tr.fetched_at) : 0;
+  let dueAt = Date.now() - 7 * 864e5;
+  if (cfg.refresh_weekday != null) {             // weekly usage-reset day: due once that weekday has passed since the last refresh
+    const d = new Date(); d.setHours(0, 0, 0, 0); while (d.getDay() !== cfg.refresh_weekday) d.setDate(d.getDate() - 1); dueAt = d.getTime();
+  }
+  if (last < dueAt) return true;
+  const disc = readJson(P('skills-discovered.json'));
+  return exists(P('project.json')) && (!disc || disc.from !== tr.fetched_at);
+}
+function maybeRefreshInBackground() {
+  try {
+    if (!refreshDue()) return;
+    const lock = path.join(HOME_GW, 'refresh.lock');
+    if (exists(lock) && Date.now() - fs.statSync(lock).mtimeMs < 3600e3) return;
+    fs.mkdirSync(HOME_GW, { recursive: true }); fs.writeFileSync(lock, now());
+    cp.spawn(process.execPath, [__filename, 'skills', 'refresh', '--quiet'], { detached: true, stdio: 'ignore', cwd: ROOT, env: { ...process.env, GW_PROJECT_DIR: ROOT } }).unref();
+  } catch { /* never disturb the session */ }
+}
+async function refreshTrending({ quiet = false, force = false } = {}) {
+  const log = m => { if (!quiet) console.log(m); };
+  let tr = readJson(path.join(HOME_GW, 'trending.json'));
+  const stale = !tr || Date.now() - Date.parse(tr.fetched_at) > 6 * 864e5;
+  if (force || stale || (gcfg().refresh_weekday != null && refreshDue())) {
+    const list = parseTrending(await fetchText(TREND_URL, 15000));
+    if (list.length < 10) throw new Error('trending page format changed (parsed ' + list.length + ' skills)');
+    tr = { fetched_at: now(), url: TREND_URL, skills: list };
+    writeJson(path.join(HOME_GW, 'trending.json'), tr);
+    log(`Fetched ${list.length} trending skills from skills.sh.`);
+  }
+  if (!exists(P('project.json'))) return null;
+  const proj = project(), curatedNames = new Set(curatedCatalog().skills.map(s => s.name));
+  const declined = new Set((state().skills_declined || []).map(d => d.id));
+  const picked = [], skipped = { lookalike: [], nofit: 0, nodesc: 0, unpinned: 0 };
+  const cands = [];
+  for (const t of tr.skills) {
+    if (!/^[\w.-]+\/[\w.-]+$/.test(t.source) || curatedNames.has(t.skillId) || declined.has(`trending/${t.source}/${t.skillId}`)) continue;
+    if (isLookalike(t.source)) { skipped.lookalike.push(`${t.source}/${t.skillId}`); continue; }
+    if (!classifySkill(t.skillId).dev && t.rank > 300) continue;           // deep in the list and not obviously dev: skip the fetch
+    cands.push(t);
+  }
+  // pin without the GitHub API (no rate limit): git ls-remote
+  const headRef = source => { const r = cp.spawnSync('git', ['ls-remote', `https://github.com/${source}`, 'HEAD'], { encoding: 'utf8', timeout: 15000 }); const m = (r.stdout || '').match(/^([0-9a-f]{40})\s+HEAD/m); return m ? m[1] : null; };
+  for (let i = 0; i < cands.length && picked.length < 10; i += 8) {            // 8 descriptions in parallel, results kept in rank order
+    const batch = cands.slice(i, i + 8), descs = await Promise.all(batch.map(t => skillDescription(t.source, t.skillId).catch(() => null)));
+    for (let j = 0; j < batch.length && picked.length < 10; j++) {
+      const t = batch[j], d = descs[j];
+      if (!d) { skipped.nodesc++; continue; }
+      const c = classifySkill(t.skillId + ' ' + d.description, t.skillId, t.source);
+      if (c.risky) { (skipped.risky = skipped.risky || []).push(`${t.source}/${t.skillId}`); continue; }
+      if (!fitsProject(c, proj)) { skipped.nofit++; continue; }
+      if (picked.filter(x => x.repo.endsWith('/' + t.source)).length >= 3) { skipped.nofit++; continue; }   // diversity: max 3 per repo
+      const ref = picked.find(x => x.repo.endsWith('/' + t.source))?.ref || headRef(t.source);
+      if (!ref) { skipped.unpinned++; continue; }                                                           // install must be pinned
+      picked.push({ id: `trending/${t.source}/${t.skillId}`, source: 'trending', repo: `https://github.com/${t.source}`, ref, path: d.path, name: t.skillId,
+        why: (d.description || t.name).split(/(?<=\.)\s/)[0].slice(0, 120), phases: [...c.phases], targets: c.targets.size ? [...c.targets] : ['*'],
+        stacks: c.stacks.size ? [...c.stacks] : ['*'], keywords: c.keywords, text: (t.skillId + ' ' + (d.description || '')).toLowerCase().slice(0, 400),
+        trending: { rank: t.rank, installs: t.installs, week_of: tr.fetched_at.slice(0, 10) },
+        note: Object.values(curatedCatalog().sources).some(x => x.repo.toLowerCase() === `https://github.com/${t.source}`.toLowerCase()) ? 'trending, from a source already in the curated catalogue; still read it before installing' : 'trending, not reviewed: third-party; fetch and read it before installing' });
+    }
+  }
+  writeJson(P('skills-discovered.json'), { refreshed_at: now(), from: tr.fetched_at, project_targets: proj.targets || [], skills: picked, skipped });
+  if (skipped.lookalike.length) fb('trending-lookalike', { skills: skipped.lookalike });
+  log(`Kept ${picked.length} trending skills that fit this project (skipped: ${skipped.lookalike.length} lookalikes of known sources, ${skipped.nofit} not fitting, ${skipped.nodesc} unreadable).`);
+  return picked;
 }
 
 // ---------- maintenance info ----------
@@ -536,6 +713,7 @@ function hook(sub) {
   const p = project(); if (!exists(P('project.json'))) return 0;   // not initialised: stay silent
   if (sub === 'session-start') {
     try { migrate(); } catch (e) { console.log('Groundwork: migration failed: ' + e.message); }
+    maybeRefreshInBackground();   // weekly, silent, detached
     const integ = integrity();
     if (integ.stale.length || integ.missing.length) console.log(`Groundwork: framework folder has ${integ.stale.length} leftover and ${integ.missing.length} missing file(s) vs its manifest (copied over an old version?). Run: gw verify --clean`);
     const h = readJson(P('host-profile.json'));
@@ -601,12 +779,12 @@ function main(argv) {
     case 'set': {   // gw set tier=standard stage=greenfield targets=web,android stacks.android=flutter name=x
       const p = project();
       for (const kv of args) { const [k, ...v] = kv.split('='); const val = v.join('=');
-        if (k === 'targets') p.targets = val.split(',').filter(Boolean);
+        if (k === 'targets' || k === 'services') p[k] = val.split(',').map(x => x.trim().toLowerCase()).filter(Boolean);
         else if (k.startsWith('stacks.')) { p.stacks = p.stacks || {}; p.stacks[k.slice(7)] = val; }
         else if (k === 'tier' && !TIER_PHASES[val]) throw new Error('tier must be one of ' + Object.keys(TIER_PHASES));
         else p[k] = val; }
       writeJson(P('project.json'), p); console.log(JSON.stringify(p, null, 2));
-      if (args.some(a => /^(stage|targets|stacks\.)/.test(a))) { const t = recText(recommendSkills(p, nextStep().phase, currentTaskText(), { limit: 3 }), 'Skills worth adding for this project now:'); if (t) console.log(t); }
+      if (args.some(a => /^(stage|targets|services|stacks\.)/.test(a))) { const t = recText(recommendSkills(p, nextStep().phase, currentTaskText(), { limit: 3 }), 'Skills worth adding for this project now:'); if (t) console.log(t); }
       return 0;
     }
     case 'phase': {   // gw phase P1 done|skipped|in_progress|blocked ["note"]
@@ -656,23 +834,35 @@ function main(argv) {
         const s = cat.skills.find(x => x.id === args[1]);
         if (!s) throw new Error('unknown skill id; see gw skills --all');
         const { skillDir, src, dir } = fetchSkill(s);
-        const files = walk(skillDir), scripts = files.filter(f => /\.(sh|bash|ps1|js|mjs|cjs|ts|py|rb|exe|bat|cmd)$/i.test(f));
+        const files = s.path ? walk(skillDir) : ['SKILL.md'], scripts = files.filter(f => /\.(sh|bash|ps1|js|mjs|cjs|ts|py|rb|exe|bat|cmd)$/i.test(f));
         if (sub === 'fetch') {
           console.log(`Fetched ${s.id} @ ${src.ref.slice(0, 12)} (${src.license}) to ${path.relative(ROOT, skillDir)}\nFiles: ${files.join(', ')}` +
             (scripts.length ? `\n⚠ contains executable files: ${scripts.join(', ')}. Read them before installing.` : '\nNo executable files.') +
             (s.note ? `\nNote: ${s.note}` : '') + `\nReview SKILL.md (third-party content, phases/P4.md), then: gw skills install ${s.id}`);
           return 0;
         }
+        const lic = src.license_file ? path.join(dir, src.license_file) : (fs.readdirSync(dir).filter(f => /^LICEN[CS]E/i.test(f)).map(f => path.join(dir, f))[0] || null);
+        if (!lic && !args.includes('--force')) throw new Error(`${s.id} has no LICENSE in its repo, so you may not have the right to copy it. Read the repo terms; install anyway with --force.`);
         const dest = path.join(ROOT, '.claude', 'skills', s.name);
         if (exists(dest) && !args.includes('--force')) throw new Error(`${path.relative(ROOT, dest)} already exists (use --force to replace)`);
         fs.rmSync(dest, { recursive: true, force: true });
         fs.cpSync(skillDir, dest, { recursive: true });
-        fs.copyFileSync(path.join(dir, src.license_file), path.join(dest, 'LICENSE'));   // MIT requires keeping the notice
+        if (lic) fs.copyFileSync(lic, path.join(dest, 'LICENSE'));   // keep the licence notice (MIT requires it)
         const lock = readJson(P('skills.lock.json'), {});
         lock[s.name] = { id: s.id, repo: src.repo, ref: src.ref, path: s.path, license: src.license, installed_at: now(), files: Object.fromEntries(walk(dest).map(f => [f, sha(path.join(dest, f))])) };
         writeJson(P('skills.lock.json'), lock);
         console.log(`Installed ${s.id} → ${path.relative(ROOT, dest)} (with LICENSE). Recorded in .groundwork/skills.lock.json. Add it to docs/skill-requirements.md.`);
         return 0;
+      }
+      if (sub === 'refresh') return refreshTrending({ quiet: args.includes('--quiet'), force: args.includes('--force') })
+        .then(() => 0, e => { fb('refresh-failed', { message: e.message }); if (!args.includes('--quiet')) console.error('gw: trending refresh failed: ' + e.message); return args.includes('--quiet') ? 0 : 1; })
+        .finally(() => { try { fs.rmSync(path.join(HOME_GW, 'refresh.lock'), { force: true }); } catch { } });
+      if (sub === 'trending') { const on = args[1] !== 'off'; setGcfg('trending', on); console.log(`Weekly trending discovery ${on ? 'on' : 'off'} (all projects on this machine).`); return 0; }
+      if (sub === 'refresh-day') {
+        const days = ['sun', 'mon', 'tue', 'wed', 'thu', 'fri', 'sat'], d = (args[1] || '').slice(0, 3).toLowerCase();
+        if (d === 'off') { setGcfg('refresh_weekday', null); console.log('Refresh every 7 days.'); return 0; }
+        if (!days.includes(d)) throw new Error('usage: gw skills refresh-day <sun|mon|…|sat|off>');
+        setGcfg('refresh_weekday', days.indexOf(d)); console.log(`Trending refresh runs at the first session on or after each ${args[1]} (your weekly reset day).`); return 0;
       }
       if (sub === 'decline') {
         const id = args[1]; if (!catalog().skills.some(x => x.id === id)) throw new Error('unknown skill id');
@@ -686,7 +876,7 @@ function main(argv) {
         const missing = recs.filter(r => !r.installed), have = recs.filter(r => r.installed);
         console.log(`Skill recommendations for phase ${phase}${project().stage ? ' · stage ' + project().stage : ''}${text ? ' · task: "' + text.trim().slice(0, 80) + '"' : ''}`);
         if (!missing.length) console.log('  No missing skills recommended for this context.');
-        for (const r of missing) console.log(`  + ${r.id.padEnd(44)} ${r.why}\n      why now: ${r.reasons.join('; ')}${r.note ? '\n      note: ' + r.note : ''}`);
+        for (const r of missing) console.log(`  ${r.trending ? '★' : '+'} ${r.id.padEnd(44)} ${r.why}\n      why now: ${r.reasons.join('; ')}${r.note ? '\n      note: ' + r.note : ''}`);
         if (have.length) console.log(`  Already installed and relevant: ${have.map(r => r.name).join(', ')}`);
         console.log('\nFetch for review: gw skills fetch <id> · install: gw skills install <id> · not wanted: gw skills decline <id> · full list: gw skills --all');
         return 0;
@@ -738,12 +928,12 @@ function main(argv) {
       console.log('Groundwork CLI\n  init [--profile minimal|standard|strict] [--no-hooks]   set up this project (state, CLAUDE.md import, hooks) and scan the host\n' +
         '  doctor [--fresh] [--json]   scan host if needed, check tools for the chosen targets\n  plan-install   list install/fix commands for this machine (never runs them)\n' +
         '  status | next   show phase, blockers, next step\n  set k=v ...   e.g. set tier=standard stage=greenfield targets=web,android stacks.android=flutter\n' +
-        '  phase <id> <status> ["note"]   record phase progress\n  run <target> <tier> -- <cmd>   run tests and write a receipt\n  gate <G1|G2> [--approve "..."]   check / approve a gate\n  scan   print raw host profile\n  note <category> "text"   silent framework feedback (agent)\n  feedback   write .groundwork/FEEDBACK.md\n  skills [--for \"task\"] [--all] | skills fetch|install|decline <id>   context-aware skill recommendations\n  maintain   upgrade/audit/dead-code/rollback/observability commands for this project\n  eol   runtime end-of-life check (endoflife.date)\n  version | verify [--clean] | upgrade <new-groundwork-folder> [--force] | migrate');
+        '  phase <id> <status> ["note"]   record phase progress\n  run <target> <tier> -- <cmd>   run tests and write a receipt\n  gate <G1|G2> [--approve "..."]   check / approve a gate\n  scan   print raw host profile\n  note <category> "text"   silent framework feedback (agent)\n  feedback   write .groundwork/FEEDBACK.md\n  skills [--for \"task\"] [--all] | skills fetch|install|decline <id>   context-aware skill recommendations\n  skills refresh [--force] | skills trending on|off | skills refresh-day <mon..sun|off>   weekly trending discovery\n  maintain   upgrade/audit/dead-code/rollback/observability commands for this project\n  eol   runtime end-of-life check (endoflife.date)\n  version | verify [--clean] | upgrade <new-groundwork-folder> [--force] | migrate');
       return cmd ? 1 : 0;
   }
 }
 
-module.exports = { recommendSkills, suggestSkills, maintainInfo, catalog, buildManifest, integrity, changelogSince, capabilities, devMethod, feasibility, kvmCheck, dockerCheck, toolCheck, vcmp, installCommand };
+module.exports = { parseTrending, classifySkill, fitsProject, isLookalike, curatedCatalog, recommendSkills, suggestSkills, maintainInfo, catalog, buildManifest, integrity, changelogSince, capabilities, devMethod, feasibility, kvmCheck, dockerCheck, toolCheck, vcmp, installCommand };
 if (require.main === module) {
   try { const r = main(process.argv.slice(2)); if (r && r.then) r.then(c => { process.exitCode = c; }, e => { fb('error', { cmd: process.argv[2] || '', message: e.message }); console.error('gw: ' + e.message); process.exitCode = 1; }); else process.exitCode = r; } catch (e) { fb('error', { cmd: process.argv[2] || '', message: e.message }); console.error('gw: ' + e.message); process.exitCode = 1; }
 }

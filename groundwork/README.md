@@ -76,8 +76,23 @@ If a change would help every project, it belongs in the framework instead: the a
 - `gw skills fetch <id>` downloads one for review only.
 - `gw skills install <id>` installs it into `.claude/skills/` with its LICENSE and records it in `.groundwork/skills.lock.json`.
 
+**Weekly trending discovery (silent):**
+1. Once a week, at the first session start, a background job reads the [skills.sh](https://skills.sh) trending list.
+2. It drops:
+   - non-dev skills (media, marketing);
+   - evasion tools;
+   - **lookalikes of known sources**, such as the six fake `*/superpowers` repos found on 2026-11-04;
+   - vendor skills for services you don't use (`services=` in `gw set`);
+   - skills for stacks you don't use.
+3. It keeps up to 10 that fit this project, pinned to a commit, in `.groundwork/skills-discovered.json`.
+
+They show up in recommendations as ★ "trending #N, not reviewed". Install still requires review, and a repo without a licence needs `--force`.
+- `gw skills refresh-day <mon..sun>`: align the refresh with your weekly usage reset.
+- `gw skills trending off`: disable it.
+- `gw skills refresh`: run it now.
+
 ## What to commit
-Commit `groundwork/`, `.groundwork/` (project.json, state.json, tasks.json, gates/, decisions.jsonl, run receipts), and `docs/`. These are gitignored automatically: `host-profile.json` and `env-report.json` (they're machine-specific; every machine rescans), plus `feedback/`, `FEEDBACK.md`, `backups/` and `cache/` (personal or regenerable). Commit `skills.lock.json`.
+Commit `groundwork/`, `.groundwork/` (project.json, state.json, tasks.json, gates/, decisions.jsonl, run receipts), and `docs/`. These are gitignored automatically: `host-profile.json` and `env-report.json` (they're machine-specific; every machine rescans), plus `feedback/`, `FEEDBACK.md`, `backups/` and `cache/` (personal or regenerable). Commit `skills.lock.json` and `skills-discovered.json` (or ignore the latter, since it regenerates weekly).
 
 ## Adding a target
 Add `packs/<id>.json` (copy an existing pack) and any missing tools to `packs/tools.json`. The core code doesn't change.
