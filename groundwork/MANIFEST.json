@@ -1,12 +1,12 @@
 {
-  "version": "0.3.0",
+  "version": "0.3.1",
   "files": {
-    "CHANGELOG.md": "1f231841b1098403",
-    "GROUNDWORK.md": "915cd035dd463d52",
+    "CHANGELOG.md": "f5191b9aeabc2fc0",
+    "GROUNDWORK.md": "9d6ae583a2a2a572",
     "README.md": "fa2671364cbab426",
-    "VERSION": "d915cc95d6ca8f47",
-    "bin/gw.js": "4b5292d3b32768e6",
-    "catalog/skills.json": "bfd5bc74901a86ba",
+    "VERSION": "79e3f22ca37c7fdf",
+    "bin/gw.js": "0417037bf291d7ea",
+    "catalog/skills.json": "1262b07f6c4deec9",
     "hooks/SKILL.md": "50629d5cb9267d5d",
     "packs/android.json": "8c28a2a42430e7f1",
     "packs/backend.json": "50c21d0bc8dc88d7",
@@ -51,6 +51,6 @@
     "templates/tech-debt.md": "b7a05f226bd82186",
     "templates/test-strategy.md": "843fb6a780ec46b2",
     "templates/trd.md": "e9fe4a690cb6c9e6",
-    "test/selftest.js": "b879fa991578e278"
+    "test/selftest.js": "9c95b1935a04aaf3"
   }
 }

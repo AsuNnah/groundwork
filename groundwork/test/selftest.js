@@ -105,4 +105,21 @@ t('every pack stack with an ecosystem has maintain commands, and every pack has 
   const m = gw.maintainInfo({ targets: ['backend'], stacks: { backend: 'python' } })[0];
   assert.match(m.commands.audit, /pip-audit|osv/);
 });
+t('recommendations rank task keywords and give reasons; short keywords need whole words', () => {
+  const proj = { targets: ['backend'], stacks: { backend: 'python' }, stage: 'feature' };
+  const r = gw.recommendSkills(proj, 'P7', 'add a database migration for the users table', { limit: 20, includeInstalled: true });
+  const top = r.find(x => x.id === 'ecc/database-migrations');
+  assert.ok(top, 'migration skill suggested'); assert.ok(top.reasons.some(x => /migration/.test(x)), top.reasons.join());
+  assert.ok(r.every(x => !/flutter|kotlin|swift|vue/.test(x.id)), 'no wrong-platform skills');
+  const city = gw.recommendSkills(proj, null, 'show the city name', { limit: 50, includeInstalled: true }).map(x => x.id);
+  assert.ok(!city.includes('agent-skills/ci-cd-and-automation'), '"city" must not match "ci"');
+  const ci = gw.recommendSkills(proj, null, 'set up ci for tests', { limit: 50, includeInstalled: true }).map(x => x.id);
+  assert.ok(ci.includes('agent-skills/ci-cd-and-automation'));
+});
+t('greenfield projects are not offered brownfield skills', () => {
+  const ids = gw.recommendSkills({ targets: ['web'], stacks: { web: 'vite-react' }, stage: 'greenfield' }, 'P0', '', { limit: 50, includeInstalled: true }).map(x => x.id);
+  assert.ok(!ids.includes('ecc/codebase-onboarding'));
+  const bf = gw.recommendSkills({ targets: ['web'], stacks: {}, stage: 'feature' }, 'P0', '', { limit: 50, includeInstalled: true }).map(x => x.id);
+  assert.ok(bf.includes('ecc/codebase-onboarding'));
+});
 console.log(`\n${n} checks passed`);

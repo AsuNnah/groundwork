@@ -9,7 +9,7 @@ scan host → intake & size → requirements → target & stack → environment 
 → review → release [GATE 2] → learn
 ```
 
-> Status: **alpha (v0.3.0)**. The Linux scanner, CLI, gates, hooks, and feedback loop are tested on Linux. The Windows scanner (`scan.ps1`) and the macOS path are untested. Feedback from real runs is how it improves (see [Learning from real runs](#learning-from-real-runs)).
+> Status: **alpha (v0.3.1)**. The Linux scanner, CLI, gates, hooks, and feedback loop are tested on Linux. The Windows scanner (`scan.ps1`) and the macOS path are untested. Feedback from real runs is how it improves (see [Learning from real runs](#learning-from-real-runs)).
 
 ---
 
@@ -92,7 +92,7 @@ Each pack declares stacks (with detection markers and scaffolds), required tools
 `gw maintain` prints the exact outdated, upgrade, audit, dead-code, override, rollback and observability commands for your project's stacks.
 
 ### 7. Skill catalogue
-`gw skills` recommends agent skills for the current phase and stack from a curated catalogue of **69 skills** from [ECC](https://github.com/affaan-m/ecc), [Superpowers](https://github.com/obra/superpowers) and [agent-skills](https://github.com/addyosmani/agent-skills), all MIT and pinned to exact commits.
+Recommendations are **automatic and context-aware**. They appear at session start, when a phase advances, when the stack changes, and at the start of each task (`gw skills --for "<task>"`). Each one carries a "why now" reason: task keywords, phase, stage playbook, or stack. Declined skills aren't suggested again. `gw skills` recommends agent skills for the current phase and stack from a curated catalogue of **69 skills** from [ECC](https://github.com/affaan-m/ecc), [Superpowers](https://github.com/obra/superpowers) and [agent-skills](https://github.com/addyosmani/agent-skills), all MIT and pinned to exact commits.
 - Fetch is review-only and flags executable files.
 - Install copies the skill and its LICENSE into the project and records it in a lockfile.
 - Groundwork doesn't vendor third-party skills; it points to them.

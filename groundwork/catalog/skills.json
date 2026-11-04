@@ -39,7 +39,13 @@
       "stacks": [
         "*"
       ],
-      "why": "one-question-at-a-time requirements interview"
+      "why": "one-question-at-a-time requirements interview",
+      "keywords": [
+        "requirements",
+        "interview",
+        "what should",
+        "idea"
+      ]
     },
     {
       "id": "agent-skills/idea-refine",
@@ -55,7 +61,13 @@
       "stacks": [
         "*"
       ],
-      "why": "sharpen a vague idea before the PRD"
+      "why": "sharpen a vague idea before the PRD",
+      "keywords": [
+        "idea",
+        "brainstorm",
+        "vague",
+        "concept"
+      ]
     },
     {
       "id": "superpowers/brainstorming",
@@ -72,7 +84,13 @@
       "stacks": [
         "*"
       ],
-      "why": "Socratic design exploration, presented in chunks"
+      "why": "Socratic design exploration, presented in chunks",
+      "keywords": [
+        "design",
+        "brainstorm",
+        "explore options",
+        "approach"
+      ]
     },
     {
       "id": "agent-skills/api-and-interface-design",
@@ -90,7 +108,15 @@
       "stacks": [
         "*"
       ],
-      "why": "stable API and module boundaries"
+      "why": "stable API and module boundaries",
+      "keywords": [
+        "api",
+        "endpoint",
+        "interface",
+        "rest",
+        "graphql",
+        "module boundary"
+      ]
     },
     {
       "id": "agent-skills/planning-and-task-breakdown",
@@ -106,7 +132,13 @@
       "stacks": [
         "*"
       ],
-      "why": "split a spec into small ordered tasks"
+      "why": "split a spec into small ordered tasks",
+      "keywords": [
+        "plan",
+        "tasks",
+        "break down",
+        "estimate"
+      ]
     },
     {
       "id": "superpowers/writing-plans",
@@ -122,7 +154,11 @@
       "stacks": [
         "*"
       ],
-      "why": "2\u20135 minute tasks with exact files and verification"
+      "why": "2\u20135 minute tasks with exact files and verification",
+      "keywords": [
+        "plan",
+        "implementation plan"
+      ]
     },
     {
       "id": "agent-skills/constraint-driven-development",
@@ -138,7 +174,13 @@
       "stacks": [
         "*"
       ],
-      "why": "CONSTRAINTS.md quality bar; stops agents weakening tests"
+      "why": "CONSTRAINTS.md quality bar; stops agents weakening tests",
+      "keywords": [
+        "quality bar",
+        "coverage",
+        "constraints",
+        "standards"
+      ]
     },
     {
       "id": "agent-skills/test-driven-development",
@@ -154,7 +196,12 @@
       "stacks": [
         "*"
       ],
-      "why": "red-green-refactor with evidence"
+      "why": "red-green-refactor with evidence",
+      "keywords": [
+        "test",
+        "tdd",
+        "unit test"
+      ]
     },
     {
       "id": "agent-skills/incremental-implementation",
@@ -170,7 +217,12 @@
       "stacks": [
         "*"
       ],
-      "why": "thin verifiable slices"
+      "why": "thin verifiable slices",
+      "keywords": [
+        "implement",
+        "feature",
+        "build"
+      ]
     },
     {
       "id": "superpowers/subagent-driven-development",
@@ -186,7 +238,12 @@
       "stacks": [
         "*"
       ],
-      "why": "fresh subagent per task (large tier)"
+      "why": "fresh subagent per task (large tier)",
+      "keywords": [
+        "large feature",
+        "many tasks",
+        "parallel"
+      ]
     },
     {
       "id": "superpowers/using-git-worktrees",
@@ -202,7 +259,12 @@
       "stacks": [
         "*"
       ],
-      "why": "isolated branch per feature with a clean baseline"
+      "why": "isolated branch per feature with a clean baseline",
+      "keywords": [
+        "branch",
+        "worktree",
+        "isolate"
+      ]
     },
     {
       "id": "agent-skills/debugging-and-error-recovery",
@@ -219,7 +281,18 @@
       "stacks": [
         "*"
       ],
-      "why": "root-cause debugging instead of guessing"
+      "why": "root-cause debugging instead of guessing",
+      "keywords": [
+        "bug",
+        "fix",
+        "crash",
+        "error",
+        "broken",
+        "fails",
+        "failing",
+        "exception",
+        "debug"
+      ]
     },
     {
       "id": "superpowers/verification-before-completion",
@@ -235,7 +308,13 @@
       "stacks": [
         "*"
       ],
-      "why": "no 'done' without evidence"
+      "why": "no 'done' without evidence",
+      "keywords": [
+        "verify",
+        "done",
+        "finished",
+        "complete"
+      ]
     },
     {
       "id": "ecc/verification-loop",
@@ -252,7 +331,13 @@
         "*"
       ],
       "why": "build \u2192 types \u2192 lint \u2192 tests \u2192 security \u2192 diff report",
-      "note": "mentions ECC commands; follow the steps, ignore the command names"
+      "note": "mentions ECC commands; follow the steps, ignore the command names",
+      "keywords": [
+        "verify",
+        "check build",
+        "lint",
+        "typecheck"
+      ]
     },
     {
       "id": "agent-skills/code-review-and-quality",
@@ -268,7 +353,13 @@
       "stacks": [
         "*"
       ],
-      "why": "multi-axis code review"
+      "why": "multi-axis code review",
+      "keywords": [
+        "review",
+        "pull request",
+        "pr",
+        "merge"
+      ]
     },
     {
       "id": "agent-skills/security-and-hardening",
@@ -286,7 +377,17 @@
       "stacks": [
         "*"
       ],
-      "why": "security requirements and hardening"
+      "why": "security requirements and hardening",
+      "keywords": [
+        "security",
+        "auth",
+        "login",
+        "password",
+        "token",
+        "permission",
+        "encrypt",
+        "harden"
+      ]
     },
     {
       "id": "ecc/security-review",
@@ -303,7 +404,20 @@
       "stacks": [
         "*"
       ],
-      "why": "checklist for auth, input, secrets, APIs"
+      "why": "checklist for auth, input, secrets, APIs",
+      "keywords": [
+        "auth",
+        "login",
+        "password",
+        "secret",
+        "token",
+        "payment",
+        "upload",
+        "user input",
+        "sql",
+        "xss",
+        "csrf"
+      ]
     },
     {
       "id": "agent-skills/shipping-and-launch",
@@ -319,7 +433,14 @@
       "stacks": [
         "*"
       ],
-      "why": "pre-launch checklist"
+      "why": "pre-launch checklist",
+      "keywords": [
+        "launch",
+        "ship",
+        "release",
+        "go live",
+        "production"
+      ]
     },
     {
       "id": "agent-skills/ci-cd-and-automation",
@@ -336,7 +457,14 @@
       "stacks": [
         "*"
       ],
-      "why": "CI pipeline and quality gates (S3 tier)"
+      "why": "CI pipeline and quality gates (S3 tier)",
+      "keywords": [
+        "ci",
+        "pipeline",
+        "github actions",
+        "workflow",
+        "automate"
+      ]
     },
     {
       "id": "agent-skills/observability-and-instrumentation",
@@ -353,7 +481,16 @@
       "stacks": [
         "*"
       ],
-      "why": "logs, metrics, tracing, alerts"
+      "why": "logs, metrics, tracing, alerts",
+      "keywords": [
+        "logging",
+        "logs",
+        "metrics",
+        "monitoring",
+        "tracing",
+        "alert",
+        "observability"
+      ]
     },
     {
       "id": "ecc/production-audit",
@@ -370,7 +507,12 @@
       "stacks": [
         "*"
       ],
-      "why": "evidence-based production readiness audit"
+      "why": "evidence-based production readiness audit",
+      "keywords": [
+        "production readiness",
+        "pre-launch",
+        "audit"
+      ]
     },
     {
       "id": "ecc/canary-watch",
@@ -387,7 +529,13 @@
       "stacks": [
         "*"
       ],
-      "why": "verify a deployed URL after release"
+      "why": "verify a deployed URL after release",
+      "keywords": [
+        "post-deploy",
+        "canary",
+        "after release",
+        "smoke"
+      ]
     },
     {
       "id": "agent-skills/deprecation-and-migration",
@@ -404,7 +552,14 @@
       "stacks": [
         "*"
       ],
-      "why": "deprecations, migrations, expand/contract"
+      "why": "deprecations, migrations, expand/contract",
+      "keywords": [
+        "deprecat",
+        "upgrade",
+        "migrate",
+        "sunset",
+        "breaking change"
+      ]
     },
     {
       "id": "agent-skills/code-simplification",
@@ -420,7 +575,15 @@
       "stacks": [
         "*"
       ],
-      "why": "refactor for clarity without behaviour change"
+      "why": "refactor for clarity without behaviour change",
+      "keywords": [
+        "refactor",
+        "simplify",
+        "clean up",
+        "cleanup",
+        "tech debt",
+        "messy"
+      ]
     },
     {
       "id": "ecc/change-impact",
@@ -438,7 +601,15 @@
       "stacks": [
         "*"
       ],
-      "why": "evidence-backed blast-radius analysis before a change"
+      "why": "evidence-backed blast-radius analysis before a change",
+      "keywords": [
+        "refactor",
+        "impact",
+        "breaking",
+        "blast radius",
+        "rename",
+        "cross-module"
+      ]
     },
     {
       "id": "ecc/codebase-onboarding",
@@ -447,7 +618,8 @@
       "name": "codebase-onboarding",
       "phases": [
         "CHANGE",
-        "P0"
+        "MAINTAIN",
+        "UPGRADE"
       ],
       "targets": [
         "*"
@@ -455,7 +627,14 @@
       "stacks": [
         "*"
       ],
-      "why": "map an unfamiliar codebase first"
+      "why": "map an unfamiliar codebase first",
+      "keywords": [
+        "unfamiliar",
+        "onboard",
+        "understand the codebase",
+        "existing project",
+        "legacy"
+      ]
     },
     {
       "id": "ecc/database-migrations",
@@ -473,7 +652,17 @@
       "stacks": [
         "*"
       ],
-      "why": "reversible, expand/contract migrations"
+      "why": "reversible, expand/contract migrations",
+      "keywords": [
+        "migration",
+        "schema",
+        "column",
+        "table",
+        "alembic",
+        "prisma migrate",
+        "flyway",
+        "database change"
+      ]
     },
     {
       "id": "ecc/accessibility",
@@ -492,7 +681,14 @@
       "stacks": [
         "*"
       ],
-      "why": "WCAG 2.2 AA across web, iOS, Android"
+      "why": "WCAG 2.2 AA across web, iOS, Android",
+      "keywords": [
+        "accessibility",
+        "a11y",
+        "screen reader",
+        "wcag",
+        "contrast"
+      ]
     },
     {
       "id": "ecc/contract-first",
@@ -509,7 +705,14 @@
       "stacks": [
         "*"
       ],
-      "why": "one OpenAPI/schema as the source of truth"
+      "why": "one OpenAPI/schema as the source of truth",
+      "keywords": [
+        "openapi",
+        "contract",
+        "schema",
+        "protobuf",
+        "api spec"
+      ]
     },
     {
       "id": "ecc/deployment-patterns",
@@ -527,7 +730,14 @@
       "stacks": [
         "*"
       ],
-      "why": "CI/CD, health checks, rollback"
+      "why": "CI/CD, health checks, rollback",
+      "keywords": [
+        "deploy",
+        "deployment",
+        "rollback",
+        "health check",
+        "pipeline"
+      ]
     },
     {
       "id": "ecc/docker-patterns",
@@ -547,7 +757,14 @@
         "*"
       ],
       "why": "Dockerfile and compose patterns",
-      "note": "contains many ECC-specific harness sections; use the general Docker parts"
+      "note": "contains many ECC-specific harness sections; use the general Docker parts",
+      "keywords": [
+        "docker",
+        "container",
+        "compose",
+        "dockerfile",
+        "image"
+      ]
     },
     {
       "id": "agent-skills/frontend-ui-engineering",
@@ -564,7 +781,16 @@
       "stacks": [
         "*"
       ],
-      "why": "accessible, production-quality UI"
+      "why": "accessible, production-quality UI",
+      "keywords": [
+        "ui",
+        "page",
+        "component",
+        "form",
+        "layout",
+        "screen",
+        "responsive"
+      ]
     },
     {
       "id": "agent-skills/browser-testing-with-devtools",
@@ -580,7 +806,13 @@
       "stacks": [
         "*"
       ],
-      "why": "real-browser checks via DevTools MCP"
+      "why": "real-browser checks via DevTools MCP",
+      "keywords": [
+        "browser",
+        "devtools",
+        "console error",
+        "network request"
+      ]
     },
     {
       "id": "ecc/e2e-testing",
@@ -597,7 +829,13 @@
         "*"
       ],
       "why": "Playwright patterns, page objects, CI artifacts",
-      "note": "mentions ECC commands"
+      "note": "mentions ECC commands",
+      "keywords": [
+        "e2e",
+        "end-to-end",
+        "playwright",
+        "ui test"
+      ]
     },
     {
       "id": "ecc/browser-qa",
@@ -614,7 +852,13 @@
       "stacks": [
         "*"
       ],
-      "why": "post-deploy UI verification"
+      "why": "post-deploy UI verification",
+      "keywords": [
+        "ui check",
+        "visual",
+        "post-deploy",
+        "screenshot"
+      ]
     },
     {
       "id": "ecc/frontend-patterns",
@@ -631,7 +875,8 @@
         "vite-react",
         "nextjs"
       ],
-      "why": "React/Next.js state and performance patterns"
+      "why": "React/Next.js state and performance patterns",
+      "keywords": []
     },
     {
       "id": "ecc/react-patterns",
@@ -650,7 +895,8 @@
         "nextjs",
         "react-native"
       ],
-      "why": "React 18/19 hooks and server/client boundaries"
+      "why": "React 18/19 hooks and server/client boundaries",
+      "keywords": []
     },
     {
       "id": "ecc/react-testing",
@@ -668,7 +914,12 @@
         "vite-react",
         "nextjs"
       ],
-      "why": "RTL + Vitest/Jest + MSW"
+      "why": "RTL + Vitest/Jest + MSW",
+      "keywords": [
+        "react test",
+        "component test",
+        "testing library"
+      ]
     },
     {
       "id": "ecc/nextjs-turbopack",
@@ -684,7 +935,8 @@
       "stacks": [
         "nextjs"
       ],
-      "why": "Next.js 16 + Turbopack"
+      "why": "Next.js 16 + Turbopack",
+      "keywords": []
     },
     {
       "id": "ecc/vite-patterns",
@@ -702,7 +954,8 @@
         "vue",
         "svelte"
       ],
-      "why": "Vite config, env, SSR"
+      "why": "Vite config, env, SSR",
+      "keywords": []
     },
     {
       "id": "ecc/vue-patterns",
@@ -718,7 +971,8 @@
       "stacks": [
         "vue"
       ],
-      "why": "Vue 3 Composition API, Pinia"
+      "why": "Vue 3 Composition API, Pinia",
+      "keywords": []
     },
     {
       "id": "ecc/nuxt4-patterns",
@@ -734,7 +988,8 @@
       "stacks": [
         "vue"
       ],
-      "why": "Nuxt 4 SSR and hydration safety"
+      "why": "Nuxt 4 SSR and hydration safety",
+      "keywords": []
     },
     {
       "id": "ecc/typescript-patterns",
@@ -758,7 +1013,8 @@
         "react-native",
         "electron"
       ],
-      "why": "strict TypeScript"
+      "why": "strict TypeScript",
+      "keywords": []
     },
     {
       "id": "ecc/backend-patterns",
@@ -775,7 +1031,8 @@
       "stacks": [
         "*"
       ],
-      "why": "server architecture and DB optimisation"
+      "why": "server architecture and DB optimisation",
+      "keywords": []
     },
     {
       "id": "ecc/fastapi-patterns",
@@ -791,7 +1048,8 @@
       "stacks": [
         "python"
       ],
-      "why": "FastAPI + Pydantic v2"
+      "why": "FastAPI + Pydantic v2",
+      "keywords": []
     },
     {
       "id": "ecc/django-patterns",
@@ -807,7 +1065,8 @@
       "stacks": [
         "python"
       ],
-      "why": "Django + DRF"
+      "why": "Django + DRF",
+      "keywords": []
     },
     {
       "id": "ecc/python-testing",
@@ -825,7 +1084,11 @@
       "stacks": [
         "python"
       ],
-      "why": "pytest patterns"
+      "why": "pytest patterns",
+      "keywords": [
+        "pytest",
+        "python test"
+      ]
     },
     {
       "id": "ecc/golang-patterns",
@@ -842,7 +1105,8 @@
       "stacks": [
         "go"
       ],
-      "why": "idiomatic Go"
+      "why": "idiomatic Go",
+      "keywords": []
     },
     {
       "id": "ecc/golang-testing",
@@ -860,7 +1124,12 @@
       "stacks": [
         "go"
       ],
-      "why": "table-driven tests, fuzzing"
+      "why": "table-driven tests, fuzzing",
+      "keywords": [
+        "go test",
+        "table-driven",
+        "fuzz"
+      ]
     },
     {
       "id": "ecc/springboot-patterns",
@@ -876,7 +1145,8 @@
       "stacks": [
         "java-spring"
       ],
-      "why": "Spring Boot layering"
+      "why": "Spring Boot layering",
+      "keywords": []
     },
     {
       "id": "ecc/nestjs-patterns",
@@ -892,7 +1162,8 @@
       "stacks": [
         "node"
       ],
-      "why": "NestJS modules, DTOs, guards"
+      "why": "NestJS modules, DTOs, guards",
+      "keywords": []
     },
     {
       "id": "ecc/prisma-patterns",
@@ -908,7 +1179,8 @@
       "stacks": [
         "node"
       ],
-      "why": "Prisma schema and queries"
+      "why": "Prisma schema and queries",
+      "keywords": []
     },
     {
       "id": "ecc/dotnet-patterns",
@@ -926,7 +1198,8 @@
         "dotnet",
         "dotnet-wpf-winui"
       ],
-      "why": "idiomatic C#/.NET"
+      "why": "idiomatic C#/.NET",
+      "keywords": []
     },
     {
       "id": "ecc/csharp-testing",
@@ -945,7 +1218,12 @@
         "dotnet",
         "dotnet-wpf-winui"
       ],
-      "why": "xUnit, mocking, integration tests"
+      "why": "xUnit, mocking, integration tests",
+      "keywords": [
+        "xunit",
+        "nunit",
+        ".net test"
+      ]
     },
     {
       "id": "ecc/android-clean-architecture",
@@ -962,7 +1240,8 @@
       "stacks": [
         "kotlin-compose"
       ],
-      "why": "module structure, DI, layers"
+      "why": "module structure, DI, layers",
+      "keywords": []
     },
     {
       "id": "ecc/kotlin-patterns",
@@ -978,7 +1257,8 @@
       "stacks": [
         "kotlin-compose"
       ],
-      "why": "idiomatic Kotlin"
+      "why": "idiomatic Kotlin",
+      "keywords": []
     },
     {
       "id": "ecc/kotlin-coroutines-flows",
@@ -994,7 +1274,8 @@
       "stacks": [
         "kotlin-compose"
       ],
-      "why": "structured concurrency, Flow"
+      "why": "structured concurrency, Flow",
+      "keywords": []
     },
     {
       "id": "ecc/kotlin-testing",
@@ -1011,7 +1292,12 @@
       "stacks": [
         "kotlin-compose"
       ],
-      "why": "Kotest, MockK, coroutine tests"
+      "why": "Kotest, MockK, coroutine tests",
+      "keywords": [
+        "kotest",
+        "mockk",
+        "android test"
+      ]
     },
     {
       "id": "ecc/compose-multiplatform-patterns",
@@ -1027,7 +1313,8 @@
       "stacks": [
         "kotlin-compose"
       ],
-      "why": "Compose state and navigation"
+      "why": "Compose state and navigation",
+      "keywords": []
     },
     {
       "id": "ecc/dart-flutter-patterns",
@@ -1044,7 +1331,8 @@
       "stacks": [
         "flutter"
       ],
-      "why": "Flutter state, null safety, Freezed"
+      "why": "Flutter state, null safety, Freezed",
+      "keywords": []
     },
     {
       "id": "ecc/flutter-dart-code-review",
@@ -1061,7 +1349,11 @@
       "stacks": [
         "flutter"
       ],
-      "why": "Flutter review checklist"
+      "why": "Flutter review checklist",
+      "keywords": [
+        "review",
+        "flutter review"
+      ]
     },
     {
       "id": "ecc/react-native-patterns",
@@ -1078,7 +1370,8 @@
       "stacks": [
         "react-native"
       ],
-      "why": "Expo Router, state separation"
+      "why": "Expo Router, state separation",
+      "keywords": []
     },
     {
       "id": "ecc/swiftui-patterns",
@@ -1095,7 +1388,8 @@
       "stacks": [
         "swiftui"
       ],
-      "why": "SwiftUI + @Observable"
+      "why": "SwiftUI + @Observable",
+      "keywords": []
     },
     {
       "id": "ecc/swift-concurrency-6-2",
@@ -1112,7 +1406,8 @@
       "stacks": [
         "swiftui"
       ],
-      "why": "Swift 6.2 concurrency"
+      "why": "Swift 6.2 concurrency",
+      "keywords": []
     },
     {
       "id": "ecc/swift-protocol-di-testing",
@@ -1130,7 +1425,8 @@
       "stacks": [
         "swiftui"
       ],
-      "why": "protocol-based DI for testability"
+      "why": "protocol-based DI for testability",
+      "keywords": []
     },
     {
       "id": "ecc/windows-desktop-e2e",
@@ -1147,7 +1443,12 @@
         "*"
       ],
       "why": "pywinauto / UIA E2E for WPF, WinForms, Win32, Qt",
-      "note": "mentions ECC commands"
+      "note": "mentions ECC commands",
+      "keywords": [
+        "windows ui test",
+        "desktop test",
+        "pywinauto"
+      ]
     },
     {
       "id": "ecc/rust-patterns",
@@ -1167,7 +1468,8 @@
         "rust",
         "tauri"
       ],
-      "why": "idiomatic Rust"
+      "why": "idiomatic Rust",
+      "keywords": []
     },
     {
       "id": "ecc/rust-testing",
@@ -1188,7 +1490,11 @@
         "rust",
         "tauri"
       ],
-      "why": "unit/integration/property tests"
+      "why": "unit/integration/property tests",
+      "keywords": [
+        "cargo test",
+        "rust test"
+      ]
     },
     {
       "id": "ecc/cpp-testing",
@@ -1209,7 +1515,13 @@
         "platformio",
         "qt"
       ],
-      "why": "GoogleTest/CTest"
+      "why": "GoogleTest/CTest",
+      "keywords": [
+        "gtest",
+        "googletest",
+        "ctest",
+        "firmware test"
+      ]
     }
   ]
 }

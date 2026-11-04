@@ -435,6 +435,44 @@ function fetchSkill(s) {
   return { dir, skillDir, src };
 }
 
+// ---------- context-aware skill recommendations ----------
+const PHASE_NAMES = Object.fromEntries(PHASES);
+const STAGE_PLAYBOOK = { upgrade: 'UPGRADE', refactor: 'MAINTAIN', incident: 'OPERATE', security: 'SECURITY', feature: 'CHANGE', bugfix: 'CHANGE', migration: 'CHANGE' };
+function currentTaskText() {
+  const t = readJson(P('tasks.json'), []);
+  const list = Array.isArray(t) ? t : (t.tasks || []);
+  const cur = list.find(x => x.status === 'in_progress') || list.find(x => x.status === 'todo');
+  return cur ? `${cur.title || ''} ${(cur.files || []).join(' ')}` : '';
+}
+function recommendSkills(proj, phase, text = '', { limit = 5, includeInstalled = false } = {}) {
+  const targets = proj.targets || [], stacks = proj.stacks || {}, stackVals = Object.values(stacks);
+  const playbook = STAGE_PLAYBOOK[proj.stage], declined = new Set((state().skills_declined || []).map(d => d.id));
+  const words = String(text).toLowerCase();
+  const out = [];
+  for (const s of catalog().skills) {
+    if (declined.has(s.id)) continue;
+    const tHit = s.targets.includes('*') ? null : s.targets.filter(t => targets.includes(t));
+    const sHit = s.stacks.includes('*') ? null : s.stacks.filter(x => stackVals.includes(x));
+    if ((tHit && !tHit.length) || (sHit && !sHit.length)) continue;     // wrong platform/stack: never suggest
+    const reasons = []; let score = 0;
+    const kw = (s.keywords || []).filter(k => words && new RegExp(`(^|[^a-z])${k.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}${k.length <= 4 ? '(?![a-z])' : ''}`).test(words));   // short keywords (ci, pr, ui) must be whole words
+    if (kw.length) { score += 3 * kw.length; reasons.push(`task mentions "${kw.slice(0, 2).join('", "')}"`); }
+    if (phase && s.phases.includes(phase)) { score += 2; reasons.push(`used in ${phase} ${PHASE_NAMES[phase] || ''}`.trim()); }
+    if (playbook && s.phases.includes(playbook)) { score += 2; reasons.push(`stage "${proj.stage}" uses the ${playbook} playbook`); }
+    if (!score) continue;                                                  // platform match alone is not a reason
+    if (sHit) { score += 1; reasons.push(`stack ${sHit.join('/')}`); } else if (tHit) { score += 1; reasons.push(`target ${tHit.join('/')}`); }
+    const installed = skillInstalled(s.name);
+    if (installed && !includeInstalled) continue;
+    out.push({ id: s.id, name: s.name, why: s.why, note: s.note, score, reasons, installed });
+  }
+  return out.sort((a, b) => b.score - a.score || a.id.localeCompare(b.id)).slice(0, limit);
+}
+function recText(recs, header) {
+  if (!recs.length) return '';
+  return header + '\n' + recs.map(r => `  • ${r.id}: ${r.why}. Why now: ${r.reasons.join('; ')}.`).join('\n') +
+    '\n  (Agent: offer these to the user once, with the reason. Fetch for review: gw skills fetch <id> · install: gw skills install <id> · declined: gw skills decline <id>)';
+}
+
 // ---------- maintenance info ----------
 function maintainInfo(proj) {
   const all = packs(), out = [];
@@ -503,6 +541,7 @@ function hook(sub) {
     const h = readJson(P('host-profile.json'));
     if (hostChanged(h)) { try { doctor(scan(), p); fb('host-rescan', { reason: h ? 'host changed or scan stale' : 'first scan' }); console.log('Groundwork: host changed or scan older than 7 days, re-scanned.'); } catch (e) { console.log('Groundwork: re-scan failed: ' + e.message); } }
     console.log(statusText());
+    try { const t = recText(recommendSkills(p, nextStep().phase, currentTaskText(), { limit: 3 }), 'Groundwork skill suggestions for the current phase/task:'); if (t) console.log(t); } catch { }
     return 0;
   }
   if (sub === 'pre-edit') {
@@ -566,7 +605,9 @@ function main(argv) {
         else if (k.startsWith('stacks.')) { p.stacks = p.stacks || {}; p.stacks[k.slice(7)] = val; }
         else if (k === 'tier' && !TIER_PHASES[val]) throw new Error('tier must be one of ' + Object.keys(TIER_PHASES));
         else p[k] = val; }
-      writeJson(P('project.json'), p); console.log(JSON.stringify(p, null, 2)); return 0;
+      writeJson(P('project.json'), p); console.log(JSON.stringify(p, null, 2));
+      if (args.some(a => /^(stage|targets|stacks\.)/.test(a))) { const t = recText(recommendSkills(p, nextStep().phase, currentTaskText(), { limit: 3 }), 'Skills worth adding for this project now:'); if (t) console.log(t); }
+      return 0;
     }
     case 'phase': {   // gw phase P1 done|skipped|in_progress|blocked ["note"]
       const [id, status, note] = args;
@@ -576,7 +617,9 @@ function main(argv) {
       const st = state(); st.phases[id] = { status, at: now(), ...(note ? { note } : {}) }; writeJson(P('state.json'), st);
       st.phase = nextStep().phase; writeJson(P('state.json'), st);
       if (status === 'blocked' || status === 'skipped') fb('phase-' + status, { id, note: note || null });
-      fbRefresh(); console.log(statusText()); return 0;
+      fbRefresh(); console.log(statusText());
+      const nx = nextStep().phase; if (nx) { const t = recText(recommendSkills(project(), nx, currentTaskText(), { limit: 3 }), `Skills worth adding for ${nx}:`); if (t) console.log(t); }
+      return 0;
     }
     case 'run': {     // gw run <target> <S0|S1|S2|S3> -- <command...>
       const [target, tier] = args, i = args.indexOf('--');
@@ -631,7 +674,24 @@ function main(argv) {
         console.log(`Installed ${s.id} → ${path.relative(ROOT, dest)} (with LICENSE). Recorded in .groundwork/skills.lock.json. Add it to docs/skill-requirements.md.`);
         return 0;
       }
-      const proj = project(), phase = nextStep().phase, list = suggestSkills(proj, phase, args.includes('--all'));
+      if (sub === 'decline') {
+        const id = args[1]; if (!catalog().skills.some(x => x.id === id)) throw new Error('unknown skill id');
+        const st = state(); st.skills_declined = (st.skills_declined || []).filter(d => d.id !== id);
+        st.skills_declined.push({ id, at: now(), reason: args.slice(2).join(' ') || null }); writeJson(P('state.json'), st);
+        fb('skill-declined', { id }); console.log(`${id} won't be suggested again (undo: remove it from skills_declined in .groundwork/state.json).`); return 0;
+      }
+      if (!args.includes('--all')) {
+        const forText = flag(args, '--for'), phase = nextStep().phase, text = [forText, currentTaskText()].filter(Boolean).join(' ');
+        const recs = recommendSkills(project(), phase, text, { limit: Number(flag(args, '--limit')) || 8, includeInstalled: true });
+        const missing = recs.filter(r => !r.installed), have = recs.filter(r => r.installed);
+        console.log(`Skill recommendations for phase ${phase}${project().stage ? ' · stage ' + project().stage : ''}${text ? ' · task: "' + text.trim().slice(0, 80) + '"' : ''}`);
+        if (!missing.length) console.log('  No missing skills recommended for this context.');
+        for (const r of missing) console.log(`  + ${r.id.padEnd(44)} ${r.why}\n      why now: ${r.reasons.join('; ')}${r.note ? '\n      note: ' + r.note : ''}`);
+        if (have.length) console.log(`  Already installed and relevant: ${have.map(r => r.name).join(', ')}`);
+        console.log('\nFetch for review: gw skills fetch <id> · install: gw skills install <id> · not wanted: gw skills decline <id> · full list: gw skills --all');
+        return 0;
+      }
+      const proj = project(), phase = nextStep().phase, list = suggestSkills(proj, phase, true);
       console.log(`Skills for ${args.includes('--all') ? 'all phases' : 'phase ' + phase}${proj.stage ? ' · stage ' + proj.stage : ''} · targets ${(proj.targets || []).join(',') || 'any'} (${list.length}):`);
       for (const s of list) console.log(`  ${skillInstalled(s.name) ? '✓ installed ' : '  available '} ${s.id.padEnd(46)} [${s.phases.join(',')}] ${s.why}`);
       console.log('\nInstalled-check looks for the same skill name in .claude/skills, ~/.claude/skills and plugin caches; a same-named skill from another source counts as installed.');
@@ -678,12 +738,12 @@ function main(argv) {
       console.log('Groundwork CLI\n  init [--profile minimal|standard|strict] [--no-hooks]   set up this project (state, CLAUDE.md import, hooks) and scan the host\n' +
         '  doctor [--fresh] [--json]   scan host if needed, check tools for the chosen targets\n  plan-install   list install/fix commands for this machine (never runs them)\n' +
         '  status | next   show phase, blockers, next step\n  set k=v ...   e.g. set tier=standard stage=greenfield targets=web,android stacks.android=flutter\n' +
-        '  phase <id> <status> ["note"]   record phase progress\n  run <target> <tier> -- <cmd>   run tests and write a receipt\n  gate <G1|G2> [--approve "..."]   check / approve a gate\n  scan   print raw host profile\n  note <category> "text"   silent framework feedback (agent)\n  feedback   write .groundwork/FEEDBACK.md\n  skills [--all] | skills fetch <id> | skills install <id>   catalogue of vetted-source skills\n  maintain   upgrade/audit/dead-code/rollback/observability commands for this project\n  eol   runtime end-of-life check (endoflife.date)\n  version | verify [--clean] | upgrade <new-groundwork-folder> [--force] | migrate');
+        '  phase <id> <status> ["note"]   record phase progress\n  run <target> <tier> -- <cmd>   run tests and write a receipt\n  gate <G1|G2> [--approve "..."]   check / approve a gate\n  scan   print raw host profile\n  note <category> "text"   silent framework feedback (agent)\n  feedback   write .groundwork/FEEDBACK.md\n  skills [--for \"task\"] [--all] | skills fetch|install|decline <id>   context-aware skill recommendations\n  maintain   upgrade/audit/dead-code/rollback/observability commands for this project\n  eol   runtime end-of-life check (endoflife.date)\n  version | verify [--clean] | upgrade <new-groundwork-folder> [--force] | migrate');
       return cmd ? 1 : 0;
   }
 }
 
-module.exports = { suggestSkills, maintainInfo, catalog, buildManifest, integrity, changelogSince, capabilities, devMethod, feasibility, kvmCheck, dockerCheck, toolCheck, vcmp, installCommand };
+module.exports = { recommendSkills, suggestSkills, maintainInfo, catalog, buildManifest, integrity, changelogSince, capabilities, devMethod, feasibility, kvmCheck, dockerCheck, toolCheck, vcmp, installCommand };
 if (require.main === module) {
   try { const r = main(process.argv.slice(2)); if (r && r.then) r.then(c => { process.exitCode = c; }, e => { fb('error', { cmd: process.argv[2] || '', message: e.message }); console.error('gw: ' + e.message); process.exitCode = 1; }); else process.exitCode = r; } catch (e) { fb('error', { cmd: process.argv[2] || '', message: e.message }); console.error('gw: ' + e.message); process.exitCode = 1; }
 }
