@@ -5,8 +5,8 @@ Your project data is never touched: it lives in `.groundwork/` and `docs/`. An u
 ## 1. Get the new version
 Pick one:
 ```sh
-# a specific release (recommended)
-git clone --depth 1 --branch v0.3.2 https://github.com/AsuNnah/groundwork /tmp/groundwork-new
+# a specific release (recommended): use the latest tag from https://github.com/AsuNnah/groundwork/releases
+git clone --depth 1 --branch v0.3.3 https://github.com/AsuNnah/groundwork /tmp/groundwork-new
 
 # or the latest main
 git clone --depth 1 https://github.com/AsuNnah/groundwork /tmp/groundwork-new
