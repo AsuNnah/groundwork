@@ -189,4 +189,8 @@ t('reference-app intent (English + Indonesian)', () => {
   for (const s of ['fix the login bug', 'do it like this', 'I would like to add dark mode', 'it looks like a bug', 'sepertinya gagal', 'based on the PRD write the plan',
     'learn python basics first', 'the app crashes like before', 'perbaiki error di bot']) assert.ok(!gw.referenceIntent(s), s);
 });
+t('mockup intent', () => {
+  for (const s of ['bikin mockup dulu', 'show me a wireframe', 'can we do it in Figma', 'gimana tampilan aplikasi nya', 'I want to see how it looks', 'UI/UX design first']) assert.ok(gw.mockupIntent(s), s);
+  for (const s of ['fix the login bug', 'the prototype pollution advisory'.replace('prototype', 'proto'), 'deploy the bot']) assert.ok(!gw.mockupIntent(s), s);
+});
 console.log(`\n${n} checks passed`);

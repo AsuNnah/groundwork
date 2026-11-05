@@ -12,6 +12,11 @@ From real-run feedback (3 projects: a Discord/Telegram bot workspace, a web+back
   - the agent asks for the goal if it's vague (what to learn, what for, when it's done), recommends the depth the goal needs, and after each method checks the goal, stepping up to the next method or another route until it's met;
   - `gw research "<X>" ["goal"]` records the reference, creates `docs/research/<x>.md`, and has doctor check Scrapling and REA;
   - `gw plan-install` prints the pinned installs (`scrapling[fetchers,ai]==0.5.1`, `rea-agents@6.8.0`).
+- **Mockups before building** (`phases/MOCKUP.md`, `templates/mockup/index.html`, a Mockups section in `templates/dbd.md`):
+  - P5 adds wireframe → visual mockup → clickable prototype for every screen state and size;
+  - built in **Figma** through the official Figma MCP when the user wants it and has connected it (editable layers, DBD tokens as variables, comments read back), otherwise as a no-account HTML clickable prototype;
+  - the user's approval is a P6 pre-build check, P7 builds from the mockup, and P8/P9 compare against it;
+  - the prompt hook also spots "mockup", "wireframe", "Figma", "tampilan aplikasi".
 - **Existing projects map instead of duplicate:**
   - `gw set docs_dir=<path>` or `docs.prd=/docs.plan=/docs.test_strategy=` (GATE 1 and the edit guard follow them; doc names match case-insensitively). This replaces pointer files.
   - P0 explains: adopting another ID scheme, phases done out of order, workspaces with several products.

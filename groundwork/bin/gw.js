@@ -802,6 +802,7 @@ function referenceIntent(text) {
     .replace(/\b(like|seperti|kayak) (this|that|it|before|so|usual|normal|biasa|sebelumnya|ini|itu)\b/g, '');
   return REF_PATTERNS.some(r => r.test(t)) || /\b(learn|study|analy[sz]e|research)\s+[A-Z][\w.-]+/.test(raw);   // "learn Splitwise": a proper name
 }
+const mockupIntent = text => /\b(mock-?ups?|wireframes?|prototypes?|figma|ui\s*\/\s*ux|desain (ui|aplikasi|tampilan)|tampilan(nya)? (aplikasi|app|layar)|lihat tampilan|visual(isasi)? (aplikasi|app)|see (how it|what it) looks?|how (will|would) (it|the app) look)\b/i.test(String(text || ''));
 function hook(sub) {
   const p = project(); if (!exists(P('project.json'))) return 0;   // not initialised: stay silent
   if (sub === 'session-start') {
@@ -820,6 +821,7 @@ function hook(sub) {
     let input = {}; try { input = JSON.parse(fs.readFileSync(0, 'utf8') || '{}'); } catch { }
     if (referenceIntent(input.prompt)) console.log('Groundwork: this message may point at a reference app or site to learn from. If it does, follow groundwork/phases/RESEARCH.md: ' +
       'make the goal clear first (ask if it is vague), record it with gw research "<name>" "<goal>", recommend the depth the goal needs, and escalate to the next method if the goal is not met. If it does not, ignore this note.');
+    if (mockupIntent(input.prompt)) console.log('Groundwork: this message asks to see the design. Follow groundwork/phases/MOCKUP.md: offer Figma (if connected) or an HTML clickable prototype, cover every screen state, and record the user\'s approval in docs/dbd.md.');
     return 0;
   }
   if (sub === 'pre-edit') {
@@ -1084,7 +1086,7 @@ function main(argv) {
   }
 }
 
-module.exports = { referenceIntent, docPath, changedPhases, chosenMethod, projectCaps, installGate, parseTrending, classifySkill, fitsProject, isLookalike, curatedCatalog, recommendSkills, suggestSkills, maintainInfo, catalog, buildManifest, integrity, changelogSince, capabilities, devMethod, feasibility, kvmCheck, dockerCheck, toolCheck, vcmp, installCommand };
+module.exports = { mockupIntent, referenceIntent, docPath, changedPhases, chosenMethod, projectCaps, installGate, parseTrending, classifySkill, fitsProject, isLookalike, curatedCatalog, recommendSkills, suggestSkills, maintainInfo, catalog, buildManifest, integrity, changelogSince, capabilities, devMethod, feasibility, kvmCheck, dockerCheck, toolCheck, vcmp, installCommand };
 if (require.main === module) {
   try { const r = main(process.argv.slice(2)); if (r && r.then) r.then(c => { process.exitCode = c; }, e => { fb('error', { cmd: process.argv[2] || '', message: e.message }); console.error('gw: ' + e.message); process.exitCode = 1; }); else process.exitCode = r; } catch (e) { fb('error', { cmd: process.argv[2] || '', message: e.message }); console.error('gw: ' + e.message); process.exitCode = 1; }
 }

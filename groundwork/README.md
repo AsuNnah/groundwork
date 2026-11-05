@@ -10,7 +10,7 @@ A portable, host-adaptive development framework for AI coding agents (Claude Cod
    - creates `.groundwork/` (project state);
    - adds `@groundwork/GROUNDWORK.md` to `CLAUDE.md` (and a pointer in `AGENTS.md` if one exists);
    - adds the `/groundwork` skill in `.claude/skills/`;
-   - adds 3 hooks to `.claude/settings.json`: a session-start status, the GATE 1 edit guard, and a prompt hook that spots reference apps ("learn X", "app like X", "pelajari X") and points the agent at `phases/RESEARCH.md`. Use `--no-hooks` to skip them, or `--profile minimal` for no hooks or gate enforcement;
+   - adds 3 hooks to `.claude/settings.json`: a session-start status, the GATE 1 edit guard, and a prompt hook that spots reference apps ("learn X", "app like X", "pelajari X") and requests to see the design ("mockup", "wireframe", "Figma", "tampilan aplikasi"), pointing the agent at `phases/RESEARCH.md` or `phases/MOCKUP.md`. Use `--no-hooks` to skip them, or `--profile minimal` for no hooks or gate enforcement;
    - scans the machine and prints the environment report.
 3. Start your agent and say what you want to build. It follows `GROUNDWORK.md`.
 
@@ -78,6 +78,7 @@ If a change would help every project, it belongs in the framework instead: the a
 | Refactoring, tech debt (reactive) | `phases/MAINTAIN.md` | `templates/tech-debt.md` |
 | Monitoring, incidents, hotfix, rollback | `phases/OPERATE.md` | `templates/incident.md`, `templates/runbook.md` |
 | Vulnerabilities, advisories, leaked secrets | `phases/SECURITY.md` | osv-scanner, gitleaks, trivy, syft via `gw plan-install` |
+| See the app before it's built: wireframes, mockups, clickable prototype | `phases/MOCKUP.md` | Figma MCP (optional), `templates/mockup/index.html` (no account) |
 | "Make it like X": how a reference app works | `phases/RESEARCH.md` | `templates/reference-research.md`; Scrapling and REA via `gw plan-install` |
 
 ## Skill catalogue

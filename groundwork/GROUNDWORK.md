@@ -33,6 +33,7 @@ CLI: `node groundwork/bin/gw.js <command>` (written as `gw` below).
 | Production: monitoring, incident, hotfix, rollback | `phases/OPERATE.md` | `docs/runbook.md`, `docs/incidents/` |
 | Security patching / advisories / secrets | `phases/SECURITY.md` | `docs/security/` |
 | Research how a reference app works ("like X") | `phases/RESEARCH.md` | `docs/research/<ref>.md` |
+| See the app before it's built: wireframes, mockups, clickable prototype (Figma or HTML) | `phases/MOCKUP.md` | Figma file or `docs/mockups/`, approval in `docs/dbd.md` |
 
 Maintenance commands per stack (outdated, upgrade, audit, dead code, rollback, observability, store policies): `gw maintain`. Runtime end-of-life check: `gw eol`. Recommended agent skills for this project: `gw skills`.
 
@@ -58,6 +59,7 @@ Record progress with `gw phase <id> <done|skipped|in_progress|blocked> "note"`.
   4. If a method doesn't meet the goal, suggest the next method or another route.
 
   Suggest the tool that answers it whatever it costs, always with approval, lawfully, and without copying proprietary code.
+- **Show before building.** For any target with screens, offer a visual mockup in P5 (`phases/MOCKUP.md`): Figma if the user wants it and it is connected, otherwise a no-account HTML clickable prototype. Get the user's approval before GATE 1.
 - **Smallest complete change.** No speculative abstractions, options, or "for later" code. Finish the callers, tests, and docs that a change touches.
 - **Language.** All documents, code, commits, and reports are in English.
 

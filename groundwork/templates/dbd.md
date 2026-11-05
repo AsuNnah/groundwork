@@ -34,5 +34,15 @@ Breakpoints or device sizes, orientation, keyboard, touch, mouse, screen readers
 - every control has a label; focus order is logical; touch targets ≥ 44×44 pt / 48×48 dp
 - never colour alone to convey meaning; motion respects reduced-motion settings
 
+## Mockups (`groundwork/phases/MOCKUP.md`)
+- Tool: <Figma / HTML prototype / wireframe> · link or path: <Figma URL / docs/mockups/index.html>
+| Screen | States covered | Sizes | Status (wireframe / visual / clickable) |
+|---|---|---|---|
+
+| Round | Date | What the user asked to change | Done |
+|---|---|---|---|
+
+**Approval:** "<user's words>" · version/link: <…> · date: <YYYY-MM-DD>
+
 ## Copy
 Voice, terminology list, error-message style (what happened + what to do).
