@@ -1,6 +1,12 @@
 # DBD: <product> design brief
 
+<!-- "DBD" = Design Brief Document for the UI (Groundwork's name; not a database design). Sources: design-brief practice (objectives, audience, constraints, deliverables), W3C DTCG Design Tokens format 2025.10, WCAG 2.2 AA, Nielsen's 10 usability heuristics, platform guidance (Material 3, Apple HIG). -->
+
 For any target with a UI. Link screens to FSD features.
+
+## Objectives and success criteria
+| Objective | Measurable success criterion (e.g. first entry in under 60 s, 4/5 test users finish the task unaided) |
+|---|---|
 
 ## Audience and job
 <who uses each screen, what they are trying to get done, how often, under what pressure>
@@ -14,13 +20,15 @@ For any target with a UI. Link screens to FSD features.
 - Platform conventions: <Material 3 / Apple HIG / Fluent / web>
 
 ## Design tokens
-| Token | Value | Use |
-|---|---|---|
-| color.primary | | buttons, links |
-| color.surface / color.text | | backgrounds, body text (contrast ≥ 4.5:1) |
-| font.body / font.heading | | |
-| space.unit | e.g. 4 or 8 px | spacing scale |
-| radius / elevation | | |
+Keep the source of truth in `docs/design/tokens.json`, in the W3C DTCG format (2025.10): `$value`, `$type`, aliases like `{color.primary}`. Figma variables and CSS variables are generated from it.
+| Token | $type | Value or alias | Use |
+|---|---|---|---|
+| color.primary | color | | buttons, links |
+| color.surface / color.text | color | | backgrounds, body text (contrast ≥ 4.5:1) |
+| color.button.bg | color | {color.primary} | alias example |
+| font.body / font.heading | fontFamily | | |
+| space.unit | dimension | e.g. 4 or 8 px | spacing scale |
+| radius / elevation | dimension / shadow | | |
 Dark mode: <yes/no; token overrides>
 
 ## Screens
@@ -42,9 +50,12 @@ For each screen, design every state: **default, empty, loading, error, offline, 
 ## Responsive and input
 Breakpoints or device sizes, orientation, keyboard, touch, mouse, screen readers.
 
-## Accessibility (minimum)
-- WCAG 2.2 AA contrast; text resizes to 200 % without breaking
-- every control has a label; focus order is logical; touch targets ≥ 44×44 pt / 48×48 dp
+## Accessibility (minimum: WCAG 2.2 AA)
+- contrast: text ≥ 4.5:1, large text and non-text UI (icons, borders, focus rings) ≥ 3:1 (1.4.3, 1.4.11); text resizes to 200 % without breaking
+- every control has a label; focus order is logical; focus is never hidden behind sticky bars or dialogs (2.4.11)
+- targets: WCAG minimum 24×24 CSS px (2.5.8); platform guidance 44×44 pt (Apple HIG) / 48×48 dp (Material)
+- anything done by dragging also works with a single tap or click (2.5.7)
+- sign-in doesn't require memorising or transcribing (allow paste and password managers) (3.3.8)
 - never colour alone to convey meaning; motion respects reduced-motion settings
 
 ## Mockups (`groundwork/phases/MOCKUP.md`)

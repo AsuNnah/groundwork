@@ -1,5 +1,8 @@
 # Bugfix: <YYYYMMDD-slug>
 
+<!-- Lineage: Bugzilla bug-writing guidelines (steps, actual vs expected, environment); ISO/IEC/IEEE 29119-3:2021 incident report (originator, severity, priority, status). -->
+- Reported by: <name / source> · Date: <YYYY-MM-DD> · Severity: <critical/major/minor/trivial> · Priority: <P0–P3> · Status: open | fixed | verified
+
 ## Current behaviour
 <what happens>
 Repro steps:

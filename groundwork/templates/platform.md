@@ -1,5 +1,7 @@
 # Platform notes: <target>
 
+<!-- No canonical template exists. Primary sources: Google Play Developer Policy Center and Apple App Review Guidelines; check them at each release, because deadlines change yearly. -->
+
 Copy the facts from `groundwork/packs/<target>.json` and the current store or OS rules. Re-check before each release (P9, P10).
 
 ## Support range
@@ -10,6 +12,12 @@ Copy the facts from `groundwork/packs/<target>.json` and the current store or OS
 ## Permissions
 | Permission | Why the app needs it (user-facing text) | Asked when | Works without it? |
 |---|---|---|---|
+
+## Privacy and account rules
+- iOS: privacy manifest (`PrivacyInfo.xcprivacy`) with required-reason API declarations; App Privacy details
+- Android: Data safety form; declarations for sensitive permissions (background location, all-files access, SMS/call log)
+- In-app account deletion (both stores require it when the app lets users create accounts)
+- Age rating questionnaire
 
 ## Signing and identity
 - Bundle / package id:

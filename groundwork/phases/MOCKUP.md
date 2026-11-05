@@ -55,7 +55,7 @@ Check text contrast (WCAG AA, at least 4.5:1) and touch-target size before you s
 2. Create the file (`create_new_file`), or use one the user gives you.
 3. Build the screens as **editable layers and components**, not a pasted screenshot.
 4. A fast route: write the screens as HTML first, then use `html_to_figma`, or `generate_figma_design` for a running web app.
-5. Use variables for the DBD tokens.
+5. Use Figma variables for the DBD tokens, generated from `docs/design/tokens.json` (W3C DTCG format).
 6. Share the file link, and read the user's comments and edits back with `get_screenshot` / `get_design_context`.
 
 **HTML:**

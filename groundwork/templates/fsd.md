@@ -1,5 +1,18 @@
 # FSD: <product>
 
+<!-- Lineage: Joel Spolsky, "Painless Functional Specifications" (2000); the formal counterpart is the SRS in ISO/IEC/IEEE 29148. Behaviour from the user's view; technical design goes to the TRD. -->
+- Owner: <one named author> · Status: draft | reviewed | approved · Updated: <date>
+
+## Overview
+<one paragraph: what this spec covers>
+
+## Scenarios
+Short stories of real users doing real tasks, the core device of a functional spec:
+- **<persona>** <wants to …>. They open …, see …, tap …, and end up with ….
+
+## Non-goals
+- <what this spec deliberately does not cover>
+
 What every feature does, precisely enough to build and test it. Link each feature to its PRD IDs.
 **Large projects:** split into `docs/fsd/00-conventions.md` + `docs/fsd/sections/<nn>-<area>.md` + an index file holding the traceability table below.
 
@@ -33,5 +46,5 @@ flowchart TD
 ## Reconciliation decisions
 <conflicts found between PRD, research and mockup while writing this, and how they were resolved>
 
-## Open points for the TRD
+## Open issues (and points for the TRD)
 - <technical questions the functional spec raised>

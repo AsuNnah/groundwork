@@ -28,6 +28,23 @@ From real-run feedback (3 projects: a Discord/Telegram bot workspace, a web+back
 - P4: verify each MCP server or connector a later phase needs with one harmless call.
 - P0: every task gets P0, even a one-line fix (one command at the trivial tier). Workarounds are logged.
 - Copy-paste prompts for an AI agent: set up (README) and update (UPGRADING.md).
+- **Templates aligned with their original sources and latest versions.** Every template names its lineage, and `docs/TEMPLATE-SOURCES.md` lists origin, latest version and URL-level references:
+  - PRD: ISO/IEC/IEEE 29148 requirement quality;
+  - FSD: Spolsky's scenarios and non-goals;
+  - AFD: Cockburn use cases (main success scenario, extensions, guarantees);
+  - TRD: arc42 v9, 42010:2022, C4 runtime/deployment views, quality scenarios;
+  - ADR: MADR 4.0 (drivers, confirmation);
+  - BSD: OpenAPI 3.2, AsyncAPI 3, RFC 9457, deprecation policy;
+  - DBD: W3C DTCG tokens 2025.10, WCAG 2.2 criteria;
+  - mockup review: heuristic evaluation, severity 0–4, AI-persona limits;
+  - SRD: Threat Modeling Manifesto, ASVS 5.0, SSDF, LINDDUN;
+  - security exceptions: VEX statuses;
+  - test strategy: 29119-3 risk-based, exit criteria;
+  - runbook: alert playbooks;
+  - incident: contributing factors (LFI/VOID);
+  - change delta: the exact OpenSpec format;
+  - plus intent (appetite, no-gos), plan, UAT, bugfix, lessons, tech debt, upgrade;
+  - a new selftest checks table column consistency in every template.
 - **Templates aligned with real project docs** (compared against two real runs' document sets):
   - new `intent.md` (confirmed statement of intent, written before the PRD) and `mockup-review.md` (blind review by independent persona reviewers);
   - PRD gains summary, goals and metrics, domain model, scope and constraints, AI requirements, rollout, alternatives, open decisions, decision log;

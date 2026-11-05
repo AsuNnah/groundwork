@@ -164,6 +164,17 @@ t('install gate: inspector bootstrap, verdicts, pinned ref', () => {
   assert.ok(g(null, 'r1', ['--skip-inspection', 'reviewed by hand']).ok);
   assert.ok(!g({ ref: 'r1', verdict: 'REJECT' }, 'r1', ['--skip-inspection', 'trust me']).ok, '--skip-inspection is not a REJECT override'); assert.ok(!g(null, 'r1', ['--skip-inspection', '--force']).ok, 'skip needs a reason');
 });
+t('template tables have consistent columns', () => {
+  const fs = require('fs'), path = require('path'), dir = path.join(__dirname, '..', 'templates');
+  for (const f of fs.readdirSync(dir).filter(x => x.endsWith('.md'))) {
+    let hdr = null;
+    fs.readFileSync(path.join(dir, f), 'utf8').split('\n').forEach((l, i) => {
+      if (!l.startsWith('|')) { hdr = null; return; }
+      const n = (l.trim().match(/(?<!\\)\|/g) || []).length - 1;
+      if (hdr === null) hdr = n; else assert.strictEqual(n, hdr, `${f}:${i + 1} has ${n} columns, header has ${hdr}`);
+    });
+  }
+});
 t('every template a phase names exists', () => {
   const fs = require('fs'), path = require('path');
   const dir = path.join(__dirname, '..');

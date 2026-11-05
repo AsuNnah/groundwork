@@ -1,5 +1,13 @@
 # Plan: <product / change>
 
+<!-- Lineage: GitHub Spec Kit plan (summary, technical context, constitution check, complexity tracking); Shape Up (appetite: fixed time, variable scope; no-gos). -->
+
+## Summary
+<what will be built, in two or three lines>
+
+## Technical context
+Stack: <ADR-0001> · Targets and tiers: <…> · Constraints: <host, deadlines, store rules> · Appetite: <time budget from the intent> · No-gos: <…>
+
 ## Delivered
 <milestones already shipped, with version/tag (existing projects)>
 

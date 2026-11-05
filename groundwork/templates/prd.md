@@ -1,6 +1,9 @@
 # PRD: <product name>
 
+<!-- Lineage: Marty Cagan, "How to Write a Good PRD" (SVPG, 2005); ISO/IEC/IEEE 29148:2018 stakeholder and system requirements. -->
+
 - Status: draft | approved · Owner: <name> · Updated: <date> · Intent: `docs/intent.md`
+- Prototype / mockup: <link, once it exists>
 - ID scheme: REQ-xxx requirements · JRN-xxx journeys · NFR-xxx non-functional (an adopted PRD maps its own IDs here, e.g. `A1–J6 = REQ`)
 
 ## 1. Summary
@@ -18,6 +21,8 @@
 |---|---|---|---|
 
 ## 5. Requirements
+Each requirement is **singular, unambiguous, verifiable and traceable** (ISO/IEC/IEEE 29148). One need per row, testable through its acceptance criteria.
+
 | ID | Requirement (user story: as a …, I want …, so that …) | Priority (must/should/could) | Acceptance criteria (Given/When/Then) |
 |---|---|---|---|
 | REQ-001 | | must | AC-001: |
@@ -52,8 +57,8 @@ Model and provider, what the AI may and may not do, prompts and data it sees, co
 | Option | Pros | Cons | Why chosen / rejected |
 |---|---|---|---|
 
-## 13. Risks and assumptions
-| Risk / assumption | Likelihood | Impact | Mitigation / how verified |
+## 13. Risks, assumptions and dependencies
+| Risk / assumption / dependency | Likelihood | Impact | Mitigation / how verified |
 |---|---|---|---|
 
 ## 14. Open decisions
