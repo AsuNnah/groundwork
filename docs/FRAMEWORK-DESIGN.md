@@ -441,7 +441,7 @@ User says anything → `gw` skill reads `.groundwork/state.json`, runs P0 if mis
   - creates `.groundwork/` state;
   - adds `@groundwork/GROUNDWORK.md` to CLAUDE.md, plus a pointer in AGENTS.md;
   - adds the `/groundwork` skill in `.claude/skills/`;
-  - merges 2 hooks into `.claude/settings.json`.
+  - merges 3 hooks (session start, edit guard, reference-app prompt) into `.claude/settings.json`.
 - Without init, it still works: tell the agent "follow groundwork/GROUNDWORK.md".
 - State is kept outside the framework folder (`.groundwork/`, `docs/`), so upgrading = replacing the folder.
 - Zero dependencies: scanners are POSIX sh + PowerShell; the CLI is plain Node 18+.

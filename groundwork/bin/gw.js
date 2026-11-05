@@ -400,6 +400,7 @@ function migrate({ quiet = false } = {}) {
   p.framework_version = VERSION; writeJson(P('project.json'), p);
   wireGitignore();
   if (exists(path.join(ROOT, '.claude', 'skills', 'groundwork'))) wireSkill();
+  try { if (JSON.stringify((readJson(SETTINGS(), {}) || {}).hooks || {}).includes('gw.js') && JSON.stringify(readJson(SETTINGS(), {}).hooks).includes('hook session-start')) wireHooks(); } catch { }
   fs.appendFileSync(P('decisions.jsonl'), JSON.stringify({ at: now(), kind: 'framework-upgrade', from, to: VERSION }) + '\n');
   fb('upgrade', { from, to: VERSION });
   // finished phases whose instructions changed since the backed-up old folder (gw upgrade); manual copies have no backup
@@ -753,6 +754,21 @@ async function eolCheck(h) {
 
 // ---------- init ----------
 const HOOK_CMD = 'node "$CLAUDE_PROJECT_DIR/groundwork/bin/gw.js" hook';
+const SETTINGS = () => path.join(ROOT, '.claude', 'settings.json');
+function wireHooks() {
+  const sf = SETTINGS(), s = readJson(sf, {});
+  if (exists(sf) && !readJson(sf)) throw new Error('.claude/settings.json is not valid JSON; fix it or pass --no-hooks');
+  s.hooks = s.hooks || {};
+  const addHook = (ev, matcher, sub) => {
+    s.hooks[ev] = s.hooks[ev] || [];
+    if (JSON.stringify(s.hooks[ev]).includes('groundwork/bin/gw.js')) return;
+    s.hooks[ev].push({ ...(matcher ? { matcher } : {}), hooks: [{ type: 'command', command: `${HOOK_CMD} ${sub}` }] });
+  };
+  addHook('SessionStart', null, 'session-start');
+  addHook('PreToolUse', 'Edit|Write|MultiEdit|NotebookEdit', 'pre-edit');
+  addHook('UserPromptSubmit', null, 'prompt');   // spots "learn X" / "app like X" and points the agent at RESEARCH.md
+  writeJson(sf, s);
+}
 function init(args) {
   const profile = flag(args, '--profile') || 'standard';
   if (!exists(P('project.json'))) writeJson(P('project.json'), { name: path.basename(ROOT), stage: null, tier: null, targets: [], stacks: {}, profile, created_at: now() });
@@ -764,19 +780,7 @@ function init(args) {
   const ag = path.join(ROOT, 'AGENTS.md');
   if (exists(ag) && !fs.readFileSync(ag, 'utf8').includes('groundwork/GROUNDWORK.md')) fs.appendFileSync(ag, '\n## Groundwork framework\nRead and follow groundwork/GROUNDWORK.md before any development work.\n');
   wireSkill();
-  if (profile !== 'minimal' && !args.includes('--no-hooks')) {
-    const sf = path.join(ROOT, '.claude', 'settings.json'), s = readJson(sf, {});
-    if (exists(sf) && !readJson(sf)) throw new Error('.claude/settings.json is not valid JSON; fix it or pass --no-hooks');
-    s.hooks = s.hooks || {};
-    const addHook = (ev, matcher, sub) => {
-      s.hooks[ev] = s.hooks[ev] || [];
-      if (JSON.stringify(s.hooks[ev]).includes('groundwork/bin/gw.js')) return;
-      s.hooks[ev].push({ ...(matcher ? { matcher } : {}), hooks: [{ type: 'command', command: `${HOOK_CMD} ${sub}` }] });
-    };
-    addHook('SessionStart', null, 'session-start');
-    addHook('PreToolUse', 'Edit|Write|MultiEdit|NotebookEdit', 'pre-edit');
-    writeJson(sf, s);
-  }
+  if (profile !== 'minimal' && !args.includes('--no-hooks')) wireHooks();
   const p = project(); p.profile = profile; p.framework_version = VERSION; writeJson(P('project.json'), p);
   const r = doctor(hostProfile({ fresh: true }), project());
   const st = state(); st.phases.H0 = { status: 'done', at: now() }; writeJson(P('state.json'), st);
@@ -784,6 +788,20 @@ function init(args) {
 }
 
 // ---------- hooks ----------
+// does a user message point at a reference app to learn from? (English + Indonesian; the agent makes the final call)
+const APPWORD = String.raw`(app|apps|application|aplikasi|apk|site|website|web|situs|bot|game|tool|platform|extension|plugin|software|program)`;
+const REF_PATTERNS = [
+  /\b(learn|study|research|analy[sz]e|investigate)\b.{0,30}\b(how|from|what|why|the way|cara)\b|\breverse[- ]?engineer|\b(look into|figure out|find out) how\b/,
+  /\b(pelajari|pelajarin|mempelajari|belajar dari|teliti|meneliti|analisa|analisis|bedah|tiru|niru|meniru|contek|nyontek|cari tahu cara)\b/,
+  /\b(clone of|copy of|inspired by|modell?ed on)\b/,
+  new RegExp(String.raw`\b(like|similar to|same as|based on|seperti|mirip|kayak|kaya|ala|sejenis)\b.{0,40}\b${APPWORD}\b|\b${APPWORD}\b.{0,30}\b(like|similar to|same as|seperti|mirip|kayak|kaya|ala|sejenis)\b`),
+  /\b(for|as) (a )?reference\b|\breferen(ce|si|sinya)\b|\bacuan\b|\bcontoh(nya)? (dari|aplikasi|app|web)\b|\bpatokan\b/,
+];
+function referenceIntent(text) {
+  const raw = String(text || ''), t = raw.toLowerCase().replace(/\b(would|'d|looks|look|seems|seem|feels|feel|sounds) like\b/g, '')
+    .replace(/\b(like|seperti|kayak) (this|that|it|before|so|usual|normal|biasa|sebelumnya|ini|itu)\b/g, '');
+  return REF_PATTERNS.some(r => r.test(t)) || /\b(learn|study|analy[sz]e|research)\s+[A-Z][\w.-]+/.test(raw);   // "learn Splitwise": a proper name
+}
 function hook(sub) {
   const p = project(); if (!exists(P('project.json'))) return 0;   // not initialised: stay silent
   if (sub === 'session-start') {
@@ -796,6 +814,12 @@ function hook(sub) {
     if (hostChanged(h)) { try { doctor(scan(), p); fb('host-rescan', { reason: h ? 'host changed or scan stale' : 'first scan' }); console.log('Groundwork: host changed or scan older than 7 days, re-scanned.'); } catch (e) { console.log('Groundwork: re-scan failed: ' + e.message); } }
     console.log(statusText());
     try { const t = recText(recommendSkills(p, nextStep().phase, currentTaskText(), { limit: 3 }).filter(r => r.id !== INSPECTOR_ID), 'Groundwork skill suggestions for the current phase/task:'); if (t) console.log(t); } catch { }   // inspector already has its own banner
+    return 0;
+  }
+  if (sub === 'prompt') {   // UserPromptSubmit: stdout becomes context for the agent
+    let input = {}; try { input = JSON.parse(fs.readFileSync(0, 'utf8') || '{}'); } catch { }
+    if (referenceIntent(input.prompt)) console.log('Groundwork: this message may point at a reference app or site to learn from. If it does, follow groundwork/phases/RESEARCH.md: ' +
+      'make the goal clear first (ask if it is vague), record it with gw research "<name>" "<goal>", recommend the depth the goal needs, and escalate to the next method if the goal is not met. If it does not, ignore this note.');
     return 0;
   }
   if (sub === 'pre-edit') {
@@ -907,6 +931,21 @@ function main(argv) {
       console.log(`${id} approved and recorded.`); return 0;
     }
     case 'hook': return hook(args[0]);
+    case 'research': {   // gw research "<reference>" ["goal"]: record a reference app and start its research doc
+      const [name, goal] = args;
+      if (!name) { const p = project(); console.log((p.references || []).length ? 'References: ' + p.references.join(', ') : 'No references yet: gw research "<app or site>" "<goal>"'); return 0; }
+      const p = project(); p.references = [...new Set([...(p.references || []), name])]; writeJson(P('project.json'), p);
+      const slug = name.toLowerCase().replace(/^https?:\/\//, '').replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '').slice(0, 60) || 'reference';
+      const doc = path.posix.join(p.docs_dir || 'docs', 'research', slug + '.md'), abs = path.join(ROOT, doc);
+      if (!exists(abs)) { fs.mkdirSync(path.dirname(abs), { recursive: true });
+        fs.writeFileSync(abs, fs.readFileSync(path.join(FW, 'templates', 'reference-research.md'), 'utf8').replace('<app / site / bot>', name)
+          .replace('- Why: <what we want to learn, linked to REQ IDs if known>', '- Goal: ' + (goal || '[NEEDS CLARIFICATION: what must we learn, what for, and how do we know we are done?]'))); }
+      console.log(`Reference recorded: ${name} · research doc: ${doc}` + (goal ? '' : '\nGoal not given: ask the user what they want to learn and why, then fill the Goal line.') +
+        '\nNext: groundwork/phases/RESEARCH.md: pick the depth the goal needs, tell the user why, and escalate if the goal is not met.');
+      const r = doctor(hostProfile(), p); const miss = r.checks.filter(c => ['rea', 'scrapling'].includes(c.id) && c.status !== 'ok');
+      if (miss.length) console.log('Research tools not installed yet: ' + miss.map(c => c.id).join(', ') + ' (suggest only if the chosen depth needs them; gw plan-install shows the commands)');
+      return 0;
+    }
     case 'note': {    // silent agent self-observation: gw note <category> "text"
       const [category, ...rest] = args, text = rest.join(' ').trim();
       if (!NOTE_KINDS.includes(category) || !text) throw new Error('usage: gw note <' + NOTE_KINDS.join('|') + '> "text"');
@@ -1045,7 +1084,7 @@ function main(argv) {
   }
 }
 
-module.exports = { docPath, changedPhases, chosenMethod, projectCaps, installGate, parseTrending, classifySkill, fitsProject, isLookalike, curatedCatalog, recommendSkills, suggestSkills, maintainInfo, catalog, buildManifest, integrity, changelogSince, capabilities, devMethod, feasibility, kvmCheck, dockerCheck, toolCheck, vcmp, installCommand };
+module.exports = { referenceIntent, docPath, changedPhases, chosenMethod, projectCaps, installGate, parseTrending, classifySkill, fitsProject, isLookalike, curatedCatalog, recommendSkills, suggestSkills, maintainInfo, catalog, buildManifest, integrity, changelogSince, capabilities, devMethod, feasibility, kvmCheck, dockerCheck, toolCheck, vcmp, installCommand };
 if (require.main === module) {
   try { const r = main(process.argv.slice(2)); if (r && r.then) r.then(c => { process.exitCode = c; }, e => { fb('error', { cmd: process.argv[2] || '', message: e.message }); console.error('gw: ' + e.message); process.exitCode = 1; }); else process.exitCode = r; } catch (e) { fb('error', { cmd: process.argv[2] || '', message: e.message }); console.error('gw: ' + e.message); process.exitCode = 1; }
 }

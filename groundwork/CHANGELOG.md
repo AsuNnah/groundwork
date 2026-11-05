@@ -7,7 +7,11 @@ From real-run feedback (3 projects: a Discord/Telegram bot workspace, a web+back
 - **Reference-app research** (`phases/RESEARCH.md`, `templates/reference-research.md`):
   - when the user says "like X", the agent works out how X works from evidence: docs → source → using it → Scrapling → REA;
   - it suggests the tool the question needs whatever it costs, with approval, and lawfully;
-  - `gw set references=…` makes doctor check Scrapling and REA, and `gw plan-install` prints the pinned installs (`scrapling[fetchers,ai]==0.5.1`, `rea-agents@6.8.0`).
+  - **starts automatically:** a new `UserPromptSubmit` hook spots "learn X", "pelajari X", "I want an app like X", "X for reference", "bikin kayak X" (English + Indonesian) and points the agent at the playbook;
+  - existing projects with hooks get the new hook on upgrade;
+  - the agent asks for the goal if it's vague (what to learn, what for, when it's done), recommends the depth the goal needs, and after each method checks the goal, stepping up to the next method or another route until it's met;
+  - `gw research "<X>" ["goal"]` records the reference, creates `docs/research/<x>.md`, and has doctor check Scrapling and REA;
+  - `gw plan-install` prints the pinned installs (`scrapling[fetchers,ai]==0.5.1`, `rea-agents@6.8.0`).
 - **Existing projects map instead of duplicate:**
   - `gw set docs_dir=<path>` or `docs.prd=/docs.plan=/docs.test_strategy=` (GATE 1 and the edit guard follow them; doc names match case-insensitively). This replaces pointer files.
   - P0 explains: adopting another ID scheme, phases done out of order, workspaces with several products.

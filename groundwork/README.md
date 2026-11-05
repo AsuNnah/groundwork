@@ -10,7 +10,7 @@ A portable, host-adaptive development framework for AI coding agents (Claude Cod
    - creates `.groundwork/` (project state);
    - adds `@groundwork/GROUNDWORK.md` to `CLAUDE.md` (and a pointer in `AGENTS.md` if one exists);
    - adds the `/groundwork` skill in `.claude/skills/`;
-   - adds 2 hooks to `.claude/settings.json`: a session-start status and the GATE 1 edit guard. Use `--no-hooks` to skip them, or `--profile minimal` for no hooks or gate enforcement;
+   - adds 3 hooks to `.claude/settings.json`: a session-start status, the GATE 1 edit guard, and a prompt hook that spots reference apps ("learn X", "app like X", "pelajari X") and points the agent at `phases/RESEARCH.md`. Use `--no-hooks` to skip them, or `--profile minimal` for no hooks or gate enforcement;
    - scans the machine and prints the environment report.
 3. Start your agent and say what you want to build. It follows `GROUNDWORK.md`.
 
@@ -23,7 +23,8 @@ Without running `init`, you can still tell the agent "follow groundwork/GROUNDWO
 ```
 gw init | doctor [--fresh] | plan-install | status | next
 gw set tier=standard targets=web,android stacks.android=flutter
-gw set docs_dir=app/docs | docs.prd=<path> | dev_method=native-user-scope dev_method_reason="…" | references=<app>,<site>
+gw set docs_dir=app/docs | docs.prd=<path> | dev_method=native-user-scope dev_method_reason="…"
+gw research "<app or site>" ["goal"]                  # record a reference app, start docs/research/<x>.md
 gw phase <H0..P11> <done|skipped|in_progress|blocked> ["note"]
 gw run <target> <S0|S1|S2|S3> -- <test command>     # writes a receipt
 gw gate <G1|G2> [--approve "user's words"]

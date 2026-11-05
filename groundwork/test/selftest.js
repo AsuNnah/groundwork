@@ -183,4 +183,10 @@ t('feedback 0.4.0: docs location, dev method override, phase re-check', () => {
   assert.strictEqual(gw.installCommand({ os: { package_managers: 'apt' }, toolchains: { npm: '10.9' } }, 'rea').via, 'npm', 'npm install route');
   assert.deepStrictEqual(gw.changedPhases(oldM, newM, { phases: { P2: { status: 'done' }, P3: { status: 'done' }, P4: { status: 'in_progress' } } }), ['P2'], 'only done phases whose file changed');
 });
+t('reference-app intent (English + Indonesian)', () => {
+  for (const s of ['pelajari aplikasi Splitwise', 'learn how Notion handles offline sync', 'learn Splitwise', 'i want app like Duolingo', 'use Linear for reference',
+    'aku mau aplikasi seperti gojek', 'bikin bot kayak MEE6', 'pakai Mobbin sebagai acuan', 'reverse engineer this APK', 'make a clone of Wordle']) assert.ok(gw.referenceIntent(s), s);
+  for (const s of ['fix the login bug', 'do it like this', 'I would like to add dark mode', 'it looks like a bug', 'sepertinya gagal', 'based on the PRD write the plan',
+    'learn python basics first', 'the app crashes like before', 'perbaiki error di bot']) assert.ok(!gw.referenceIntent(s), s);
+});
 console.log(`\n${n} checks passed`);

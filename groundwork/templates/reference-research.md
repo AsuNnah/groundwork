@@ -2,8 +2,14 @@
 
 - Reference: <name, URL, version or commit, platform>
 - Why: <what we want to learn, linked to REQ IDs if known>
+- Done when: <a feature list / flow diagram / matching behaviour / exact numbers>
 - Allowed to inspect: <own app / open source (licence) / public site (terms + robots.txt checked) / licensed binary>
 - Methods used: <docs · source · browser · Scrapling · REA> · date: <YYYY-MM-DD>
+
+## Methods tried
+| # | Level / method | Why this one | Result (goal met / partly / not) | What is still unknown → next method |
+|---|---|---|---|---|
+| 1 | | | | |
 
 ## Questions and findings
 | # | Question | Finding | Evidence (file:line, screenshot, request, REA report) | Confidence (high/med/low) |

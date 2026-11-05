@@ -50,7 +50,7 @@ Updating later: paste the prompt in [UPGRADING.md](UPGRADING.md#easiest-paste-th
 # 1. copy the framework folder into your project root
 cp -r groundwork/ /path/to/your-project/
 
-# 2. one-time setup (state folder, CLAUDE.md import, /groundwork skill, 2 hooks, host scan)
+# 2. one-time setup (state folder, CLAUDE.md import, /groundwork skill, 3 hooks, host scan)
 cd /path/to/your-project
 node groundwork/bin/gw.js init
 
@@ -105,7 +105,7 @@ Each pack declares stacks (with detection markers and scaffolds), required tools
 | Dependency / SDK / runtime updates | `UPGRADE` | outdated → classify (patch/minor/major/0.x/SDK) → one major at a time → codemods → tests at release tier. `gw eol` checks runtime end of life live via endoflife.date. Pack `policies` track store deadlines (Play target API, Apple Xcode minimum). |
 | Refactoring, tech debt (reactive) | `MAINTAIN` | debt registry with `(impact × frequency) / cost`, boy-scout rule, characterization tests before touching legacy code, strangler fig, dead-code tools per stack |
 | Production | `OPERATE` | minimal observability per target, SEV1–4 incident flow (mitigate first), hotfix from the release tag, **rollback per target** (mobile: halt the staged rollout and roll forward, since there's no rollback), blameless postmortems |
-| Reference apps ("like X") | `RESEARCH` | how the reference works, from evidence: docs → source → using it → [Scrapling](https://github.com/D4Vinci/Scrapling) → [REA](https://github.com/morluto/rea) (apps, APKs, binaries); lawful and authorised only, never copying proprietary code |
+| Reference apps ("like X") | `RESEARCH` | how the reference works, from evidence: docs → source → using it → [Scrapling](https://github.com/D4Vinci/Scrapling) → [REA](https://github.com/morluto/rea) (apps, APKs, binaries); starts automatically on "learn X" / "app like X" / "pelajari X", asks for the goal if it is vague, recommends the depth the goal needs and steps up to the next method until the goal is met; lawful and authorised only, never copying proprietary code |
 | Security | `SECURITY` | osv-scanner, gitleaks, stack audits; priority from KEV, EPSS, reachability and exposure (P0 = 72 h … P3 = next upgrade); reactive advisory flow; leaked-secret response |
 
 `gw maintain` prints the exact outdated, upgrade, audit, dead-code, override, rollback and observability commands for your project's stacks.
@@ -146,7 +146,8 @@ While it works, the agent **silently** logs framework-level friction with `gw no
 gw init [--profile minimal|standard|strict] [--no-hooks]
 gw doctor [--fresh] [--json]      gw plan-install        gw status | next
 gw set tier=standard targets=web,android stacks.android=flutter
-gw set docs_dir=<path> | dev_method=<method> | references=<app>,…
+gw set docs_dir=<path> | dev_method=<method>
+gw research "<reference app>" ["goal"]
 gw phase <H0..P11> <done|skipped|in_progress|blocked> ["note"]
 gw run <target> <S0..S3> -- <cmd> gw gate <G1|G2> [--approve "user's words"]
 gw note <category> "text"         gw feedback
