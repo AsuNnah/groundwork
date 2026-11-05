@@ -42,7 +42,7 @@ $tools = [ordered]@{}
 $probe = [ordered]@{ git='--version'; gh='--version'; node='--version'; npm='--version'; pnpm='--version'; bun='--version';
   python='--version'; uv='--version'; java='-version'; gradle='--version'; adb='version'; flutter='--version'; dart='--version';
   dotnet='--version'; go='version'; rustc='--version'; cargo='--version'; cmake='--version'; 'qemu-system-x86_64'='--version';
-  playwright='--version'; appium='--version'; maestro='--version'; mise='--version'; claude='--version'; skillspector='--version'; wsl='--version' }
+  playwright='--version'; appium='--version'; maestro='--version'; mise='--version'; claude='--version'; skillspector='--version'; rea='--version'; scrapling='--version'; wsl='--version' }
 foreach ($k in $probe.Keys) { $v = Ver $k $probe[$k]; if ($v) { $tools[$k -replace '-system-x86_64',''] = $v } }
 if (Test-Path "${env:ProgramFiles(x86)}\Microsoft Visual Studio\Installer\vswhere.exe") { $tools['msvc'] = 'present' }
 

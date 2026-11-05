@@ -3,6 +3,7 @@
 Use for features, bugfixes, or refactors in a codebase that already exists, together with P0's tier.
 
 - **Current truth:** `docs/` (PRD/FSD/TRD) describes the system as it is. If those docs are missing, write a short `docs/system-overview.md` from the code first (`templates/system-overview.md`): modules, entry points, data, how to run, how to test.
+- **Starting from a reference** (the closest existing app or bot, or a third-party app): `phases/RESEARCH.md` first.
 - **Change folder:** `docs/changes/<YYYYMMDD-slug>/`
   - `proposal.md` (`templates/change-proposal.md`): why, what changes, out of scope, affected REQ IDs;
   - `delta.md` (`templates/change-delta.md`): requirements ADDED / MODIFIED / REMOVED, each with WHEN/THEN scenarios;

@@ -1,10 +1,31 @@
 # Changelog
 
-## 0.3.4 (2026-11-05)
+## 0.4.0 (2026-11-05)
+From real-run feedback (3 projects: a Discord/Telegram bot workspace, a web+backend app, a Rust server) and user requests.
+
 ### Added
+- **Reference-app research** (`phases/RESEARCH.md`, `templates/reference-research.md`):
+  - when the user says "like X", the agent works out how X works from evidence: docs → source → using it → Scrapling → REA;
+  - it suggests the tool the question needs whatever it costs, with approval, and lawfully;
+  - `gw set references=…` makes doctor check Scrapling and REA, and `gw plan-install` prints the pinned installs (`scrapling[fetchers,ai]==0.5.1`, `rea-agents@6.8.0`).
+- **Existing projects map instead of duplicate:**
+  - `gw set docs_dir=<path>` or `docs.prd=/docs.plan=/docs.test_strategy=` (GATE 1 and the edit guard follow them; doc names match case-insensitively). This replaces pointer files.
+  - P0 explains: adopting another ID scheme, phases done out of order, workspaces with several products.
+- **Dev method override:** `gw set dev_method=native-user-scope dev_method_reason="no Docker in dev"`. Doctor and `gw run` honour it, with local container tiers off.
+- **Upgrade re-check:** `gw upgrade` flags finished phases whose instructions changed. They show in `gw status` until they're marked done again.
+- P4: verify each MCP server or connector a later phase needs with one harmless call.
+- P0: every task gets P0, even a one-line fix (one command at the trivial tier). Workarounds are logged.
+- Copy-paste prompts for an AI agent: set up (README) and update (UPGRADING.md).
 - Templates for every document the phases ask for: `afd.md` (app flows), `bsd.md` (API contracts + DB schema + migrations), `dbd.md` (UI design brief: tokens, screen states, accessibility), `platform.md` (per-target permissions, signing, store rules), `system-overview.md`, `change-proposal.md`, `change-delta.md`, `bugfix.md`, `uat.md`, `lessons.md`, `upgrade.md`, `security-exceptions.md`.
 - Phases P5, P8, P11, CHANGE, UPGRADE and SECURITY now point at them.
 - Selftest: every `templates/*.md` named in a phase file must exist.
+
+### Fixed
+- Doctor reported skill vetting as "misconfigured" when only the optional SkillSpector CLI was missing.
+- `.groundwork/FEEDBACK.md` went stale between phases. It's now rebuilt on every event.
+- Info-level checks (e.g. Playwright installed per project) are no longer logged as problems.
+- Trending lookalikes logged ~120 skill names per refresh. Now each new impersonating repo is logged once.
+- `gw plan-install` never chose npm-based install commands.
 
 ## 0.3.3 (2026-11-05)
 - **Required skill inspection with `skill-inspector`** (NVIDIA SkillSpector):

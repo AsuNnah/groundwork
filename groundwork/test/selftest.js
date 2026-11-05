@@ -171,4 +171,16 @@ t('every template a phase names exists', () => {
   for (const d of docs) for (const m of fs.readFileSync(path.join(dir, d), 'utf8').matchAll(/templates\/([\w.-]+\.md)/g))
     assert.ok(fs.existsSync(path.join(dir, 'templates', m[1])), `${d} names missing templates/${m[1]}`);
 });
+t('feedback 0.4.0: docs location, dev method override, phase re-check', () => {
+  assert.strictEqual(gw.docPath('prd.md', { docs: { prd: 'app/docs/PRD.md' } }), 'app/docs/PRD.md', 'explicit doc path');
+  assert.strictEqual(gw.docPath('plan.md', { docs_dir: 'no-such-dir/docs' }), 'no-such-dir/docs/plan.md', 'docs_dir');
+  assert.strictEqual(gw.docPath('test-strategy.md', { docs: { test_strategy: 'x/ts.md' } }), 'x/ts.md', 'key with underscore');
+  const h = { os: { family: 'linux' }, machine: { kind: 'desktop' } }, c = { containers: true };
+  assert.strictEqual(gw.chosenMethod(h, c, {}).id, 'devcontainer');
+  const o = gw.chosenMethod(h, c, { dev_method: 'native-user-scope', dev_method_reason: 'no Docker in dev' });
+  assert.ok(o.override && o.id === 'native-user-scope' && o.host_default === 'devcontainer' && /no Docker/.test(o.why));
+  const oldM = { files: { 'phases/P2.md': 'a', 'phases/P3.md': 'b', 'phases/P4.md': 'c' } }, newM = { files: { 'phases/P2.md': 'A', 'phases/P3.md': 'b', 'phases/P4.md': 'C' } };
+  assert.strictEqual(gw.installCommand({ os: { package_managers: 'apt' }, toolchains: { npm: '10.9' } }, 'rea').via, 'npm', 'npm install route');
+  assert.deepStrictEqual(gw.changedPhases(oldM, newM, { phases: { P2: { status: 'done' }, P3: { status: 'done' }, P4: { status: 'in_progress' } } }), ['P2'], 'only done phases whose file changed');
+});
 console.log(`\n${n} checks passed`);
