@@ -9,7 +9,7 @@ scan host → intake & size → requirements → target & stack → environment 
 → review → release [GATE 2] → learn
 ```
 
-> Status: **alpha (v0.3.3)**. The Linux scanner, CLI, gates, hooks, and feedback loop are tested on Linux. The Windows scanner (`scan.ps1`) and the macOS path are untested. Feedback from real runs is how it improves (see [Learning from real runs](#learning-from-real-runs)).
+> Status: **alpha (v0.3.4)**. The Linux scanner, CLI, gates, hooks, and feedback loop are tested on Linux. The Windows scanner (`scan.ps1`) and the macOS path are untested. Feedback from real runs is how it improves (see [Learning from real runs](#learning-from-real-runs)).
 
 ---
 

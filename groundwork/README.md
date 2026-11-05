@@ -37,7 +37,7 @@ gw gate <G1|G2> [--approve "user's words"]
 | `scan/` | zero-dependency host scanners (`scan.sh`, `scan.ps1`) |
 | `bin/gw.js` | CLI (Node 18+, no dependencies) |
 | `packs/` | one JSON per target (web, backend, android, ios, macos, windows, linux-desktop, cli, embedded) + the `tools.json` install catalogue |
-| `templates/` | PRD, FSD, TRD, SRD, ADR, plan, test strategy, skill requirements, tech debt, incident, runbook |
+| `templates/` | planning: PRD, ADR, plan, test strategy, skill requirements · design: FSD, AFD (flows), TRD, BSD (API + DB), DBD (UI brief), SRD (security), platform notes · change: system overview, proposal, delta, bugfix · verify: UAT · after release: upgrade report, tech debt, security exceptions, incident, runbook, lessons |
 | `catalog/skills.json` | pinned skill catalogue |
 | `MANIFEST.json`, `CHANGELOG.md`, `VERSION` | release metadata used by `gw upgrade` / `gw verify` |
 | `test/selftest.js` | `node groundwork/test/selftest.js` |

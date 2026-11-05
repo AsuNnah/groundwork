@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.3.4 (2026-11-05)
+### Added
+- Templates for every document the phases ask for: `afd.md` (app flows), `bsd.md` (API contracts + DB schema + migrations), `dbd.md` (UI design brief: tokens, screen states, accessibility), `platform.md` (per-target permissions, signing, store rules), `system-overview.md`, `change-proposal.md`, `change-delta.md`, `bugfix.md`, `uat.md`, `lessons.md`, `upgrade.md`, `security-exceptions.md`.
+- Phases P5, P8, P11, CHANGE, UPGRADE and SECURITY now point at them.
+- Selftest: every `templates/*.md` named in a phase file must exist.
+
 ## 0.3.3 (2026-11-05)
 - **Required skill inspection with `skill-inspector`** (NVIDIA SkillSpector):
   - Every skill fetched from a GitHub repo, curated or trending, must have a recorded verdict for its exact commit before `gw skills install` accepts it (`gw skills verdict <id> APPROVE|CAUTION|REJECT "reason"`).

@@ -164,4 +164,11 @@ t('install gate: inspector bootstrap, verdicts, pinned ref', () => {
   assert.ok(g(null, 'r1', ['--skip-inspection', 'reviewed by hand']).ok);
   assert.ok(!g({ ref: 'r1', verdict: 'REJECT' }, 'r1', ['--skip-inspection', 'trust me']).ok, '--skip-inspection is not a REJECT override'); assert.ok(!g(null, 'r1', ['--skip-inspection', '--force']).ok, 'skip needs a reason');
 });
+t('every template a phase names exists', () => {
+  const fs = require('fs'), path = require('path');
+  const dir = path.join(__dirname, '..');
+  const docs = [...fs.readdirSync(path.join(dir, 'phases')).map(f => path.join('phases', f)), 'GROUNDWORK.md'];
+  for (const d of docs) for (const m of fs.readFileSync(path.join(dir, d), 'utf8').matchAll(/templates\/([\w.-]+\.md)/g))
+    assert.ok(fs.existsSync(path.join(dir, 'templates', m[1])), `${d} names missing templates/${m[1]}`);
+});
 console.log(`\n${n} checks passed`);

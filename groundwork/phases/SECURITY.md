@@ -28,7 +28,7 @@ Adapted from CISA BOD 26-04 (KEV, exposure, automatable, impact). The EPSS thres
    - upgrade to the minimal fixed version (follow UPGRADE.md rules, but skip the queue);
    - override the transitive dependency (`maintain.<stack>.override`);
    - mitigate (config, WAF rule, feature flag off);
-   - accept with a dated exception in `docs/security/exceptions.md`: id, reason, expiry date, and the scanner ignore entry with an expiry (`osv-scanner.toml` `ignoreUntil`).
+   - accept with a dated exception in `docs/security/exceptions.md` (`templates/security-exceptions.md`): id, reason, expiry date, and the scanner ignore entry with an expiry (`osv-scanner.toml` `ignoreUntil`).
 3. **Test:** full tests at the release tier, a regression test of the vulnerable path if feasible, and a rescan showing clean.
 4. **Release:** the hotfix flow (OPERATE.md C) for P0/P1; otherwise the next release. Regenerate the SBOM.
 5. **Notify:** add a "Security" entry to the changelog. For a library, publish a GitHub Security Advisory. If user data was affected, tell the user (the project owner) about notification duties, e.g. the 72-hour GDPR breach notice. Close the alert.
