@@ -2,6 +2,12 @@
 
 For any target with a UI. Link screens to FSD features.
 
+## Audience and job
+<who uses each screen, what they are trying to get done, how often, under what pressure>
+
+## Principles
+<3–5 rules that settle design arguments, e.g. "safe by default: destructive actions need preview">
+
 ## Look and feel
 - Audience and tone: <who uses it, how it should feel>
 - References: <apps or sites to resemble or avoid>
@@ -23,6 +29,13 @@ Dark mode: <yes/no; token overrides>
 
 For each screen, design every state: **default, empty, loading, error, offline, no permission, long content**.
 
+## Information architecture
+<the screen tree and what lives where>
+
+## Components and states
+| Component | Variants | States (default, hover, focus, disabled, loading, error) |
+|---|---|---|
+
 ## Navigation
 <tab bar / sidebar / stack; Mermaid diagram if non-trivial>
 
@@ -43,6 +56,9 @@ Breakpoints or device sizes, orientation, keyboard, touch, mouse, screen readers
 |---|---|---|---|
 
 **Approval:** "<user's words>" · version/link: <…> · date: <YYYY-MM-DD>
+
+## Deliberately absent
+<things users may expect but this design leaves out on purpose, and why>
 
 ## Copy
 Voice, terminology list, error-message style (what happened + what to do).

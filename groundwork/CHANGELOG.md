@@ -28,6 +28,17 @@ From real-run feedback (3 projects: a Discord/Telegram bot workspace, a web+back
 - P4: verify each MCP server or connector a later phase needs with one harmless call.
 - P0: every task gets P0, even a one-line fix (one command at the trivial tier). Workarounds are logged.
 - Copy-paste prompts for an AI agent: set up (README) and update (UPGRADING.md).
+- **Templates aligned with real project docs** (compared against two real runs' document sets):
+  - new `intent.md` (confirmed statement of intent, written before the PRD) and `mockup-review.md` (blind review by independent persona reviewers);
+  - PRD gains summary, goals and metrics, domain model, scope and constraints, AI requirements, rollout, alternatives, open decisions, decision log;
+  - FSD gains Part 0 conventions (screen spec layout, shared components, dialogs, validation, roles, scenario IDs), traceability, reconciliation, a large-project split;
+  - AFD gains a flow index with AF IDs, code anchors, system flows;
+  - TRD gains system context, technology, configuration, network exposure, NFR responses, build/release, engineering constraints;
+  - BSD gains roles, file and log formats, other protocols;
+  - DBD gains audience and job, principles, information architecture, components and states, deliberately absent;
+  - SRD gains trust boundaries, per-round threat tables, pen-test results, residual risk, review history and cadence;
+  - plan gains delivered, dependencies, backlog, test approach;
+  - research gains a verdict, reuse decisions, a compatibility contract, PRD corrections, a verify list, and full reports.
 - Templates for every document the phases ask for: `afd.md` (app flows), `bsd.md` (API contracts + DB schema + migrations), `dbd.md` (UI design brief: tokens, screen states, accessibility), `platform.md` (per-target permissions, signing, store rules), `system-overview.md`, `change-proposal.md`, `change-delta.md`, `bugfix.md`, `uat.md`, `lessons.md`, `upgrade.md`, `security-exceptions.md`.
 - Phases P5, P8, P11, CHANGE, UPGRADE and SECURITY now point at them.
 - Selftest: every `templates/*.md` named in a phase file must exist.

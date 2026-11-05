@@ -1,27 +1,50 @@
 # TRD: <product>
 
-## Context & constraints
+## 1. Context and constraints
 Targets: <from project.json> · Stack: <ADR-0001> · Host constraints: <from env-report, e.g. iOS built on CI>
 
-## Architecture
-<components, responsibilities, diagram (Mermaid C4/flowchart)>
+## 2. System context
+<what talks to what, outside the system boundary; Mermaid C4 context or flowchart>
 
-## Modules & interfaces
-| Module | Responsibility | Public interface | Owner |
+## 3. Architecture and components
+| Component / module | Responsibility | Public interface | Code location |
+|---|---|---|---|
+<diagram (Mermaid C4 container or flowchart)>
+
+## 4. Technology
+| Concern | Choice | Version | Why (ADR) |
 |---|---|---|---|
 
-## Data
-<entities, schema, storage, retention, migrations>
+## 5. Data
+<entities, storage, retention, migrations. Details: docs/bsd.md>
 
-## API contracts (BSD)
-<link docs/contracts/openapi.yaml; auth, errors, versioning. Projects with a real backend or DB: use docs/bsd.md (templates/bsd.md) and link it here>
+## 6. API contracts
+<link docs/contracts/openapi.yaml; auth, errors, versioning. Projects with a real backend or DB: docs/bsd.md (templates/bsd.md)>
 
-## Integrations
-| Service | Purpose | Auth | Failure mode |
+## 7. Integrations
+| Service | Purpose | Auth | Limits | Failure mode |
+|---|---|---|---|---|
+
+## 8. Configuration
+| Setting / env var (name only, never the value) | Purpose | Default | Required |
 |---|---|---|---|
 
-## Cross-cutting
-Logging/observability, configuration & secrets, performance budgets, offline/sync, i18n, accessibility.
+## 9. Network and exposure (services)
+| Port / endpoint | Protocol | Exposed to | Encryption | Auth |
+|---|---|---|---|---|
 
-## Open questions
-[NEEDS CLARIFICATION: ...]
+## 10. Non-functional requirements (from PRD NFR-xxx)
+| NFR | Design response | How it's verified |
+|---|---|---|
+
+## 11. Cross-cutting
+Logging and observability, secrets, performance budgets, offline/sync, i18n, accessibility.
+
+## 12. Build, test, release
+<build commands, test tiers (link test-strategy), packaging, release and rollback>
+
+## 13. Engineering constraints
+<rules the code must follow: e.g. no unwrap outside tests, upstream-compatible patches, licence obligations>
+
+## 14. Open questions
+[NEEDS CLARIFICATION: …]

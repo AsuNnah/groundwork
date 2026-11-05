@@ -1,9 +1,22 @@
 # Plan: <product / change>
 
+## Delivered
+<milestones already shipped, with version/tag (existing projects)>
+
 ## Milestones
-| # | Goal | Tasks | Targets verified at tier |
-|---|---|---|---|
-| M1 | | T01–T05 | web S1 |
+| # | Goal | Tasks | Targets verified at tier | Status |
+|---|---|---|---|---|
+| M1 | | T01–T05 | web S1 | immediate |
+
+## Dependencies and order
+<what must land before what; what can run in parallel>
+
+## Backlog (prioritised)
+| Item | Why | Priority |
+|---|---|---|
+
+## Test approach for new work
+<link docs/test-strategy.md; what each milestone must prove and at which tier>
 
 ## Risks
 | Risk | Likelihood | Impact | Mitigation |

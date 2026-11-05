@@ -73,6 +73,14 @@ Check text contrast (WCAG AA, at least 4.5:1) and touch-target size before you s
 3. **Approval:** the user's own words, the mockup version or Figma link, and the date. GATE 1 needs a plan that matches the approved mockup.
 4. Later changes to the look go through the mockup first, then the code.
 
+**Blind review** (standard tier and above, before the mockup is final):
+1. Give the mockup to independent reviewers: fresh-context subagents, or real people the user names. Each one gets a persona from the PRD's users, or a domain expert role, and sees only the mockup.
+2. Write the synthesis in `docs/mockups/review-v<n>.md` (`templates/mockup-review.md`): scores, cross-cutting problems, factual errors, and the order of work.
+3. Fix the mockup, then run a second round to confirm the fixes.
+4. Show the user the synthesis before they approve.
+
+Keep `docs/mockups/README.md` current: status, what changed in each version, and what the mockup deliberately leaves out.
+
 ## 5. Hand-off to P7
 - **Figma:** build from the file with `get_design_context` and the `figma-design-to-code` skill. Code Connect (`figma-code-connect`) maps components when a design system exists.
 - **HTML:** reuse the tokens (CSS variables) and the structure. The prototype is a picture of the target, not production code.

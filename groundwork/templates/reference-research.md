@@ -6,6 +6,9 @@
 - Allowed to inspect: <own app / open source (licence) / public site (terms + robots.txt checked) / licensed binary>
 - Methods used: <docs · source · browser · Scrapling · REA> · date: <YYYY-MM-DD>
 
+## Verdict
+<two or three lines: what we reuse, what we improve, what we skip, and the one thing that most changed our plan>
+
 ## Methods tried
 | # | Level / method | Why this one | Result (goal met / partly / not) | What is still unknown → next method |
 |---|---|---|---|---|
@@ -25,11 +28,25 @@
 ## UI
 <screens, states, timing, copy; go to the DBD>
 
-## What we do differently
-<improvements, and things we must not copy (proprietary, brand, licence)>
+## Reuse decisions
+| Element (feature, flow, data format, algorithm, code) | Reuse / improve / skip | Why | Licence / compatibility note |
+|---|---|---|---|
+
+## Compatibility contract (when we must interoperate with it)
+<formats, behaviours or APIs our product must honour exactly>
+
+## Corrections applied to the PRD / FSD
+| Doc + ID | Was | Now | Evidence |
+|---|---|---|---|
+
+## Verify before the TRD
+- [ ] <fact to confirm, and how>
 
 ## Open questions
 [NEEDS CLARIFICATION: … what tool or access would answer it]
+
+## Full study reports
+<when several studies or subagents researched in parallel: keep each report unchanged here, below the synthesis above>
 
 ## Sources
 | Source | Licence / terms | Used for |

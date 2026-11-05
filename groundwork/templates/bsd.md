@@ -9,6 +9,10 @@ Contracts the client and server agree on. The API's source of truth is `docs/con
 - Pagination, filtering, sorting: <cursor or page>
 - Rate limits and idempotency: <which endpoints, Idempotency-Key header>
 
+## Roles and permissions
+| Role | Endpoints / actions allowed |
+|---|---|
+
 ## Endpoints
 | Method | Path | Purpose | Auth / role | REQ |
 |---|---|---|---|---|
@@ -35,6 +39,14 @@ erDiagram
 - Tool: <prisma / alembic / flyway / …>; every schema change is a migration file in the repo.
 - Breaking changes use expand → migrate data → contract, never a destructive one-step change.
 - Backup and restore plan before running migrations in production.
+
+## Files, logs and other formats
+| File / stream | Format | Written by | Retention | Integrity (append-only, signed…) |
+|---|---|---|---|---|
+<e.g. an audit log: one JSON object per line, fields and meaning>
+
+## Other protocols
+<non-HTTP interfaces: sockets, CLI, loopback admin, message queues: framing, auth, errors>
 
 ## Background jobs and events
 | Job / event | Trigger | Retries | What happens on failure |
