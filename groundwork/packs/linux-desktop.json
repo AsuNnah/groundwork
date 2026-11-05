@@ -1,6 +1,7 @@
 {
   "id": "linux-desktop",
   "title": "Linux desktop app",
+  "ui": true,
   "stacks": {
     "gtk": {
       "detect": [

@@ -193,4 +193,14 @@ t('mockup intent', () => {
   for (const s of ['bikin mockup dulu', 'show me a wireframe', 'can we do it in Figma', 'gimana tampilan aplikasi nya', 'I want to see how it looks', 'UI/UX design first']) assert.ok(gw.mockupIntent(s), s);
   for (const s of ['fix the login bug', 'the prototype pollution advisory'.replace('prototype', 'proto'), 'deploy the bot']) assert.ok(!gw.mockupIntent(s), s);
 });
+t('figma detection: plugin config, UI targets only', () => {
+  const fs = require('fs'), os = require('os'), path = require('path');
+  const home = fs.mkdtempSync(path.join(os.tmpdir(), 'gw-figma-'));
+  assert.ok(!gw.figmaConfigured(home), 'nothing configured');
+  const plug = path.join(home, '.claude', 'plugins', 'cache', 'figma'); fs.mkdirSync(plug, { recursive: true });
+  fs.writeFileSync(path.join(plug, '.mcp.json'), JSON.stringify({ mcpServers: { figma: { type: 'http', url: 'https://mcp.figma.com/mcp' } } }));
+  assert.ok(gw.figmaConfigured(home), 'Figma plugin found');
+  assert.strictEqual(gw.figmaCheck({ targets: ['backend'] }), null, 'no screens, no Figma check');
+  const c = gw.figmaCheck({ targets: ['web'] }); assert.ok(c && /MANUAL ACTION/.test(c.fix), 'UI project gets a check that says what is manual');
+});
 console.log(`\n${n} checks passed`);

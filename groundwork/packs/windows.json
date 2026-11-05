@@ -1,6 +1,7 @@
 {
   "id": "windows",
   "title": "Windows desktop app",
+  "ui": true,
   "stacks": {
     "dotnet-wpf-winui": {
       "detect": [

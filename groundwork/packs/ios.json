@@ -1,6 +1,7 @@
 {
   "id": "ios",
   "title": "iOS / iPadOS app",
+  "ui": true,
   "host_only": [
     "macos"
   ],
@@ -101,7 +102,7 @@
   "rollback": "No rollback. Pause phased release (up to 30 days total), ship a fixed build, request expedited review. Remote config / feature flags are the kill switch.",
   "observe": [
     "crash reporting (Crashlytics / Sentry / Xcode Organizer)",
-    "crash-free users \u2265 99.5% before releasing phased rollout further"
+    "crash-free users ≥ 99.5% before releasing phased rollout further"
   ],
   "policies": [
     {

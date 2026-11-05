@@ -234,6 +234,28 @@ function toolCheck(h, spec, why) {
   if (spec.min && t !== 'present' && vcmp(t, spec.min) < 0) return { ...base, status: 'misconfigured', found: t, required: '>= ' + spec.min, install: true };
   return { ...base, status: 'ok', found: t };
 }
+// Figma MCP for mockups (phases/MOCKUP.md). Files only: config presence, never credentials; the agent verifies the login with whoami.
+const FIGMA_MCP = /mcp\.figma\.com|127\.0\.0\.1:3845/;
+function figmaConfigured(home = os.homedir()) {
+  const hit = f => { try { return FIGMA_MCP.test(fs.readFileSync(f, 'utf8')); } catch { return false; } };
+  if ([path.join(ROOT, '.mcp.json'), path.join(home, '.claude.json'), path.join(home, '.claude', 'settings.json'), path.join(ROOT, '.claude', 'settings.json')].some(hit)) return true;
+  const seek = (d, depth) => { if (depth < 0) return false;   // plugin caches: <plugin>/.mcp.json
+    try { for (const e of fs.readdirSync(d, { withFileTypes: true })) { const f = path.join(d, e.name);
+      if (e.isFile() && e.name === '.mcp.json' && /figma/i.test(d) && hit(f)) return true;
+      if (e.isDirectory() && seek(f, depth - 1)) return true; } } catch { }
+    return false; };
+  return seek(path.join(home, '.claude', 'plugins'), 5);
+}
+function figmaCheck(proj, all = packs()) {
+  if (!(proj.targets || []).some(t => (all[t] || {}).ui)) return null;   // only projects with screens
+  const base = { id: 'figma', name: 'Figma MCP (mockups, phases/MOCKUP.md)', severity: 'warn', why: 'visual mockups you can open, comment on and share' };
+  if (figmaConfigured()) return { ...base, status: 'unknown', found: 'Figma MCP is set up; login not verified',
+    fix: 'agent: call the Figma whoami tool. If it fails, MANUAL ACTION by the user: in Claude Code run /mcp, choose figma, Authenticate, and sign in to Figma in the browser (on a headless machine, open the printed link on any device). No Figma account? Sign up free at figma.com. Steps that need the browser (capture a web app, open the file): MANUAL ACTION: log in to figma.com in the browser and install/turn on the Claude in Chrome extension',
+    impact: 'until verified, mockups fall back to the HTML prototype' };
+  return { ...base, status: 'missing', found: 'no Figma plugin or MCP configured for this agent',
+    fix: 'suggest turning it on. Agent, with approval: claude mcp add --transport http figma https://mcp.figma.com/mcp (or the user installs the Figma plugin via /plugin). Then MANUAL ACTION by the user: restart the agent, run /mcp → figma → Authenticate, and sign in to Figma (free account is enough); for browser steps also log in to figma.com in the browser and install/turn on the Claude in Chrome extension',
+    impact: 'mockups use the no-account HTML prototype instead' };
+}
 function doctor(h, proj) {
   const c = projectCaps(h, proj), checks = [];
   checks.push(toolCheck(h, { id: 'git', severity: 'block' }, 'version control'));
@@ -248,6 +270,7 @@ function doctor(h, proj) {
           fix: ins.skill ? 'install the SkillSpector CLI (see gw plan-install), with approval' : `install it first, Groundwork uses it to vet every skill: ${INSPECTOR_INSTALL}; optional scanner: see gw plan-install`, install: ins.skill }); }
   if ((proj.references || []).length) for (const id of ['rea', 'scrapling'])   // reference-app research (phases/RESEARCH.md)
     checks.push(toolCheck(h, { id, severity: 'warn', why: 'reference-app research: ' + (id === 'rea' ? 'how an app, APK, binary or site works inside' : 'fetch and parse reference web pages') }));
+  { const f = figmaCheck(proj); if (f) checks.push(f); }
   if (!c.ci_remote) checks.push({ id: 'gh', name: 'GitHub CLI (CI sandboxes, S3)', status: 'missing', severity: 'warn', install: true });
   if ((h.memory.total_gb || 0) < 8) checks.push({ id: 'ram', name: 'RAM', status: 'misconfigured', severity: 'warn', found: h.memory.total_gb + ' GB', required: '>= 8 GB for emulators' });
   if ((h.disk.free_gb_workdir || 0) < 20) checks.push({ id: 'disk', name: 'Free disk', status: 'misconfigured', severity: 'warn', found: h.disk.free_gb_workdir + ' GB', required: '>= 20 GB' });
@@ -1086,7 +1109,7 @@ function main(argv) {
   }
 }
 
-module.exports = { mockupIntent, referenceIntent, docPath, changedPhases, chosenMethod, projectCaps, installGate, parseTrending, classifySkill, fitsProject, isLookalike, curatedCatalog, recommendSkills, suggestSkills, maintainInfo, catalog, buildManifest, integrity, changelogSince, capabilities, devMethod, feasibility, kvmCheck, dockerCheck, toolCheck, vcmp, installCommand };
+module.exports = { figmaCheck, figmaConfigured, mockupIntent, referenceIntent, docPath, changedPhases, chosenMethod, projectCaps, installGate, parseTrending, classifySkill, fitsProject, isLookalike, curatedCatalog, recommendSkills, suggestSkills, maintainInfo, catalog, buildManifest, integrity, changelogSince, capabilities, devMethod, feasibility, kvmCheck, dockerCheck, toolCheck, vcmp, installCommand };
 if (require.main === module) {
   try { const r = main(process.argv.slice(2)); if (r && r.then) r.then(c => { process.exitCode = c; }, e => { fb('error', { cmd: process.argv[2] || '', message: e.message }); console.error('gw: ' + e.message); process.exitCode = 1; }); else process.exitCode = r; } catch (e) { fb('error', { cmd: process.argv[2] || '', message: e.message }); console.error('gw: ' + e.message); process.exitCode = 1; }
 }

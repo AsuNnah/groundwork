@@ -17,6 +17,9 @@ From real-run feedback (3 projects: a Discord/Telegram bot workspace, a web+back
   - built in **Figma** through the official Figma MCP when the user wants it and has connected it (editable layers, DBD tokens as variables, comments read back), otherwise as a no-account HTML clickable prototype;
   - the user's approval is a P6 pre-build check, P7 builds from the mockup, and P8/P9 compare against it;
   - the prompt hook also spots "mockup", "wireframe", "Figma", "tampilan aplikasi".
+  - **Figma first when the machine can use it:** packs with screens declare `"ui": true`, and doctor then checks whether a Figma plugin or MCP is set up (config files only, never credentials);
+  - the agent verifies the login with `whoami` and tells the user exactly what to do, marking each **manual action**: turn it on (`claude mcp add …` or `/plugin`), restart, `/mcp` → Authenticate, a free sign-up, or logging in to figma.com plus the Claude in Chrome extension for browser steps;
+  - it falls back to the HTML prototype if there's no internet, the user declines, or setup fails.
 - **Existing projects map instead of duplicate:**
   - `gw set docs_dir=<path>` or `docs.prd=/docs.plan=/docs.test_strategy=` (GATE 1 and the edit guard follow them; doc names match case-insensitively). This replaces pointer files.
   - P0 explains: adopting another ID scheme, phases done out of order, workspaces with several products.
