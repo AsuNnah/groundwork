@@ -21,6 +21,7 @@ Check in this order. **Say plainly which steps need the user's manual action.**
 | The user has no Figma account | **Manual action:** sign up free at figma.com (the free plan is enough to start), then authenticate as above. |
 | `whoami` shows no plan or seat that can create files | **Manual action:** the user picks or creates a team or workspace in Figma, or uses a file they own. Otherwise use HTML. |
 | A step needs **the browser**, e.g.: capturing a running web app into Figma (`generate_figma_design`); opening the file to check it or read comments; the MCP login page; or no Figma MCP but a browser is available | Check browser access with the browser tools (e.g. list the connected browsers or tabs). **Manual action:** "Log in to figma.com in your browser, then install or turn on the **Claude in Chrome** extension (Chrome Web Store) and connect it to this session, so I can open and check the Figma file." Verify it by opening the file link. Driving Figma through the browser is slower than the MCP, so still suggest the MCP. |
+| The Figma editor in the browser is blank, very slow, or says WebGL or hardware acceleration is off | Check `chrome://gpu`. **Manual action:** turn on Settings → System → *Use graphics acceleration when available*, then relaunch Chrome. If WebGL still shows *software only* (renderer `llvmpipe`/`SwiftShader`), the display isn't using the GPU: common on Linux remote desktops with a virtual (dummy) display driver or no GPU. Fixing that is a system display change the user makes; never change it yourself. The Figma MCP doesn't need WebGL, so keep building through it, and use the browser only to view. |
 | No internet, the user declines, or setup fails twice | Use the **HTML clickable prototype**, and say it can be pushed into Figma later. |
 
 Rules:
@@ -35,7 +36,9 @@ Other tools:
 | **HTML clickable prototype** (`docs/mockups/`, starter: `templates/mockup/index.html`) | nothing: opens in any browser, works offline | fast, free, clickable flows; can be pushed into Figma later |
 | **Wireframe sketch** (Excalidraw / draw.io / Mermaid, e.g. `diagram-design` skill) | nothing | the very first layout talk, or when the user only wants boxes |
 
-## 2. Fidelity ladder: get approval at each step
+## 2. Fidelity ladder: get feedback at each step
+Each step is a feedback round, not a formal approval. The sign-off comes once, in the GATE 1 review packet with the intent and plan (`phases/P6.md` step 7), unless the user wants to sign the mockup off on its own.
+
 1. **Wireframe** (low fidelity): layout and hierarchy for every screen in the DBD, plus the navigation between them. Grey boxes, real labels.
 2. **Visual mockup** (high fidelity): apply the DBD tokens (colours, type, spacing, radius), real-looking sample content, and an icon set.
 3. **Clickable prototype:** the main flows from the AFD, tappable end to end.

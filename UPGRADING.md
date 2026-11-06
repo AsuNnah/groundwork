@@ -48,6 +48,17 @@ It:
 
 Downgrades are refused unless you pass `--force`.
 
+**Going back to the previous version (rollback).** Every upgrade leaves the old folder in `.groundwork/backups/`, so you can return to it:
+```sh
+ls .groundwork/backups/                                   # e.g. groundwork-0.4.0-2026-11-05T…
+node groundwork/bin/gw.js upgrade .groundwork/backups/groundwork-0.4.0-<time> --force
+```
+- Project state is kept. Fields the older version doesn't know (task receipts, `legacy`, `features`, reviews) stay in place and are ignored.
+- The state version is set to the older version, so it runs without warnings.
+- Hooks added by the newer version (0.5.0: the Stop hook) stay in `.claude/settings.json` and do nothing under the older CLI. You can delete that entry.
+- To return to the newer version later, run a normal `gw upgrade` again. It re-runs the newer migrations, which are safe to repeat. The command is printed when you roll back.
+- Tested path: 0.4.0 → 0.5.0 → 0.4.0 → 0.5.0, with tasks, receipts and hooks intact.
+
 **From v0.2.0** (no `upgrade` command yet): replace the folder by hand.
 ```sh
 rm -rf groundwork && cp -r /tmp/groundwork-new/groundwork .

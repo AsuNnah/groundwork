@@ -13,4 +13,4 @@ Real-run reports arrive in `feedback/inbox/*.md`. They are written silently by t
 ## Working on the framework
 - Keep `groundwork/` dependency-free (POSIX sh, PowerShell, Node 18+ stdlib) and all English.
 - The core never names a target. Platform knowledge goes in `groundwork/packs/*.json`.
-- Run `node groundwork/test/selftest.js` after any change to `bin/gw.js`.
+- Run `node groundwork/bin/selftest.js` after any change to `bin/gw.js`.

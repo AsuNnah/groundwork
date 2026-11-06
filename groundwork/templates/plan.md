@@ -1,5 +1,6 @@
 # Plan: <product / change>
 
+<!-- Decisions, not code: what, why, order, risks. Code is written in P7 against the tests. -->
 <!-- Lineage: GitHub Spec Kit plan (summary, technical context, constitution check, complexity tracking); Shape Up (appetite: fixed time, variable scope; no-gos). -->
 
 ## Summary

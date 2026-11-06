@@ -1,12 +1,13 @@
 # CHANGE: changes to an existing system (brownfield)
 
-Use for features, bugfixes, or refactors in a codebase that already exists, together with P0's tier.
+With P0's tier, for features, bugfixes and refactors in an existing codebase.
 
-- **Current truth:** `docs/` (PRD/FSD/TRD) describes the system as it is. If those docs are missing, write a short `docs/system-overview.md` from the code first (`templates/system-overview.md`): modules, entry points, data, how to run, how to test.
-- **Starting from a reference** (the closest existing app or bot, or a third-party app): `phases/RESEARCH.md` first.
-- **Change folder:** `docs/changes/<YYYYMMDD-slug>/`
-  - `proposal.md` (`templates/change-proposal.md`): why, what changes, out of scope, affected REQ IDs;
-  - `delta.md` (`templates/change-delta.md`): requirements ADDED / MODIFIED / REMOVED / RENAMED in the OpenSpec format: a SHALL statement plus `#### Scenario:` WHEN/THEN, and the full text for MODIFIED;
-  - `tasks` go into `.groundwork/tasks.json` as usual.
-- **Bugfix:** instead of a proposal, write `bugfix.md` (`templates/bugfix.md`) with: current behaviour (with repro steps), expected behaviour, behaviour that must stay unchanged, and the root cause once found. The first task is a failing test that reproduces the bug.
-- **After release:** merge the delta into the current-truth docs and move the folder to `docs/changes/archive/`.
+1. **Baseline:** run the existing tests before changing anything. Tell the user by name which ones already fail (pre-existing); don't count them as yours or fix them unasked. With a red baseline, the task's check runs only your change's tests (e.g. `node --test test/duration.test.js`).
+2. **A task with a check, even for a one-line fix:** `gw task add T01 "<change>" --verify "<test command>"`, `gw task start T01`, make the change, `gw task done T01`.
+3. **Documents:** only what `gw docs` lists. For a change that is the folder `docs/changes/<YYYYMMDD-slug>/`, not a new PRD/FSD/TRD set:
+   - `proposal.md` (`templates/change-proposal.md`): why, what changes, out of scope, affected REQ IDs, how the change is proven;
+   - `delta.md` (`templates/change-delta.md`): requirements ADDED / MODIFIED / REMOVED / RENAMED, each a SHALL statement with `#### Scenario:` WHEN/THEN (the full text for MODIFIED);
+   - a bugfix writes `bugfix.md` (`templates/bugfix.md`) instead: current behaviour with repro steps, expected behaviour, what must not change, the root cause. Its first task is a failing test that reproduces the bug.
+   `gw trace` checks only the REQ IDs these name; a PRD row that is already built says `delivered`.
+4. No current-truth docs (PRD/FSD/TRD in `docs/`)? First write a short `docs/system-overview.md` from the code (`templates/system-overview.md`). Starting from a reference app: `phases/RESEARCH.md`.
+5. After release: merge the delta into the current-truth docs and move the folder to `docs/changes/archive/`.

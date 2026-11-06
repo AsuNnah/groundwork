@@ -23,9 +23,11 @@
 ## 5. Requirements
 Each requirement is **singular, unambiguous, verifiable and traceable** (ISO/IEC/IEEE 29148). One need per row, testable through its acceptance criteria.
 
-| ID | Requirement (user story: as a …, I want …, so that …) | Priority (must/should/could) | Acceptance criteria (Given/When/Then) |
+Write each acceptance criterion in EARS (`WHEN <trigger>, the system SHALL <response>`) or Given/When/Then. A row that is out of scope says `out of scope` or `deferred`; one that is already built says `delivered`.
+
+| ID | Requirement (user story: as a …, I want …, so that …) | Priority (must/should/could) | Acceptance criteria (EARS or Given/When/Then) |
 |---|---|---|---|
-| REQ-001 | | must | AC-001: |
+| REQ-001 | | must | AC-001: WHEN …, the system SHALL … |
 
 ### Domain model (when the product renders or manages things with structure)
 <the key entities and how they relate; the fixture the UI and tests are built from>

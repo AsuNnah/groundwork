@@ -10,7 +10,7 @@ A portable, host-adaptive development framework for AI coding agents (Claude Cod
    - creates `.groundwork/` (project state);
    - adds `@groundwork/GROUNDWORK.md` to `CLAUDE.md` (and a pointer in `AGENTS.md` if one exists);
    - adds the `/groundwork` skill in `.claude/skills/`;
-   - adds 3 hooks to `.claude/settings.json`: a session-start status, the GATE 1 edit guard, and a prompt hook that spots reference apps ("learn X", "app like X", "pelajari X") and requests to see the design ("mockup", "wireframe", "Figma", "tampilan aplikasi"), pointing the agent at `phases/RESEARCH.md` or `phases/MOCKUP.md`. Use `--no-hooks` to skip them, or `--profile minimal` for no hooks or gate enforcement;
+   - adds 4 hooks to `.claude/settings.json`: a session-start status, the GATE 1 edit guard, a Stop hook that keeps the turn going while a started task has no passing check, and a prompt hook that spots reference apps ("learn X", "app like X", "pelajari X") and requests to see the design ("mockup", "wireframe", "Figma", "tampilan aplikasi"), pointing the agent at `phases/RESEARCH.md` or `phases/MOCKUP.md`. Use `--no-hooks` to skip them, or `--profile minimal` for no hooks or gate enforcement;
    - scans the machine and prints the environment report.
 3. Start your agent and say what you want to build. It follows `GROUNDWORK.md`.
 
@@ -25,6 +25,7 @@ gw init | doctor [--fresh] | plan-install | status | next
 gw set tier=standard targets=web,android stacks.android=flutter
 gw set docs_dir=app/docs | docs.prd=<path> | dev_method=native-user-scope dev_method_reason="…"
 gw research "<app or site>" ["goal"]                  # record a reference app, start docs/research/<x>.md
+gw reuse <git-url> [name]                           # shallow clone of an open-source repo + its license and credit row
 gw phase <H0..P11> <done|skipped|in_progress|blocked> ["note"]
 gw run <target> <S0|S1|S2|S3> -- <test command>     # writes a receipt
 gw gate <G1|G2> [--approve "user's words"]
@@ -35,17 +36,17 @@ gw gate <G1|G2> [--approve "user's words"]
 | Path | What |
 |---|---|
 | `GROUNDWORK.md` | agent entry point: rules + phase map |
-| `phases/` | one file per phase: H0 host scan → P0 intake … P10 release → P11 learn; playbooks CHANGE, UPGRADE, MAINTAIN, OPERATE, SECURITY |
+| `phases/` | one file per phase: H0 host scan → P0 intake … P10 release → P11 learn; playbooks CHANGE, UPGRADE, MAINTAIN, OPERATE, SECURITY, RESEARCH, MOCKUP, REUSE, FIT |
 | `scan/` | zero-dependency host scanners (`scan.sh`, `scan.ps1`) |
 | `bin/gw.js` | CLI (Node 18+, no dependencies) |
 | `packs/` | one JSON per target (web, backend, android, ios, macos, windows, linux-desktop, cli, embedded) + the `tools.json` install catalogue |
-| `templates/` | planning: PRD, ADR, plan, test strategy, skill requirements · design: FSD, AFD (flows), TRD, BSD (API + DB), DBD (UI brief), SRD (security), platform notes · change: system overview, proposal, delta, bugfix · research: reference app · verify: UAT · after release: upgrade report, tech debt, security exceptions, incident, runbook, lessons |
+| `templates/` | planning: PRD, ADR, plan, test strategy, skill requirements · design: FSD, AFD (flows), TRD, BSD (API + DB), DBD (UI brief), SRD (security), platform notes · change: system overview, proposal, delta, bugfix · research: reference app · reuse: credits · verify: UAT · after release: upgrade report, tech debt, security exceptions, incident, runbook, lessons |
 | `catalog/skills.json` | pinned skill catalogue |
 | `MANIFEST.json`, `CHANGELOG.md`, `VERSION` | release metadata used by `gw upgrade` / `gw verify` |
-| `test/selftest.js` | `node groundwork/test/selftest.js` |
+| `bin/selftest.js` | `node groundwork/bin/selftest.js` (in `bin/`, so a project's test runner never picks it up) |
 
 ## Existing projects
-Groundwork maps onto what is already there instead of duplicating it (details: `phases/P0.md`, "Fitting an existing project"):
+Groundwork maps onto what is already there instead of duplicating it (details: `phases/FIT.md`):
 - docs in another folder: `gw set docs_dir=<path>`, or per file `docs.prd=`, `docs.plan=`, `docs.test_strategy=`;
 - a project rule against the host's dev method (e.g. no Docker): `gw set dev_method=native-user-scope dev_method_reason="…"`;
 - several products in one folder: one `groundwork/` copy per product.
