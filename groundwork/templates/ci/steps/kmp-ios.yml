@@ -1,5 +1,5 @@
 # Kotlin Multiplatform iOS: the shared tests on the iOS simulator (Kotlin/Native), then the Xcode app built for the simulator when iosApp/ exists
-# verified: no
+# verified: 2026-11-06 macos-latest
 # timeout: 60
 __INCLUDE kmp-setup__
       - name: iOS simulator tests
