@@ -7,20 +7,56 @@
       "detect": [
         "*.csproj"
       ],
-      "scaffold": "dotnet new wpf -n {name}  (or winui template)"
+      "scaffold": "dotnet new wpf -n {name}  (or winui template)",
+      "ci": "dotnet"
     },
     "electron": {
       "detect": [
         "electron-builder.*",
         "forge.config.*"
       ],
-      "scaffold": "npx create-electron-app@latest {name}"
+      "scaffold": "npx create-electron-app@latest {name}",
+      "ci": "node",
+      "devcontainer": [
+        "node"
+      ]
     },
     "tauri": {
       "detect": [
         "src-tauri/tauri.conf.json"
       ],
-      "scaffold": "npm create tauri-app@latest"
+      "scaffold": "npm create tauri-app@latest",
+      "ci": "tauri",
+      "devcontainer": [
+        "node",
+        "rust",
+        "tauri-deps"
+      ]
+    },
+    "flutter": {
+      "detect": [
+        "pubspec.yaml",
+        "windows/"
+      ],
+      "scaffold": "flutter create --platforms windows {name}",
+      "ci": "flutter"
+    },
+    "dotnet-maui": {
+      "detect": [
+        "*.csproj with <UseMaui>true</UseMaui>"
+      ],
+      "scaffold": "dotnet new maui -n {name}",
+      "ci": "dotnet-maui"
+    }
+  },
+  "ci": {
+    "os": [
+      "windows-latest"
+    ],
+    "vars": {
+      "flutter_build": "windows",
+      "maui_tfm": "windows",
+      "maui_workload": "maui-windows"
     }
   },
   "tools": [
@@ -52,6 +88,19 @@
       },
       {
         "id": "rustc",
+        "severity": "block"
+      }
+    ],
+    "flutter": [
+      {
+        "id": "flutter",
+        "severity": "block"
+      }
+    ],
+    "dotnet-maui": [
+      {
+        "id": "dotnet",
+        "min": "9",
         "severity": "block"
       }
     ]
@@ -118,6 +167,30 @@
       "override": "[patch] in Cargo.toml",
       "eol": null,
       "ecosystem": "rust"
+    },
+    "flutter": {
+      "outdated": "flutter pub outdated",
+      "upgrade_safe": "flutter pub upgrade",
+      "upgrade_major": "flutter pub upgrade --major-versions && dart fix --apply",
+      "audit": "osv-scanner scan -r .  (reads pubspec.lock)",
+      "deadcode": "dart analyze (unused_* lints)",
+      "why_installed": "flutter pub deps",
+      "override": "dependency_overrides in pubspec.yaml",
+      "eol": null,
+      "sdk_upgrade": "flutter upgrade && dart fix --apply",
+      "ecosystem": "flutter",
+      "codemod": "dart fix --apply"
+    },
+    "dotnet-maui": {
+      "outdated": "dotnet list package --outdated",
+      "upgrade_safe": "dotnet outdated -u:Auto -vl:Minor (dotnet-outdated-tool)",
+      "upgrade_major": "one major at a time; .NET Upgrade Assistant for framework moves",
+      "audit": "dotnet list package --vulnerable --include-transitive",
+      "deadcode": "IDE0051/IDE0052 analyzers",
+      "why_installed": "dotnet nuget why <project> <package>",
+      "override": "Directory.Packages.props (central package management)",
+      "eol": "dotnet",
+      "ecosystem": "nuget"
     }
   },
   "rollback": "Roll forward: publish the previous code as a higher version (MSIX/App Installer, Velopack/Squirrel feed, winget PR). Keep beta and stable channels.",

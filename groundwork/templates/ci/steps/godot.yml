@@ -1,0 +1,15 @@
+# Godot 4: import headless, then tests (GUT in addons/gut, or a tests/run_tests.gd script that quits with the exit code). Set the version to your project's
+# verified: no
+# timeout: 30
+      - uses: chickensoft-games/setup-godot@ac93246ea68518a384c1c280a496e5989341f2f6 # v2.4.3
+        with:
+          version: 4.7.2
+          use-dotnet: false
+          include-templates: false
+      - run: godot --headless --import
+      - name: Test
+        shell: bash
+        run: |
+          if [ -d addons/gut ]; then godot --headless -s addons/gut/gut_cmdln.gd -gdir=res://test -gexit
+          elif [ -f tests/run_tests.gd ]; then godot --headless -s res://tests/run_tests.gd
+          else echo "::error::no tests: add GUT (addons/gut) or tests/run_tests.gd"; exit 1; fi

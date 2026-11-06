@@ -7,3 +7,4 @@ const dir = path.join(__dirname, '..', 'groundwork');
 const m = gw.buildManifest(dir);
 fs.writeFileSync(path.join(dir, 'MANIFEST.json'), JSON.stringify(m, null, 2) + '\n');
 console.log(`MANIFEST.json: groundwork ${m.version}, ${Object.keys(m.files).length} files`);
+require('child_process').spawnSync(process.execPath, [path.join(__dirname, 'fixture-workflows.js')], { stdio: 'inherit' });   // their headers carry the version

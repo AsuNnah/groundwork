@@ -1,0 +1,8 @@
+# Go: vet and test (go.mod sets the version; -race on Linux)
+# verified: no
+# timeout: 20
+      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
+        with:
+          go-version-file: __DIR__go.mod
+      - run: go vet ./...
+      - run: go test ${{ runner.os == 'Linux' && '-race' || '' }} ./...

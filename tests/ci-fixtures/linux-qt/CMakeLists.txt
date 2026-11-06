@@ -1,0 +1,8 @@
+cmake_minimum_required(VERSION 3.16)
+project(fixture LANGUAGES CXX)
+set(CMAKE_AUTOMOC ON)
+find_package(Qt6 REQUIRED COMPONENTS Widgets Test)
+enable_testing()
+add_executable(window_test window_test.cpp)
+target_link_libraries(window_test PRIVATE Qt6::Widgets Qt6::Test)
+add_test(NAME window COMMAND window_test)

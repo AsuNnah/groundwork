@@ -1,0 +1,14 @@
+# React Native / Expo on iOS: JS tests, native project (Expo prebuild), CocoaPods, simulator build
+# verified: no
+# timeout: 60
+__INCLUDE node-setup__
+      - run: npm test
+      - name: Generate the native project (Expo)
+        if: hashFiles('__DIR__ios/Podfile') == ''
+        run: npx expo prebuild --platform ios --no-install
+      - run: cd ios && pod install
+      - name: Build for the iOS Simulator
+        run: |
+          cd ios
+          W=$(ls -d *.xcworkspace | head -1)
+          xcodebuild build -workspace "$W" -scheme "${W%.xcworkspace}" -configuration Release -sdk iphonesimulator -destination 'generic/platform=iOS Simulator' CODE_SIGNING_ALLOWED=NO

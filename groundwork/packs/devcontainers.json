@@ -1,0 +1,152 @@
+{
+  "_doc": "Dev container building blocks. A pack stack lists the blocks it needs (devcontainer: [...]); gw devcontainer merges them for every target. image: the first block with one wins, otherwise base. features/ports/extensions/env are merged, post commands run in order. check proves the toolchain inside the container (the framework CI runs it).",
+  "base": {
+    "image": "mcr.microsoft.com/devcontainers/base:2-bookworm"
+  },
+  "node": {
+    "features": {
+      "ghcr.io/devcontainers/features/node:1": {
+        "version": "lts"
+      }
+    },
+    "ports": [
+      5173,
+      3000
+    ],
+    "extensions": [
+      "dbaeumer.vscode-eslint"
+    ],
+    "check": "node --version && npm --version"
+  },
+  "python": {
+    "features": {
+      "ghcr.io/devcontainers/features/python:1": {
+        "version": "3.13"
+      }
+    },
+    "extensions": [
+      "ms-python.python"
+    ],
+    "check": "python3 --version && pip --version"
+  },
+  "go": {
+    "features": {
+      "ghcr.io/devcontainers/features/go:1": {
+        "version": "latest"
+      }
+    },
+    "extensions": [
+      "golang.go"
+    ],
+    "check": "go version"
+  },
+  "rust": {
+    "features": {
+      "ghcr.io/devcontainers/features/rust:1": {}
+    },
+    "extensions": [
+      "rust-lang.rust-analyzer"
+    ],
+    "check": "cargo --version && rustc --version"
+  },
+  "java": {
+    "features": {
+      "ghcr.io/devcontainers/features/java:1": {
+        "version": "21",
+        "installGradle": "true",
+        "installMaven": "true"
+      }
+    },
+    "extensions": [
+      "vscjava.vscode-java-pack"
+    ],
+    "check": "java -version && mvn -v"
+  },
+  "dotnet": {
+    "features": {
+      "ghcr.io/devcontainers/features/dotnet:2": {
+        "version": "lts"
+      }
+    },
+    "extensions": [
+      "ms-dotnettools.csharp"
+    ],
+    "check": "dotnet --version"
+  },
+  "android-sdk": {
+    "env": {
+      "ANDROID_HOME": "/home/vscode/android-sdk"
+    },
+    "path": [
+      "/home/vscode/android-sdk/cmdline-tools/latest/bin",
+      "/home/vscode/android-sdk/platform-tools"
+    ],
+    "post": "mkdir -p ~/android-sdk/cmdline-tools && curl -fsSLo /tmp/clt.zip https://dl.google.com/android/repository/commandlinetools-linux-16111833_latest.zip && unzip -q -o /tmp/clt.zip -d /tmp/clt && rm -rf ~/android-sdk/cmdline-tools/latest && mv /tmp/clt/cmdline-tools ~/android-sdk/cmdline-tools/latest && rm -rf /tmp/clt /tmp/clt.zip",
+    "note": "Android SDK licences are yours to accept: run `sdkmanager --licenses`, then `sdkmanager \"platform-tools\" \"platforms;android-35\" \"build-tools;35.0.0\"` inside the container. The emulator runs on the host or in CI, not in this container.",
+    "check": "sdkmanager --version"
+  },
+  "flutter": {
+    "path": [
+      "/home/vscode/flutter/bin"
+    ],
+    "post": "git clone --depth 1 -b stable https://github.com/flutter/flutter.git ~/flutter && ~/flutter/bin/flutter --version",
+    "extensions": [
+      "Dart-Code.flutter"
+    ],
+    "check": "flutter --version"
+  },
+  "desktop": {
+    "features": {
+      "ghcr.io/devcontainers/features/desktop-lite:1": {}
+    },
+    "ports": [
+      6080
+    ],
+    "note": "A desktop for GUI tests: open http://localhost:6080 (noVNC; default password vscode).",
+    "check": "command -v fluxbox"
+  },
+  "tauri-deps": {
+    "post": "sudo apt-get update && sudo apt-get install -y --no-install-recommends libwebkit2gtk-4.1-dev libappindicator3-dev librsvg2-dev patchelf build-essential",
+    "check": "pkg-config --exists webkit2gtk-4.1"
+  },
+  "gtk": {
+    "post": "sudo apt-get update && sudo apt-get install -y --no-install-recommends meson ninja-build pkg-config build-essential libgtk-4-dev libgtk-3-dev",
+    "check": "pkg-config --exists gtk4 && meson --version"
+  },
+  "qt": {
+    "post": "sudo apt-get update && sudo apt-get install -y --no-install-recommends cmake ninja-build build-essential qt6-base-dev qt6-declarative-dev libgl1-mesa-dev",
+    "check": "pkg-config --exists Qt6Core && cmake --version"
+  },
+  "platformio": {
+    "features": {
+      "ghcr.io/devcontainers/features/python:1": {
+        "version": "3.13"
+      }
+    },
+    "post": "pip install --user platformio",
+    "path": [
+      "/home/vscode/.local/bin"
+    ],
+    "extensions": [
+      "platformio.platformio-ide"
+    ],
+    "check": "pio --version"
+  },
+  "esp-idf": {
+    "image": "espressif/idf:v5.5",
+    "post": "echo \". $IDF_PATH/export.sh >/dev/null\" >> ~/.bashrc",
+    "extensions": [
+      "espressif.esp-idf-extension"
+    ],
+    "check": "bash -c \". $IDF_PATH/export.sh >/dev/null && idf.py --version\""
+  },
+  "zephyr": {
+    "image": "ghcr.io/zephyrproject-rtos/ci-base:v0.29.4",
+    "note": "Run `west init -l . && west update` once; install the Zephyr SDK for your boards (https://docs.zephyrproject.org/latest/develop/toolchains/zephyr_sdk.html).",
+    "check": "west --version"
+  },
+  "godot": {
+    "post": "curl -fsSLo /tmp/godot.zip https://github.com/godotengine/godot/releases/download/4.7.2-stable/Godot_v4.7.2-stable_linux.x86_64.zip && sudo unzip -q -o /tmp/godot.zip -d /opt/godot && sudo ln -sf /opt/godot/Godot_v4.7.2-stable_linux.x86_64 /usr/local/bin/godot && rm /tmp/godot.zip",
+    "check": "godot --headless --version"
+  }
+}

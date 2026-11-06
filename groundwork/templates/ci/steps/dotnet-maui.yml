@@ -1,0 +1,16 @@
+# .NET MAUI: install the workload, then build for __maui_tfm__ and run test projects
+# verified: no
+# timeout: 45
+      - uses: actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68 # v6.0.0
+        with:
+          global-json-file: ${{ hashFiles('__DIR__global.json') != '' && '__DIR__global.json' || '' }}
+          dotnet-version: ${{ hashFiles('__DIR__global.json') == '' && '10.0.x' || '' }}
+      - run: dotnet workload install __maui_workload__
+      - name: Build the app
+        shell: bash
+        run: |
+          P=$(grep -l '<UseMaui>true</UseMaui>' $(git ls-files '*.csproj') | head -1)
+          dotnet build "$P" -f "$(grep -oE 'net[0-9.]+-__maui_tfm__[0-9.]*' "$P" | head -1)" -c Debug
+      - name: Test projects
+        shell: bash
+        run: for t in $(git ls-files '*Tests.csproj' '*.Tests.csproj' | sort -u); do dotnet test "$t" || exit 1; done

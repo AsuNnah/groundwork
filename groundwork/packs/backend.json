@@ -6,34 +6,60 @@
       "detect": [
         "package.json"
       ],
-      "scaffold": "npm init -y (Hono / Fastify / NestJS)"
+      "scaffold": "npm init -y (Hono / Fastify / NestJS)",
+      "ci": "node",
+      "devcontainer": [
+        "node"
+      ]
     },
     "python": {
       "detect": [
         "pyproject.toml",
         "requirements.txt"
       ],
-      "scaffold": "uv init {name} && uv add fastapi uvicorn"
+      "scaffold": "uv init {name} && uv add fastapi uvicorn",
+      "ci": "python",
+      "devcontainer": [
+        "python"
+      ]
     },
     "go": {
       "detect": [
         "go.mod"
       ],
-      "scaffold": "go mod init {name}"
+      "scaffold": "go mod init {name}",
+      "ci": "go",
+      "devcontainer": [
+        "go"
+      ]
     },
     "java-spring": {
       "detect": [
         "pom.xml",
         "build.gradle*"
       ],
-      "scaffold": "https://start.spring.io"
+      "scaffold": "https://start.spring.io",
+      "ci": "java",
+      "devcontainer": [
+        "java"
+      ]
     },
     "dotnet": {
       "detect": [
         "*.csproj"
       ],
-      "scaffold": "dotnet new webapi -n {name}"
+      "scaffold": "dotnet new webapi -n {name}",
+      "ci": "dotnet",
+      "devcontainer": [
+        "dotnet"
+      ]
     }
+  },
+  "ci": {
+    "os": [
+      "ubuntu-latest"
+    ],
+    "services": "postgres-redis"
   },
   "tools": [
     {
@@ -95,7 +121,7 @@
       "needs": [
         "containers"
       ],
-      "how": "no services: docker run --rm -v \"$PWD\":/app -w /app <runtime image pinned to the project's version, e.g. node:22-slim, python:3.13-slim> <test command> \u00b7 with services: docker compose with real DB (postgres/redis) + integration/contract tests; Testcontainers"
+      "how": "no services: docker run --rm -v \"$PWD\":/app -w /app <runtime image pinned to the project's version, e.g. node:22-slim, python:3.13-slim> <test command> · with services: docker compose with real DB (postgres/redis) + integration/contract tests; Testcontainers"
     },
     "S3": {
       "how": "CI with service containers"

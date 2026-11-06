@@ -1,0 +1,116 @@
+{
+  "id": "game",
+  "title": "Game (engine project)",
+  "ui": true,
+  "stacks": {
+    "godot": {
+      "detect": [
+        "project.godot"
+      ],
+      "scaffold": "Godot editor > New Project (GDScript); tests with GUT (addons/gut) or tests/run_tests.gd",
+      "ci": "godot",
+      "devcontainer": [
+        "godot",
+        "desktop"
+      ]
+    },
+    "unity": {
+      "detect": [
+        "ProjectSettings/ProjectVersion.txt",
+        "Assets/"
+      ],
+      "scaffold": "Unity Hub > New project; tests with the Unity Test Framework (Window > General > Test Runner)",
+      "ci": "unity"
+    },
+    "unreal": {
+      "detect": [
+        "*.uproject"
+      ],
+      "scaffold": "Epic Games Launcher > Unreal Engine > New Project; automation tests via Session Frontend"
+    }
+  },
+  "ci": {
+    "os": [
+      "ubuntu-latest"
+    ]
+  },
+  "tools": [
+    {
+      "id": "git",
+      "severity": "block"
+    }
+  ],
+  "stack_tools": {
+    "godot": [
+      {
+        "id": "godot",
+        "min": "4",
+        "severity": "block"
+      }
+    ]
+  },
+  "sandbox": {
+    "S0": {
+      "run": "headless unit tests: GUT for Godot, Unity Test Framework edit mode, Unreal automation (-nullrhi)"
+    },
+    "S1": {
+      "needs": [
+        "containers"
+      ],
+      "how": "godot --headless in a container (devcontainer or barichello/godot-ci); GameCI Unity images (unityci/editor) with your licence"
+    },
+    "S2": {
+      "needs_any": [
+        "gui_tests"
+      ],
+      "how": "play-mode / scene tests with a real renderer on this machine (GPU); input automation"
+    },
+    "S3": {
+      "how": "GitHub Actions: chickensoft-games/setup-godot, GameCI unity-test-runner (licence secrets); Unreal needs a self-hosted runner with the engine"
+    }
+  },
+  "min_release_tier": "S1",
+  "test_tooling": [
+    "gut",
+    "unity-test-framework",
+    "unreal-automation"
+  ],
+  "release": [
+    "export presets and export templates match the engine version (Godot: export_presets.cfg in git)",
+    "per-store builds: Steam (depots, branches), itch.io (butler), consoles need dev kits and certification",
+    "age rating (IARC), store page assets, controller support declared"
+  ],
+  "maintain": {
+    "godot": {
+      "outdated": "compare config/features in project.godot with https://godotengine.org/download; addons: check each addon repo",
+      "upgrade_safe": "patch release of the same minor (4.x.y): open in the new editor, commit the re-import",
+      "upgrade_major": "back up, open in the new editor and let it convert; Godot 3 → 4 uses the project converter",
+      "audit": "osv-scanner scan -r .  (addons with lockfiles)",
+      "why_installed": "addons/ folder and .gdextension files",
+      "eol": null,
+      "ecosystem": "godot"
+    },
+    "unity": {
+      "outdated": "Unity Hub shows newer LTS editors; Package Manager > Updates",
+      "upgrade_safe": "same LTS stream patch (e.g. 6000.0.x)",
+      "upgrade_major": "new LTS stream in a branch; run the API Updater, fix obsolete APIs",
+      "audit": "osv-scanner scan -r .  (Packages/packages-lock.json)",
+      "why_installed": "Packages/manifest.json",
+      "eol": null,
+      "ecosystem": "unity"
+    }
+  },
+  "rollback": "No store rollback button: re-publish the previous build. Steam: set the previous build live on the default branch. itch.io: butler push the old build. Keep every release build archived.",
+  "observe": [
+    "crash reports (Sentry for Godot or Unity, Unreal Crash Reporter)",
+    "frame time / FPS on the lowest target hardware",
+    "store reviews and refund reasons"
+  ],
+  "policies": [
+    {
+      "what": "Unity Runtime Fee was cancelled (2024-09); Unity 6 Personal is free up to the revenue limit in the current terms. Check the licence tier before release.",
+      "check": "https://unity.com/products/pricing-updates",
+      "as_of": "2026-11-06"
+    }
+  ]
+}

@@ -39,8 +39,8 @@ gw gate <G1|G2> [--approve "user's words"]
 | `phases/` | one file per phase: H0 host scan → P0 intake … P10 release → P11 learn; playbooks CHANGE, UPGRADE, MAINTAIN, OPERATE, SECURITY, RESEARCH, MOCKUP, REUSE, FIT |
 | `scan/` | zero-dependency host scanners (`scan.sh`, `scan.ps1`) |
 | `bin/gw.js` | CLI (Node 18+, no dependencies) |
-| `packs/` | one JSON per target (web, backend, android, ios, macos, windows, linux-desktop, cli, embedded) + the `tools.json` install catalogue |
-| `templates/` | planning: PRD, ADR, plan, test strategy, skill requirements · design: FSD, AFD (flows), TRD, BSD (API + DB), DBD (UI brief), SRD (security), platform notes · change: system overview, proposal, delta, bugfix · research: reference app · reuse: credits · verify: UAT · after release: upgrade report, tech debt, security exceptions, incident, runbook, lessons |
+| `packs/` | one JSON per target (web, backend, android, ios, macos, windows, linux-desktop, cli, embedded, game, browser-extension) + data files: `tools.json` (install catalogue), `presets.json` (cross-platform presets), `devcontainers.json` (devcontainer blocks) |
+| `templates/` | planning: PRD, ADR, plan, test strategy, skill requirements · design: FSD, AFD (flows), TRD, BSD (API + DB), DBD (UI brief), SRD (security), platform notes · change: system overview, proposal, delta, bugfix · research: reference app · reuse: credits · verify: UAT · after release: upgrade report, tech debt, security exceptions, incident, runbook, lessons · `ci/`: GitHub Actions skeleton, step fragments per stack and service blocks for `gw ci` |
 | `catalog/skills.json` | pinned skill catalogue |
 | `MANIFEST.json`, `CHANGELOG.md`, `VERSION` | release metadata used by `gw upgrade` / `gw verify` |
 | `bin/selftest.js` | `node groundwork/bin/selftest.js` (in `bin/`, so a project's test runner never picks it up) |

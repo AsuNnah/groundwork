@@ -7,26 +7,74 @@
       "detect": [
         "vite.config.*"
       ],
-      "scaffold": "npm create vite@latest {name} -- --template react-ts"
+      "scaffold": "npm create vite@latest {name} -- --template react-ts",
+      "ci": "node",
+      "devcontainer": [
+        "node"
+      ]
     },
     "nextjs": {
       "detect": [
         "next.config.*"
       ],
-      "scaffold": "npx create-next-app@latest {name} --ts"
+      "scaffold": "npx create-next-app@latest {name} --ts",
+      "ci": "node",
+      "devcontainer": [
+        "node"
+      ]
     },
     "vue": {
       "detect": [
         "vue.config.*",
         "nuxt.config.*"
       ],
-      "scaffold": "npm create vue@latest {name}"
+      "scaffold": "npm create vue@latest {name}",
+      "ci": "node",
+      "devcontainer": [
+        "node"
+      ]
     },
     "svelte": {
       "detect": [
         "svelte.config.*"
       ],
-      "scaffold": "npx sv create {name}"
+      "scaffold": "npx sv create {name}",
+      "ci": "node",
+      "devcontainer": [
+        "node"
+      ]
+    },
+    "flutter": {
+      "detect": [
+        "pubspec.yaml",
+        "web/index.html"
+      ],
+      "scaffold": "flutter create --platforms web {name}",
+      "ci": "flutter",
+      "devcontainer": [
+        "flutter"
+      ]
+    },
+    "react-native": {
+      "detect": [
+        "app.json",
+        "metro.config.*"
+      ],
+      "scaffold": "npx create-expo-app@latest {name} (web: npx expo export --platform web)",
+      "ci": "node",
+      "devcontainer": [
+        "node"
+      ]
+    }
+  },
+  "ci": {
+    "os": [
+      "ubuntu-latest",
+      "windows-latest",
+      "macos-latest"
+    ],
+    "vars": {
+      "flutter_build": "web"
     }
   },
   "tools": [
@@ -120,6 +168,32 @@
       "override": "package.json \"overrides\" (pnpm: pnpm.overrides, yarn: resolutions)",
       "eol": "nodejs",
       "ecosystem": "node"
+    },
+    "flutter": {
+      "outdated": "flutter pub outdated",
+      "upgrade_safe": "flutter pub upgrade",
+      "upgrade_major": "flutter pub upgrade --major-versions && dart fix --apply",
+      "audit": "osv-scanner scan -r .  (reads pubspec.lock)",
+      "deadcode": "dart analyze (unused_* lints)",
+      "why_installed": "flutter pub deps",
+      "override": "dependency_overrides in pubspec.yaml",
+      "eol": null,
+      "sdk_upgrade": "flutter upgrade && dart fix --apply",
+      "ecosystem": "flutter",
+      "codemod": "dart fix --apply"
+    },
+    "react-native": {
+      "outdated": "npm outdated && npx npm-check-updates",
+      "upgrade_safe": "npx npm-check-updates -u --target minor && npm install",
+      "upgrade_major": "npx npm-check-updates -u --filter <pkg> && npm install",
+      "audit": "npm audit --omit=dev  (or: osv-scanner scan -r .)",
+      "deadcode": "npx knip",
+      "mutation": "npx --yes -p @stryker-mutator/core@10.0.0 stryker run --testRunner command --mutate 'src/**/*.{js,jsx,ts,tsx}'   # runs your test command against each mutant; slow, run on logic-heavy modules",
+      "why_installed": "npm ls <pkg>",
+      "override": "package.json \"overrides\" (pnpm: pnpm.overrides, yarn: resolutions)",
+      "eol": "nodejs",
+      "ecosystem": "node",
+      "codemod": "npx expo install --fix (Expo) / React Native Upgrade Helper"
     }
   },
   "rollback": "Redeploy the previous immutable build/image (host: 'promote previous deployment'); feature flag off is fastest. DB: expand/contract migrations so the previous build still runs.",

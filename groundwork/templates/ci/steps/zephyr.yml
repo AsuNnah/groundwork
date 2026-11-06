@@ -1,0 +1,8 @@
+# Zephyr (application as west manifest repository): west update, then twister on native_sim for tests/
+# verified: no
+# timeout: 60
+      - name: west update and twister on native_sim
+        run: |
+          docker run --rm -v "$PWD":/workdir/app -w /workdir ghcr.io/zephyrproject-rtos/ci:v0.29.4 bash -lc '
+            west init -l app && west update --narrow -o=--depth=1 && west zephyr-export &&
+            west twister -T app/tests -p native_sim --inline-logs'

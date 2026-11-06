@@ -98,7 +98,7 @@ t('skill suggestions follow targets, stacks and phase', () => {
   assert.ok(inc.includes('agent-skills/observability-and-instrumentation'));
 });
 t('every pack stack with an ecosystem has maintain commands, and every pack has rollback', () => {
-  for (const id of ['web', 'backend', 'android', 'ios', 'macos', 'windows', 'linux-desktop', 'cli', 'embedded']) {
+  for (const id of Object.keys(gw.packs())) {
     const m = gw.maintainInfo({ targets: [id], stacks: {} })[0];
     assert.ok(m.rollback, id + ' rollback');
   }
@@ -388,5 +388,88 @@ t('no framework file looks like a project test to a test runner', () => {
     else if (/\.[cm]?[jt]sx?$/.test(e.name) && /^test[-.]|[-_.]test\.|[-_.]spec\.|^test\.[cm]?js$/.test(e.name)) hits.push(rel); } };
   walk(root);   // node --test, jest, vitest and mocha would run these inside the user's suite
   assert.deepEqual(hits, []);
+});
+t('every pack stack with a CI fragment renders a pinned, complete workflow', () => {
+  const fs = require('fs'), path = require('path'); let n = 0;
+  for (const [id, pk] of Object.entries(gw.packs())) for (const [stack, st] of Object.entries(pk.stacks || {})) {
+    if (!st.ci) continue;
+    const [e] = gw.ciPlan({ targets: [id], stacks: { [id]: stack } }, [], null), y = gw.ciRender(e).yaml; n++;
+    assert.ok(!/__[A-Za-z]\w*__/.test(y) && !/\t/.test(y), `${id}/${stack}: placeholder or tab left`);
+    for (const u of y.match(/uses: .*/g)) assert.match(u, /^uses: [\w.-]+\/[\w./-]+@[0-9a-f]{40} # v\d/, `${id}/${stack}: unpinned ${u}`);
+    assert.match(y, /^name: /m); assert.match(y, /runs-on: \$\{\{ matrix\.os \}\}/); assert.match(y, new RegExp(`os: \\[${(pk.ci.os || []).join(', ')}\\]`));
+    if (pk.ci.services) assert.match(y, /services:\n      postgres:/);
+  }
+  assert.ok(n >= 30, 'stacks with CI: ' + n);
+  const dir = path.join(__dirname, '..', 'templates', 'ci', 'steps');   // every fragment states whether a real runner has proven it
+  for (const f of fs.readdirSync(dir)) assert.match(fs.readFileSync(path.join(dir, f), 'utf8'), /^# verified: (no|\d{4}-\d\d-\d\d .+)$/m, f);
+});
+t('gw ci writes one workflow per target, narrows runners, keeps edits', () => {
+  const p = proj();
+  p.gw(['set', 'targets=web,android,ios', 'stacks.web=vite-react', 'stacks.android=kotlin-compose']);
+  const l = p.gw(['ci']).out;
+  assert.match(l, /web \(vite-react\) → \.github\/workflows\/gw-web\.yml · ubuntu-latest, windows-latest, macos-latest/); assert.match(l, /ios: set the stack first/);
+  assert.equal(p.gw(['ci', 'write', 'web', '--os', 'linux,windows']).code, 0);
+  const y = require('fs').readFileSync(require('path').join(p.d, '.github/workflows/gw-web.yml'), 'utf8');
+  assert.match(y, /os: \[ubuntu-latest, windows-latest\]/); assert.match(y, /npm test/);
+  require('fs').appendFileSync(require('path').join(p.d, '.github/workflows/gw-web.yml'), '# mine\n');
+  assert.match(p.gw(['ci', 'write', 'web']).out, /exists, kept/);
+  assert.match(require('fs').readFileSync(require('path').join(p.d, '.github/workflows/gw-web.yml'), 'utf8'), /# mine/);
+  const bad = p.gw(['ci', 'write', 'android', '--os', 'windows']); assert.equal(bad.code, 1); assert.match(bad.out, /runs on ubuntu-latest/);
+  assert.match(p.gw(['ci', 'print', 'android']).out, /android-emulator-runner@/);
+});
+t('a project in a subfolder of the repo gets its workflow at the repo root, scoped to the folder', () => {
+  const fs = require('fs'), os = require('os'), path = require('path'), cp = require('child_process');
+  const top = fs.mkdtempSync(path.join(os.tmpdir(), 'gw-mono-')), app = path.join(top, 'apps', 'web');
+  fs.mkdirSync(path.join(app, '.groundwork'), { recursive: true }); cp.spawnSync('git', ['init', '-q'], { cwd: top });
+  fs.writeFileSync(path.join(app, '.groundwork', 'project.json'), JSON.stringify({ name: 'web', targets: ['web'], stacks: { web: 'svelte' }, ci_os: 'linux' }));
+  const r = cp.spawnSync(process.execPath, [path.join(__dirname, 'gw.js'), 'ci', 'write'], { cwd: app, env: { ...process.env, GW_PROJECT_DIR: app }, encoding: 'utf8' });
+  assert.equal(r.status, 0, r.stderr);
+  const y = fs.readFileSync(path.join(top, '.github', 'workflows', 'gw-apps-web-web.yml'), 'utf8');
+  assert.match(y, /working-directory: "apps\/web"/); assert.match(y, /paths: \["apps\/web\/\*\*", "\.github\/workflows\/gw-apps-web-web\.yml"\]/);
+  assert.match(y, /os: \[ubuntu-latest\]/, 'ci_os from project.json'); assert.match(y, /hashFiles\('apps\/web\/playwright\.config\.\*'\)/);
+  assert.ok(!fs.existsSync(path.join(app, '.github')));
+});
+t('doctor points a CI-only release tier at gw ci write', () => {
+  const h = base(); h.virtualization.kvm_usable = false;
+  const p = proj({ '.groundwork/host-profile.json': { ...h, scanned_at: new Date().toISOString(), memory: { total_gb: Math.floor(require('os').totalmem() / 1073741824) }, cpu: { ...h.cpu, arch: { x64: 'x86_64', arm64: 'arm64' }[process.arch] || process.arch }, os: { ...h.os, family: { linux: 'linux', darwin: 'macos', win32: 'windows' }[process.platform] } } });
+  p.gw(['set', 'targets=android', 'stacks.android=kotlin-compose']);
+  const r = p.gw(['doctor', '--json']).out, c = JSON.parse(r.slice(r.indexOf('{'))).checks.find(x => x.id === 'ci:android');
+  assert.ok(c && c.fix === 'gw ci write android', 'CI hint for android without local emulator');
+  p.gw(['ci', 'write', 'android']);
+  assert.ok(!JSON.parse((x => x.slice(x.indexOf('{')))(p.gw(['doctor', '--json']).out)).checks.some(x => x.id === 'ci:android'), 'hint gone once the workflow exists');
+});
+t('devcontainer merges the blocks of every target stack', () => {
+  const B = require('../packs/devcontainers.json');
+  for (const [id, pk] of Object.entries(gw.packs())) for (const [stack, st] of Object.entries(pk.stacks || {}))
+    for (const b of st.devcontainer || []) assert.ok(B[b] && B[b].check, `${id}/${stack}: block ${b} missing or has no check`);
+  let r = gw.devcontainerPlan({ name: 'x', targets: ['web', 'backend', 'ios'], stacks: { web: 'vite-react', backend: 'python', ios: 'swiftui' } });
+  assert.equal(r.dc.image, B.base.image); assert.deepEqual(Object.keys(r.dc.features), ['ghcr.io/devcontainers/features/node:1', 'ghcr.io/devcontainers/features/python:1']);
+  assert.ok(r.skipped.some(s => /ios \(swiftui\): develops on the host \(macos only\)/.test(s)));
+  r = gw.devcontainerPlan({ targets: ['embedded'], stacks: { embedded: 'esp-idf' } }); assert.equal(r.dc.image, 'espressif/idf:v5.5');
+  r = gw.devcontainerPlan({ targets: ['android'], stacks: { android: 'kotlin-compose' } });
+  assert.match(r.dc.postCreateCommand, /commandlinetools-linux-\d+_latest\.zip/); assert.match(r.notes.join(' '), /licences are yours to accept/);
+  const p = proj(); p.gw(['set', 'targets=cli', 'stacks.cli=go']);
+  assert.equal(p.gw(['devcontainer']).code, 0);
+  const txt = require('fs').readFileSync(require('path').join(p.d, '.devcontainer/devcontainer.json'), 'utf8');
+  assert.equal(JSON.parse(txt.replace(/^\/\/.*\n/, '')).features['ghcr.io/devcontainers/features/go:1'].version, 'latest');
+  assert.match(p.gw(['devcontainer']).out, /exists, kept/);
+});
+t('presets set several targets to one stack; packs ignore the data files', () => {
+  const all = gw.packs(); assert.ok(!all.presets && !all.devcontainers && !all.tools && all.game && all['browser-extension']);
+  for (const [id, pr] of Object.entries(gw.presets())) for (const [t, s] of Object.entries(pr.targets)) assert.ok(all[t] && all[t].stacks[s], `preset ${id}: ${t}/${s}`);
+  const p = proj();
+  assert.equal(p.gw(['set', 'preset=react-native']).code, 0);
+  assert.deepEqual(p.read('.groundwork/project.json').targets, ['android', 'ios', 'web']);
+  p.gw(['set', 'preset=tauri', 'targets=linux-desktop,windows']);
+  const j = p.read('.groundwork/project.json'); assert.deepEqual(j.targets, ['linux-desktop', 'windows']); assert.equal(j.stacks.windows, 'tauri'); assert.equal(j.preset, 'tauri');
+  assert.equal(p.gw(['set', 'preset=tauri', 'targets=android']).code, 1); assert.equal(p.gw(['set', 'preset=nope']).code, 1);
+});
+t('host profiles with a UTF-8 BOM (Windows PowerShell 5.1) still parse', () => {
+  const h = base(), fam = { linux: 'linux', darwin: 'macos', win32: 'windows' }[process.platform];
+  Object.assign(h, { scanned_at: new Date().toISOString(), gpu: { model: 'BOM-TEST-GPU' }, memory: { total_gb: Math.floor(require('os').totalmem() / 1073741824) } });
+  h.os.family = fam; h.cpu.arch = { x64: 'x86_64', arm64: 'arm64' }[process.arch] || process.arch;
+  const p = proj({ '.groundwork/host-profile.json': '﻿' + JSON.stringify(h) });
+  assert.match(p.gw(['doctor', '--json']).out, /BOM-TEST-GPU/, 'profile read, not re-scanned');
+  assert.match(require('fs').readFileSync(require('path').join(__dirname, '..', 'scan', 'scan.ps1'), 'utf8'), /UTF8Encoding\]::new\(\$false\)/, 'scan.ps1 writes UTF-8 without a BOM');
 });
 console.log(`\n${n} checks passed`);

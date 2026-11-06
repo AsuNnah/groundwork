@@ -1,0 +1,11 @@
+# Rust: toolchain from rust-toolchain.toml (or stable), fmt check, clippy, test
+# verified: no
+# timeout: 30
+      - name: Toolchain
+        shell: bash
+        run: |
+          if [ -f rust-toolchain.toml ] || [ -f rust-toolchain ]; then rustup toolchain install; else rustup toolchain install stable --profile minimal && rustup default stable; fi
+          rustup component add clippy rustfmt
+      - run: cargo fmt --all --check
+      - run: cargo clippy --all-targets -- -D warnings
+      - run: cargo test --all-targets

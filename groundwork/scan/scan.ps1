@@ -42,11 +42,11 @@ $tools = [ordered]@{}
 $probe = [ordered]@{ git='--version'; gh='--version'; node='--version'; npm='--version'; pnpm='--version'; bun='--version';
   python='--version'; uv='--version'; java='-version'; gradle='--version'; adb='version'; flutter='--version'; dart='--version';
   dotnet='--version'; go='version'; rustc='--version'; cargo='--version'; cmake='--version'; 'qemu-system-x86_64'='--version';
-  playwright='--version'; appium='--version'; maestro='--version'; mise='--version'; claude='--version'; skillspector='--version'; rea='--version'; scrapling='--version'; wsl='--version' }
+  playwright='--version'; appium='--version'; maestro='--version'; mise='--version'; claude='--version'; skillspector='--version'; rea='--version'; scrapling='--version'; godot='--version'; wsl='--version' }
 foreach ($k in $probe.Keys) { $v = Ver $k $probe[$k]; if ($v) { $tools[$k -replace '-system-x86_64',''] = $v } }
 if (Test-Path "${env:ProgramFiles(x86)}\Microsoft Visual Studio\Installer\vswhere.exe") { $tools['msvc'] = 'present' }
 
-$profile = [ordered]@{
+$hp = [ordered]@{
   schema = 'groundwork.host-profile.v1'; scanned_at = (Get-Date).ToUniversalTime().ToString('yyyy-MM-ddTHH:mm:ssZ'); scanner = 'scan.ps1'
   os = [ordered]@{ family='windows'; distro=$os.Caption; version=$os.Version; kernel=$os.BuildNumber; wsl=$false; wsl2_available=$wsl2; package_managers=($pkg -join ' ') }
   cpu = [ordered]@{ arch=$arch; model=$cpu.Name.Trim(); threads=[int]$cpu.NumberOfLogicalProcessors; virt_extensions=[bool]$cpu.VirtualizationFirmwareEnabled }
@@ -60,6 +60,8 @@ $profile = [ordered]@{
   user = [ordered]@{ admin_noninteractive=$isAdmin; proxy=[bool]($env:HTTPS_PROXY) }
   toolchains = $tools
 }
-$json = $profile | ConvertTo-Json -Depth 5
-if ($Out) { New-Item -ItemType Directory -Force (Split-Path $Out) | Out-Null; Set-Content -Path $Out -Value $json -Encoding UTF8; Write-Host "wrote $Out" }
+$json = $hp | ConvertTo-Json -Depth 5
+if ($Out) {   # UTF-8 without a BOM: Set-Content -Encoding UTF8 in PowerShell 5.1 adds one, and JSON parsers reject it
+  $Out = $ExecutionContext.SessionState.Path.GetUnresolvedProviderPathFromPSPath($Out)
+  New-Item -ItemType Directory -Force (Split-Path $Out) | Out-Null; [IO.File]::WriteAllText($Out, $json, [Text.UTF8Encoding]::new($false)); Write-Host "wrote $Out" }
 else { $json }

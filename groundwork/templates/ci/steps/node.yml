@@ -1,0 +1,21 @@
+# Node.js: install from the lockfile (npm, pnpm, yarn or bun), lint, build, test (under Xvfb on Linux, so Electron and headed browsers work), Playwright when playwright.config.* exists
+# verified: no
+# timeout: 30
+__INCLUDE node-setup__
+      - run: npm run lint --if-present
+      - run: npm run build --if-present
+      - name: Test
+        shell: bash
+        run: if [ "$RUNNER_OS" = Linux ]; then xvfb-run -a npm test; else npm test; fi
+      - name: End-to-end tests (Playwright)
+        if: hashFiles('__DIR__playwright.config.*') != ''
+        shell: bash
+        run: |
+          npx playwright install --with-deps
+          if [ "$RUNNER_OS" = Linux ]; then xvfb-run -a npx playwright test; else npx playwright test; fi
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        if: failure() && hashFiles('__DIR__playwright-report/**') != ''
+        with:
+          name: playwright-report-${{ matrix.os }}
+          path: __DIR__playwright-report
+          retention-days: 7

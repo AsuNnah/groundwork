@@ -245,5 +245,14 @@
       "npm": "npx --yes jscpd@5.4.2 --version   # nothing to install: P8 runs it through npx",
       "any": "install Node.js first; then npx --yes jscpd@5.4.2"
     }
+  },
+  "godot": {
+    "name": "Godot Engine",
+    "install": {
+      "winget": "winget install --id GodotEngine.GodotEngine -e",
+      "brew": "brew install --cask godot",
+      "flatpak": "flatpak install flathub org.godotengine.Godot",
+      "any": "download from https://godotengine.org/download (official builds) and put the binary on PATH as godot"
+    }
   }
 }

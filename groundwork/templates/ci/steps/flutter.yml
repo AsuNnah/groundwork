@@ -1,0 +1,8 @@
+# Flutter desktop or web: analyze, test, then `flutter build __flutter_build__` (the pack sets the platform)
+# verified: no
+# timeout: 30
+      - name: Linux desktop build dependencies
+        if: runner.os == 'Linux' && '__flutter_build__' == 'linux'
+        run: sudo apt-get update && sudo apt-get install -y clang cmake ninja-build pkg-config libgtk-3-dev
+__INCLUDE flutter-setup__
+      - run: flutter build __flutter_build__

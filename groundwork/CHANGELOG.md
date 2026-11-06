@@ -1,5 +1,28 @@
 # Changelog
 
+## 0.6.0 (2026-11-06)
+The roadmap items after 0.5.0: CI workflows per pack, devcontainers per stack, more packs and presets, and a scanner verified on Windows.
+
+### Added
+- **CI workflows** (`gw ci [list] | print <target> | write [target...] [--os …] [--force]`):
+  - one GitHub Actions workflow per target, assembled from `templates/ci/` (a skeleton, one step fragment per stack, service blocks);
+  - actions pinned to commit SHAs; the pack chooses the runners (Android emulator with KVM on Ubuntu, macOS for Apple targets, Windows), services (Postgres + Redis for backend) and stack variables;
+  - `--os` or `gw set ci_os=linux,windows` narrows the runners; an OS the pack can't use is an error;
+  - monorepos: when the project is a subfolder of the git repo, the workflow goes to the git root with `paths` filters and `working-directory`;
+  - every fragment carries a `# verified:` line, so an untested template says so in the generated file;
+  - existing workflows are kept unless `--force`; `gw doctor` warns when a target's release tier runs on CI and its workflow is missing;
+  - P8 uses it for S3.
+- **Devcontainers** (`gw devcontainer [--print] [--force]`): `.devcontainer/devcontainer.json` merged from the blocks the project's stacks need (`packs/devcontainers.json`: image, features, ports, extensions, env, post-create commands), plus the notes and checks to run inside it. P3 uses it.
+- **New packs:** `game` (Godot, Unity, Unreal) and `browser-extension` (Manifest V3, WXT, Plasmo).
+- **New stacks:** Flutter and React Native for web; .NET MAUI for Android, iOS, macOS and Windows; Flutter for macOS, Windows and Linux desktop.
+- **Cross-platform presets** (`gw set preset=flutter|react-native|electron|tauri|dotnet-maui [targets=…]`, `packs/presets.json`): one stack on every target it covers.
+- `godot` in the scanners and `tools.json`.
+- **Framework CI** (in the repo, not shipped): selftest and a scanner + CLI smoke test on Ubuntu and Windows with Node 18 and the current LTS; generated workflows for sample projects in `tests/ci-fixtures/`; a devcontainer build of every block set.
+
+### Fixed
+- `scan.ps1 -Out` wrote the profile with a UTF-8 BOM on Windows PowerShell 5.1, and the CLI couldn't parse it. It now writes UTF-8 without a BOM, and the CLI strips a BOM when it reads JSON.
+- `scan.ps1 -Out` with a relative path now resolves against the current directory.
+
 ## 0.5.0 (2026-11-05)
 Verification-first: a task is done when its check passes, not when the agent says so. Based on the workflow research (spec-driven, harness and verification patterns) and real headless agent runs before and after.
 

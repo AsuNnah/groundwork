@@ -1,0 +1,9 @@
+# Qt 6 with CMake: build, then ctest with the offscreen platform plugin
+# verified: no
+# timeout: 30
+      - run: sudo apt-get update && sudo apt-get install -y cmake ninja-build qt6-base-dev qt6-declarative-dev libgl1-mesa-dev
+      - run: cmake -B build -G Ninja -DCMAKE_BUILD_TYPE=Debug
+      - run: cmake --build build
+      - run: ctest --test-dir build --output-on-failure
+        env:
+          QT_QPA_PLATFORM: offscreen

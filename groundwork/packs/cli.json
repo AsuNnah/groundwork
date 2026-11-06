@@ -5,23 +5,46 @@
     "go": {
       "detect": [
         "go.mod"
+      ],
+      "ci": "go",
+      "devcontainer": [
+        "go"
       ]
     },
     "rust": {
       "detect": [
         "Cargo.toml"
+      ],
+      "ci": "rust",
+      "devcontainer": [
+        "rust"
       ]
     },
     "python": {
       "detect": [
         "pyproject.toml"
+      ],
+      "ci": "python",
+      "devcontainer": [
+        "python"
       ]
     },
     "node": {
       "detect": [
         "package.json"
+      ],
+      "ci": "node",
+      "devcontainer": [
+        "node"
       ]
     }
+  },
+  "ci": {
+    "os": [
+      "ubuntu-latest",
+      "windows-latest",
+      "macos-latest"
+    ]
   },
   "tools": [
     {

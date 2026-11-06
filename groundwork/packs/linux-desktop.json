@@ -6,23 +6,65 @@
     "gtk": {
       "detect": [
         "meson.build"
+      ],
+      "ci": "gtk-meson",
+      "devcontainer": [
+        "gtk",
+        "desktop"
       ]
     },
     "qt": {
       "detect": [
         "CMakeLists.txt",
         "*.pro"
+      ],
+      "ci": "qt-cmake",
+      "devcontainer": [
+        "qt",
+        "desktop"
       ]
     },
     "electron": {
       "detect": [
         "electron-builder.*"
+      ],
+      "ci": "node",
+      "devcontainer": [
+        "node",
+        "desktop"
       ]
     },
     "tauri": {
       "detect": [
         "src-tauri/tauri.conf.json"
+      ],
+      "ci": "tauri",
+      "devcontainer": [
+        "node",
+        "rust",
+        "tauri-deps",
+        "desktop"
       ]
+    },
+    "flutter": {
+      "detect": [
+        "pubspec.yaml",
+        "linux/"
+      ],
+      "scaffold": "flutter create --platforms linux {name}",
+      "ci": "flutter",
+      "devcontainer": [
+        "flutter",
+        "desktop"
+      ]
+    }
+  },
+  "ci": {
+    "os": [
+      "ubuntu-latest"
+    ],
+    "vars": {
+      "flutter_build": "linux"
     }
   },
   "tools": [
@@ -81,10 +123,31 @@
       "override": "[patch] in Cargo.toml",
       "eol": null,
       "ecosystem": "rust"
+    },
+    "flutter": {
+      "outdated": "flutter pub outdated",
+      "upgrade_safe": "flutter pub upgrade",
+      "upgrade_major": "flutter pub upgrade --major-versions && dart fix --apply",
+      "audit": "osv-scanner scan -r .  (reads pubspec.lock)",
+      "deadcode": "dart analyze (unused_* lints)",
+      "why_installed": "flutter pub deps",
+      "override": "dependency_overrides in pubspec.yaml",
+      "eol": null,
+      "sdk_upgrade": "flutter upgrade && dart fix --apply",
+      "ecosystem": "flutter",
+      "codemod": "dart fix --apply"
     }
   },
   "rollback": "Snap: snapcraft release <name> <old-rev> stable (publisher-side revert). Flatpak/AppImage/deb: publish the old code as a higher version.",
   "observe": [
     "crash reporting (Sentry)"
-  ]
+  ],
+  "stack_tools": {
+    "flutter": [
+      {
+        "id": "flutter",
+        "severity": "block"
+      }
+    ]
+  }
 }

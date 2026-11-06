@@ -8,20 +8,58 @@
         "build.gradle.kts",
         "**/AndroidManifest.xml"
       ],
-      "scaffold": "Android Studio 'Empty Activity' template or templates from https://github.com/android/architecture-templates"
+      "scaffold": "Android Studio 'Empty Activity' template or templates from https://github.com/android/architecture-templates",
+      "ci": "android-gradle",
+      "devcontainer": [
+        "java",
+        "android-sdk"
+      ]
     },
     "flutter": {
       "detect": [
         "pubspec.yaml"
       ],
-      "scaffold": "flutter create --org com.example {name}"
+      "scaffold": "flutter create --org com.example {name}",
+      "ci": "android-flutter",
+      "devcontainer": [
+        "flutter",
+        "java",
+        "android-sdk"
+      ]
     },
     "react-native": {
       "detect": [
         "app.json",
         "metro.config.*"
       ],
-      "scaffold": "npx create-expo-app@latest {name}"
+      "scaffold": "npx create-expo-app@latest {name}",
+      "ci": "android-react-native",
+      "devcontainer": [
+        "node",
+        "java",
+        "android-sdk"
+      ]
+    },
+    "dotnet-maui": {
+      "detect": [
+        "*.csproj with <UseMaui>true</UseMaui>"
+      ],
+      "scaffold": "dotnet new maui -n {name}",
+      "ci": "dotnet-maui",
+      "devcontainer": [
+        "dotnet",
+        "java",
+        "android-sdk"
+      ]
+    }
+  },
+  "ci": {
+    "os": [
+      "ubuntu-latest"
+    ],
+    "vars": {
+      "maui_tfm": "android",
+      "maui_workload": "maui-android"
     }
   },
   "tools": [
@@ -59,6 +97,13 @@
       {
         "id": "node",
         "min": "20",
+        "severity": "block"
+      }
+    ],
+    "dotnet-maui": [
+      {
+        "id": "dotnet",
+        "min": "9",
         "severity": "block"
       }
     ]
@@ -133,6 +178,17 @@
       "eol": "nodejs",
       "ecosystem": "node",
       "codemod": "npx expo install --fix (Expo) / React Native Upgrade Helper"
+    },
+    "dotnet-maui": {
+      "outdated": "dotnet list package --outdated",
+      "upgrade_safe": "dotnet outdated -u:Auto -vl:Minor (dotnet-outdated-tool)",
+      "upgrade_major": "one major at a time; .NET Upgrade Assistant for framework moves",
+      "audit": "dotnet list package --vulnerable --include-transitive",
+      "deadcode": "IDE0051/IDE0052 analyzers",
+      "why_installed": "dotnet nuget why <project> <package>",
+      "override": "Directory.Packages.props (central package management)",
+      "eol": "dotnet",
+      "ecosystem": "nuget"
     }
   },
   "rollback": "No real rollback. Play Console: Releases > Manage rollout > Halt rollout; ship a fix (or the old code rebuilt) with a HIGHER versionCode. Always staged rollout 1%→5%→20%→50%→100% watching crash-free rate. Remote config / feature flags are the kill switch.",
