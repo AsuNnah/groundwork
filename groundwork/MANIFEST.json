@@ -57,7 +57,7 @@
     "templates/ci/steps/android-flutter.yml": "7eee7e0591bbf92d",
     "templates/ci/steps/android-gradle.yml": "0a5b0b80b3852132",
     "templates/ci/steps/android-react-native.yml": "ec3de298be56625b",
-    "templates/ci/steps/dotnet-maui.yml": "0509160c021913ae",
+    "templates/ci/steps/dotnet-maui.yml": "61f10ffe7ad7b632",
     "templates/ci/steps/dotnet.yml": "f104ebebd6619501",
     "templates/ci/steps/esp-idf.yml": "59a2963665c2144e",
     "templates/ci/steps/flutter-setup.yml": "97e0fd6f461c5927",

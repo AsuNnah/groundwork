@@ -19,6 +19,7 @@
               printf '%s\n' "$out"; echo "::error::Could not read the Xcode version this .NET workload needs (_RecommendedXcodeVersion)."; exit 1
             fi
             A=$(ls -d "/Applications/Xcode_$X.app" /Applications/Xcode_"$X".[0-9]*.app 2>/dev/null | head -1 || true)
+            [ -z "$A" ] || A=$(cd "$A" && pwd -P)   # images add symlinks such as Xcode_26.6.0.app, and actool can't find its SDKs through them
             echo "This .NET workload needs Xcode $X: ${A:-not on this runner}"
             if [ -z "$A" ]; then
               echo "::error::This .NET workload needs Xcode $X, and this runner has $(ls -d /Applications/Xcode_*.app | sed 's#.*/Xcode_##; s#\.app##' | tr '\n' ' '). Pin a workload set for an installed Xcode in global.json (sdk.workloadVersion), or run on a runner image with Xcode $X."

@@ -523,8 +523,8 @@ Code that already runs elsewhere is cheaper than code written and debugged from 
 - **Devcontainers:** `gw devcontainer` merges the blocks that the project's stacks need (`packs/devcontainers.json`). The repo CI builds every block set.
 - **A stack chosen by the targets:** when several UI targets have no stack yet, `gw set targets=…` lists the presets that cover all of them (`packs/presets.json`). P2 recommends one by the team's language, or a stack per target.
 - **Milestone status:**
-  - M0a is done on Linux and Windows 11 (a VM, as SYSTEM and as a non-elevated user). macOS and WSL are still open.
-  - M3 is done: an Android Compose sample, a KMP sample and a React Native (Expo) sample run their on-device tests on the CI emulator. .NET MAUI builds for Android.
-  - M4 is done for Electron and Tauri on Linux and Windows, Qt, GTK, .NET and .NET MAUI on Windows, and KMP desktop.
-  - M5 is open (it needs a macOS runner).
+  - M0a is done on Linux, Windows 11 (a VM, as SYSTEM and as a non-elevated user) and GitHub's macOS 26 runner. A developer's own Mac and WSL are still open.
+  - M3 is done: Android Compose, KMP, React Native (Expo) and Flutter samples run their on-device tests on the CI emulator. .NET MAUI builds for Android.
+  - M4 is done for Electron and Tauri on Linux, Windows and macOS, Qt, GTK, .NET and .NET MAUI on Windows, KMP desktop on all three, Flutter and .NET MAUI (Mac Catalyst) on macOS.
+  - M5 is done on GitHub's macOS runners: SwiftUI, Flutter, React Native, KMP and .NET MAUI samples build for the iOS Simulator, and the SwiftUI and Flutter ones run their tests on it.
   - M6 has been started: CLI, embedded (ESP-IDF, PlatformIO, Zephyr), game (Godot) and browser-extension samples are verified on CI. Unity needs a licence in the repository secrets.

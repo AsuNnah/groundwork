@@ -1,24 +1,34 @@
 # Changelog
 
 ## 0.6.1 (2026-11-06)
-Four more CI fragments verified on real projects, and `gw ci` says which runners a fragment hasn't been proven on.
+The remaining CI fragments run on real projects, macOS and iOS included (on GitHub's macOS runners), and `gw ci` says which runners a fragment hasn't been proven on.
 
 ### Fixed
 - **.NET MAUI on Linux:** a template project lists iOS and Mac Catalyst too, and restore needs every listed platform's workload (NETSDK1178). The fragment now builds the runner's platform alone (`-p:TargetFrameworks=…`).
+- **.NET MAUI for iOS and Mac Catalyst:** .NET for Apple platforms accepts exactly one Xcode major.minor (`_RecommendedXcodeVersion`, which every release sets). The fragment selects that Xcode when the runner image has it. When it doesn't, it stops and says what to do: pin a workload set in `global.json` (`sdk.workloadVersion`) or use an image with that Xcode. Today the newest workload set (10.0.403) needs Xcode 27.1, which only GitHub's `xcode-27` preview image has. The sample project pins 10.0.401.
+- **Kotlin Multiplatform iOS:** the app builds for a named simulator. The generic simulator destination also builds x86_64, which needs an `iosX64()` target that current wizard projects don't have (Compose resources failed with "provider has no value").
+- **Flutter on iOS:** the integration test uses an iPhone on the newest runtime and waits until it has fully booted (`simctl bootstatus`). The first run timed out connecting to the Dart VM service.
 - **Unity:** the workflow stops with a clear error naming the secrets it needs (`UNITY_EMAIL`, `UNITY_PASSWORD`, and `UNITY_LICENSE` for Personal or `UNITY_SERIAL` for Pro) instead of failing inside GameCI, and it passes `UNITY_SERIAL` through.
 
 ### Changed
-- `gw ci` names the runners a workflow uses that its fragment hasn't been verified on (`gw ci list`: "not yet on macos-latest"; the generated file says to watch the first run there).
+- `gw ci` names the runners a workflow uses that its fragment hasn't been verified on (`gw ci list`: "not yet on ubuntu-latest"; the generated file says to watch the first run there).
 - React Native on Android: Maestro runs with its usage analytics turned off.
+- Framework CI runs the selftest and the scanner + CLI smoke test on macOS too.
 
 ### Verified
-23 of 29 fragments are now verified by the sample projects in `tests/ci-fixtures/` on GitHub runners. New in this release:
-- Tauri 2 on Linux and Windows (frontend test, `cargo test`, app build);
-- React Native (Expo) on Android (Jest, release APK, a Maestro flow on the emulator);
-- .NET MAUI on Android and Windows (app build, xUnit tests);
-- Zephyr (twister on `native_sim`, with Zephyr's west manifest imported).
+28 of 29 fragments are now verified by the sample projects in `tests/ci-fixtures/` on GitHub runners, on every runner their packs use. New in this release:
+- **iOS and macOS** (`macos-latest`: macOS 26 on Apple silicon):
+  - a SwiftUI app's tests on the iOS Simulator and on macOS;
+  - Flutter: the integration test on the iOS Simulator, and the macOS app build;
+  - React Native (Expo): CocoaPods and the simulator build;
+  - Kotlin Multiplatform: iOS simulator tests and the iosApp build, and the desktop package (DMG);
+  - .NET MAUI for iOS and Mac Catalyst;
+  - Tauri, Electron, and Node, Go, Rust and Python projects;
+  - `scan.sh` and the CLI.
+- **Android:** Flutter (the integration test on the emulator), React Native with Expo (Jest, release APK, a Maestro flow) and .NET MAUI.
+- **Desktop and embedded:** Tauri 2 on Linux and Windows, .NET MAUI on Windows, and Zephyr (twister on `native_sim`).
 
-Not yet verified: Unity (it needs a Unity licence in the repository secrets), Flutter on Android, and the iOS/macOS fragments (Flutter, React Native, KMP, Xcode), which wait for the macOS roadmap item.
+Not yet verified: Unity, which needs a Unity licence in the repository secrets. "macOS" here means GitHub's runner image, not a developer's own Mac.
 
 ## 0.6.0 (2026-11-06)
 The roadmap items after 0.5.0: CI workflows per pack, devcontainers per stack, more packs and presets, and a scanner verified on Windows.
