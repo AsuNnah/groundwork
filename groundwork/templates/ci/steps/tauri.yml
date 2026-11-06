@@ -1,0 +1,12 @@
+# Tauri: Linux webview dependencies, Node + Rust, frontend tests if any, Rust tests, then a debug app build
+# verified: no
+# timeout: 45
+      - name: Linux build dependencies
+        if: runner.os == 'Linux'
+        run: sudo apt-get update && sudo apt-get install -y libwebkit2gtk-4.1-dev libappindicator3-dev librsvg2-dev patchelf
+__INCLUDE node-setup__
+      - run: rustup toolchain install stable --profile minimal && rustup default stable
+        shell: bash
+      - run: npm run test --if-present
+      - run: cargo test --manifest-path src-tauri/Cargo.toml
+      - run: npm run tauri build -- --debug --no-bundle

@@ -1,0 +1,139 @@
+{
+  "id": "browser-extension",
+  "title": "Browser extension (Manifest V3)",
+  "ui": true,
+  "stacks": {
+    "mv3": {
+      "detect": [
+        "manifest.json"
+      ],
+      "scaffold": "manifest.json (manifest_version 3) + service worker; package.json with vitest and @playwright/test",
+      "ci": "node",
+      "devcontainer": [
+        "node",
+        "desktop"
+      ]
+    },
+    "wxt": {
+      "detect": [
+        "wxt.config.*"
+      ],
+      "scaffold": "npx wxt@latest init {name}",
+      "ci": "node",
+      "devcontainer": [
+        "node",
+        "desktop"
+      ]
+    },
+    "plasmo": {
+      "detect": [
+        "package.json with \"plasmo\""
+      ],
+      "scaffold": "npm create plasmo@latest {name}",
+      "ci": "node",
+      "devcontainer": [
+        "node",
+        "desktop"
+      ]
+    }
+  },
+  "ci": {
+    "os": [
+      "ubuntu-latest"
+    ]
+  },
+  "tools": [
+    {
+      "id": "node",
+      "min": "20",
+      "severity": "block"
+    },
+    {
+      "id": "git",
+      "severity": "block"
+    },
+    {
+      "id": "playwright",
+      "severity": "warn",
+      "why": "load the unpacked extension in Chromium for end-to-end tests"
+    }
+  ],
+  "sandbox": {
+    "S0": {
+      "run": "unit tests (vitest/jest) for background, content and popup logic"
+    },
+    "S1": {
+      "needs": [
+        "containers"
+      ],
+      "how": "Playwright image: chromium.launchPersistentContext with --load-extension=<dist>, check the service worker and content script; web-ext lint for Firefox"
+    },
+    "S3": {
+      "how": "GitHub Actions ubuntu runner with xvfb-run (headed Chromium loads extensions)"
+    }
+  },
+  "min_release_tier": "S1",
+  "test_tooling": [
+    "vitest",
+    "playwright",
+    "web-ext"
+  ],
+  "release": [
+    "Chrome Web Store: privacy practices, single purpose, a justification for every permission and host permission",
+    "Firefox AMO: web-ext lint clean; upload sources when the build is minified",
+    "no remotely hosted code (MV3); bump the version in manifest.json for every upload"
+  ],
+  "maintain": {
+    "mv3": {
+      "outdated": "npm outdated && npx npm-check-updates",
+      "upgrade_safe": "npx npm-check-updates -u --target minor && npm install",
+      "upgrade_major": "npx npm-check-updates -u --filter <pkg> && npm install",
+      "audit": "npm audit --omit=dev  (or: osv-scanner scan -r .)",
+      "deadcode": "npx knip",
+      "mutation": "npx --yes -p @stryker-mutator/core@10.0.0 stryker run --testRunner command --mutate 'src/**/*.{js,jsx,ts,tsx}'   # runs your test command against each mutant; slow, run on logic-heavy modules",
+      "why_installed": "npm ls <pkg>",
+      "override": "package.json \"overrides\" (pnpm: pnpm.overrides, yarn: resolutions)",
+      "eol": "nodejs",
+      "ecosystem": "node",
+      "codemod": "npx expo install --fix (Expo) / React Native Upgrade Helper"
+    },
+    "wxt": {
+      "outdated": "npm outdated && npx npm-check-updates",
+      "upgrade_safe": "npx npm-check-updates -u --target minor && npm install",
+      "upgrade_major": "npx npm-check-updates -u --filter <pkg> && npm install",
+      "audit": "npm audit --omit=dev  (or: osv-scanner scan -r .)",
+      "deadcode": "npx knip",
+      "mutation": "npx --yes -p @stryker-mutator/core@10.0.0 stryker run --testRunner command --mutate 'src/**/*.{js,jsx,ts,tsx}'   # runs your test command against each mutant; slow, run on logic-heavy modules",
+      "why_installed": "npm ls <pkg>",
+      "override": "package.json \"overrides\" (pnpm: pnpm.overrides, yarn: resolutions)",
+      "eol": "nodejs",
+      "ecosystem": "node",
+      "codemod": "npx expo install --fix (Expo) / React Native Upgrade Helper"
+    },
+    "plasmo": {
+      "outdated": "npm outdated && npx npm-check-updates",
+      "upgrade_safe": "npx npm-check-updates -u --target minor && npm install",
+      "upgrade_major": "npx npm-check-updates -u --filter <pkg> && npm install",
+      "audit": "npm audit --omit=dev  (or: osv-scanner scan -r .)",
+      "deadcode": "npx knip",
+      "mutation": "npx --yes -p @stryker-mutator/core@10.0.0 stryker run --testRunner command --mutate 'src/**/*.{js,jsx,ts,tsx}'   # runs your test command against each mutant; slow, run on logic-heavy modules",
+      "why_installed": "npm ls <pkg>",
+      "override": "package.json \"overrides\" (pnpm: pnpm.overrides, yarn: resolutions)",
+      "eol": "nodejs",
+      "ecosystem": "node",
+      "codemod": "npx expo install --fix (Expo) / React Native Upgrade Helper"
+    }
+  },
+  "rollback": "No instant rollback. Chrome Web Store: publish the previous code with a higher version; use percentage rollout for large user bases. AMO: disable the bad version, upload a fixed one.",
+  "observe": [
+    "error reporting from the service worker and content scripts (Sentry)",
+    "store reviews, uninstall survey URL (chrome.runtime.setUninstallURL)"
+  ],
+  "policies": [
+    {
+      "what": "Chrome no longer runs Manifest V2 extensions (phased out 2024–2025): ship MV3 only.",
+      "check": "https://developer.chrome.com/docs/extensions/develop/migrate/mv2-deprecation-timeline",
+      "as_of": "2026-11-06"
+    }
+  ]
+}

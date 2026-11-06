@@ -96,8 +96,12 @@ Problems are **notifications, not dead ends**. Each one has a status (`missing`,
 `gw run <target> <tier> -- <cmd>` writes a receipt, and it refuses to claim a tier the host can't provide.
 
 ### 5. Platform packs (data, not code)
-`groundwork/packs/*.json`: **web, backend, android, ios, macos, windows, linux-desktop, cli, embedded**.
+`groundwork/packs/*.json`: **web, backend, android, ios, macos, windows, linux-desktop, cli, embedded, game, browser-extension**.
 Each pack declares stacks (with detection markers and scaffolds), required tools with minimum versions, sandbox recipes per tier, test tooling, and release steps. `packs/tools.json` maps each tool to install commands per package manager (mise, winget, brew, apt, dnf, pacman, official installers). To add a target, add a JSON file; the core code doesn't change.
+
+- **Cross-platform presets** (`packs/presets.json`): `gw set preset=kotlin-multiplatform` (or flutter, react-native, electron, tauri, dotnet-maui) sets one stack on every target it covers; `targets=` in the same command takes a subset. Choose several UI targets and `gw set` lists the presets that cover them all. Tests and CI still follow each target: Android on an emulator, iOS on a macOS simulator, web in a browser, desktop on each OS.
+- **CI workflows** (`gw ci write [target…]`): a ready GitHub Actions workflow per target from `templates/ci/`, with actions pinned to commit SHAs, the pack's runners (Android emulator on KVM, macOS, Windows), services such as Postgres and Redis, and monorepo support (workflow at the git root, `paths` filters, `working-directory`). Each step fragment says whether it has been verified on real runners.
+- **Devcontainers** (`gw devcontainer`): `.devcontainer/devcontainer.json` merged from the blocks your targets' stacks need (`packs/devcontainers.json`), with post-create commands and the checks to run inside it.
 
 ### 6. After release: upgrade, maintain, operate, patch
 | Scenario | Playbook | What it gives you |
@@ -151,6 +155,9 @@ gw set docs_dir=<path> | dev_method=<method>
 gw research "<reference app>" ["goal"]
 gw phase <H0..P11> <done|skipped|in_progress|blocked> ["note"]
 gw run <target> <S0..S3> -- <cmd> gw gate <G1|G2> [--approve "user's words"]
+gw set preset=<kotlin-multiplatform|flutter|react-native|electron|tauri|dotnet-maui> [targets=a,b]
+gw ci [list] | print <target> | write [target...] [--os linux,windows,macos] [--force]
+gw devcontainer [--print] [--force]
 gw note <category> "text"         gw feedback
 gw maintain | eol | skills [--all|fetch <id>|install <id>]
 gw version | verify [--clean] | upgrade <new-groundwork-folder>
@@ -166,7 +173,8 @@ gw version | verify [--clean] | upgrade <new-groundwork-folder>
 | [`docs/FRAMEWORK-DESIGN.md`](docs/FRAMEWORK-DESIGN.md) | full design, rationale, roadmap |
 | [`research/`](research/README.md) | notes on ECC, BMAD, Spec Kit, Superpowers, GSD, Kiro, AI-DLC, OpenSpec, sandboxing |
 | [`feedback/`](feedback/README.md) | inbox and backlog for real-run feedback |
-| [`scripts/release.js`](scripts/release.js) | regenerates `groundwork/MANIFEST.json` before each release |
+| [`scripts/release.js`](scripts/release.js) | regenerates `groundwork/MANIFEST.json` and the fixture workflows before each release |
+| [`tests/ci-fixtures/`](tests/ci-fixtures) | small sample projects, one per pack and stack, whose generated CI workflows prove the templates |
 
 ## Development
 
@@ -174,17 +182,22 @@ gw version | verify [--clean] | upgrade <new-groundwork-folder>
 node groundwork/bin/selftest.js   # decision rules, catalogue, packs, manifest
 node scripts/release.js            # after changing groundwork/: refresh MANIFEST.json (bump VERSION + CHANGELOG for releases)
 sh -n groundwork/scan/scan.sh      # scanner syntax
+node scripts/ci-smoke.js           # scanner + CLI smoke test on this OS (CI runs it on Linux and Windows)
+node scripts/fixture-workflows.js  # regenerate the fixture workflows from templates/ci (--check: fail on drift)
 ```
+CI (`.github/workflows/`): `ci.yml` runs the selftest and smoke test on Ubuntu and Windows with Node 18 and the current LTS; `devcontainers.yml` builds every devcontainer block set and runs its checks; `gw-tests-ci-fixtures-*.yml` are the generated workflows for the sample projects in `tests/ci-fixtures/`, so every template runs on real runners.
 Rules: keep `groundwork/` dependency-free (POSIX sh, PowerShell 5.1+, Node stdlib) and in English. Platform knowledge goes in packs, not in core code.
 
 ## Roadmap
 - [x] Host scan, capability rules, dev-method selection, target feasibility
 - [x] Phases H0–P11, templates, gates, hooks, run receipts, silent feedback loop
 - [x] Post-release playbooks (upgrade, maintain, operate, security), skill catalogue, framework upgrade/verify
-- [ ] Verified Windows (`scan.ps1`) and macOS runs
-- [ ] Ready-to-use CI workflow templates per pack (Android emulator, macOS, Windows runners)
-- [ ] Devcontainer generation per stack
-- [ ] More packs (game engines, browser extensions, cross-platform presets)
+- [x] Verified Windows runs (`scan.ps1` and the CLI on Windows 11, and the CI on Windows runners) (0.6.0)
+- [x] Ready-to-use CI workflow templates per pack: Android emulator, Windows and Linux runners, Kotlin Multiplatform (0.6.0)
+- [x] Devcontainer generation per stack (0.6.0)
+- [x] More packs and presets: game engines, browser extensions, cross-platform presets with a stack chosen by the targets (0.6.0)
+- [ ] Verified macOS runs (`scan.sh` on macOS, and the macOS and iOS CI fragments)
+- [ ] Verify the remaining CI fragments on real projects (Unity, React Native, .NET MAUI, Tauri, Zephyr)
 
 ## Acknowledgements
 Skill inspection by [NVIDIA SkillSpector](https://github.com/nvidia/skillspector) (Apache-2.0). Ideas borrowed (with thanks) from [ECC](https://github.com/affaan-m/ecc), [BMAD Method](https://github.com/bmad-code-org/BMAD-METHOD), [GitHub Spec Kit](https://github.com/github/spec-kit), [Superpowers](https://github.com/obra/superpowers), [GSD](https://github.com/open-gsd/gsd-core), [Kiro](https://kiro.dev), [OpenSpec](https://github.com/Fission-AI/OpenSpec), [AWS AI-DLC](https://github.com/awslabs/aidlc-workflows), and [agent-skills](https://github.com/addyosmani/agent-skills). See [`docs/FRAMEWORK-DESIGN.md`](docs/FRAMEWORK-DESIGN.md) §2 for what was taken from each.

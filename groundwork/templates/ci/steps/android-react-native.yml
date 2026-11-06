@@ -1,0 +1,29 @@
+# React Native / Expo on Android: JS tests, release APK (bundled JS, debug-signed), Maestro flows on an emulator when .maestro/ exists
+# verified: no
+# timeout: 60
+__INCLUDE node-setup__
+      - run: npm test
+      - uses: actions/setup-java@b843ebf9b913146b38da2eaa7aeddf76074ae1ad # v6.1.0
+        with:
+          distribution: temurin
+          java-version: '17'
+      - uses: gradle/actions/setup-gradle@3f5f9adaf7d9fecd50b5935e54106014257a94e6 # v6.4.0
+      - name: Generate the native project (Expo)
+        if: hashFiles('__DIR__android/gradlew') == ''
+        run: npx expo prebuild --platform android --no-install
+      - run: cd android && chmod +x gradlew && ./gradlew assembleRelease
+      - name: Install Maestro
+        if: hashFiles('__DIR__.maestro/**') != ''
+        run: |
+          curl -fsSL https://get.maestro.mobile.dev | bash
+          echo "$HOME/.maestro/bin" >> "$GITHUB_PATH"
+__INCLUDE kvm__
+      - uses: reactivecircus/android-emulator-runner@a421e43855164a8197daf9d8d40fe71c6996bb0d # v2.38.0
+        if: hashFiles('__DIR__.maestro/**') != ''
+        with:
+          working-directory: __WORKDIR__
+          api-level: 35
+          arch: x86_64
+          target: google_apis
+          disable-animations: true
+          script: adb install android/app/build/outputs/apk/release/app-release.apk && maestro test .maestro

@@ -1,0 +1,58 @@
+{
+  "_doc": "Cross-platform presets: one stack for several targets. `gw set preset=<id>` sets targets and stacks.<target> together; add targets=<subset> to take only some of them.",
+  "kotlin-multiplatform": {
+    "title": "Kotlin Multiplatform with Compose Multiplatform: one Kotlin codebase, native on Android",
+    "targets": {
+      "android": "compose-multiplatform",
+      "ios": "compose-multiplatform",
+      "web": "compose-multiplatform",
+      "windows": "compose-multiplatform",
+      "macos": "compose-multiplatform",
+      "linux-desktop": "compose-multiplatform"
+    }
+  },
+  "flutter": {
+    "title": "Flutter: one Dart codebase",
+    "targets": {
+      "android": "flutter",
+      "ios": "flutter",
+      "web": "flutter",
+      "windows": "flutter",
+      "macos": "flutter",
+      "linux-desktop": "flutter"
+    }
+  },
+  "react-native": {
+    "title": "React Native with Expo",
+    "targets": {
+      "android": "react-native",
+      "ios": "react-native",
+      "web": "react-native"
+    }
+  },
+  "electron": {
+    "title": "Electron desktop app",
+    "targets": {
+      "windows": "electron",
+      "macos": "electron",
+      "linux-desktop": "electron"
+    }
+  },
+  "tauri": {
+    "title": "Tauri desktop app (Rust + web UI)",
+    "targets": {
+      "windows": "tauri",
+      "macos": "tauri",
+      "linux-desktop": "tauri"
+    }
+  },
+  "dotnet-maui": {
+    "title": ".NET MAUI",
+    "targets": {
+      "android": "dotnet-maui",
+      "ios": "dotnet-maui",
+      "windows": "dotnet-maui",
+      "macos": "dotnet-maui"
+    }
+  }
+}

@@ -1,0 +1,19 @@
+# Flutter on Android: analyze, unit and widget tests, debug APK, then integration_test on an emulator when integration_test/ exists
+# verified: no
+# timeout: 45
+      - uses: actions/setup-java@b843ebf9b913146b38da2eaa7aeddf76074ae1ad # v6.1.0
+        with:
+          distribution: temurin
+          java-version: '21'
+__INCLUDE flutter-setup__
+      - run: flutter build apk --debug
+__INCLUDE kvm__
+      - uses: reactivecircus/android-emulator-runner@a421e43855164a8197daf9d8d40fe71c6996bb0d # v2.38.0
+        if: hashFiles('__DIR__integration_test/**') != ''
+        with:
+          working-directory: __WORKDIR__
+          api-level: 35
+          arch: x86_64
+          target: google_apis
+          disable-animations: true
+          script: flutter test integration_test

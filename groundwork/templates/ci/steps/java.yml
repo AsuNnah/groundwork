@@ -1,0 +1,17 @@
+# JVM: Gradle wrapper or Maven (mvnw / pom.xml) build and test. .java-version sets the JDK (default 21)
+# verified: 2026-11-06 ubuntu-latest
+# timeout: 30
+      - uses: actions/setup-java@b843ebf9b913146b38da2eaa7aeddf76074ae1ad # v6.1.0
+        with:
+          distribution: temurin
+          java-version: ${{ hashFiles('__DIR__.java-version') == '' && '21' || '' }}
+          java-version-file: ${{ hashFiles('__DIR__.java-version') != '' && '__DIR__.java-version' || '' }}
+      - uses: gradle/actions/setup-gradle@3f5f9adaf7d9fecd50b5935e54106014257a94e6 # v6.4.0
+        if: hashFiles('__DIR__gradlew') != ''
+      - name: Build and test
+        shell: bash
+        run: |
+          if [ -f gradlew ]; then chmod +x gradlew && ./gradlew build
+          elif [ -f mvnw ]; then chmod +x mvnw && ./mvnw -B verify
+          elif [ -f pom.xml ]; then mvn -B verify
+          else echo "::error::no gradlew, mvnw or pom.xml"; exit 1; fi

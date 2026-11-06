@@ -27,7 +27,7 @@ const TIER_PHASES = {
 };
 
 // ---------- io helpers ----------
-const readJson = (f, d = null) => { try { return JSON.parse(fs.readFileSync(f, 'utf8')); } catch { return d; } };
+const readJson = (f, d = null) => { try { return JSON.parse(fs.readFileSync(f, 'utf8').replace(/^\uFEFF/, '')); } catch { return d; } };   // BOM: Windows PowerShell 5.1 writes one
 const writeJson = (f, v) => { fs.mkdirSync(path.dirname(f), { recursive: true }); fs.writeFileSync(f, JSON.stringify(v, null, 2) + '\n'); };
 const exists = f => fs.existsSync(f);
 const now = () => new Date().toISOString();
@@ -95,7 +95,9 @@ function scan() {
     ? cp.spawnSync('powershell', ['-NoProfile', '-ExecutionPolicy', 'Bypass', '-File', path.join(FW, 'scan', 'scan.ps1'), '-Out', out], { encoding: 'utf8' })
     : cp.spawnSync('sh', [path.join(FW, 'scan', 'scan.sh'), '--out', out], { encoding: 'utf8', cwd: ROOT });
   if (r.status !== 0 || !exists(out)) throw new Error('host scan failed: ' + (r.stderr || r.error));
-  return readJson(out);
+  const h = readJson(out);
+  if (!h || !h.os) throw new Error(`host scan wrote ${path.relative(ROOT, out)}, but it is not a readable host profile. Run the scanner by hand to see why: ${process.platform === 'win32' ? 'powershell -ExecutionPolicy Bypass -File groundwork\\scan\\scan.ps1' : 'sh groundwork/scan/scan.sh'}`);
+  return h;
 }
 function hostChanged(h) {
   if (!h) return true;
@@ -160,7 +162,7 @@ function chosenMethod(h, c, proj) {
 }
 // project overrides live in .groundwork/ so the framework folder can be replaced on upgrade
 function packs() {
-  const load = dir => !exists(dir) ? {} : Object.fromEntries(fs.readdirSync(dir).filter(f => f.endsWith('.json') && f !== 'tools.json')
+  const load = dir => !exists(dir) ? {} : Object.fromEntries(fs.readdirSync(dir).filter(f => f.endsWith('.json') && !['tools.json', 'presets.json', 'devcontainers.json'].includes(f))
     .map(f => [f.replace(/\.json$/, ''), readJson(path.join(dir, f))]).filter(([, v]) => v));
   return { ...load(path.join(FW, 'packs')), ...load(P('packs')) };
 }
@@ -294,8 +296,14 @@ function doctor(h, proj) {
     }
     if (pk.host_only && !pk.host_only.some(o => c['host_' + o])) checks.push({ id: target + ':host', target, name: pk.title + ' on this host', status: 'unsupported', severity: 'warn', found: pk.non_mac_note || `needs ${pk.host_only.join('/')} host`, fix: pk.sandbox.S3 && pk.sandbox.S3.how });
   }
+  const feas = feasibility(c);
+  for (const target of proj.targets || []) {   // release tier only on CI: point at the ready-made workflow
+    let e = null; try { e = ciPlan(proj, [target], null)[0]; } catch { }
+    if (e && e.fragment && feas[target] && !feas[target].release_tier_local && !exists(path.join(e.top, e.out)))
+      checks.push({ id: 'ci:' + target, target, name: `CI workflow for ${target} (release tier ${feas[target].release_tier} runs on CI here)`, status: 'missing', severity: 'warn', fix: `gw ci write ${target}`, impact: 'no release-tier receipt for this target until CI runs' });
+  }
   const blocking = checks.filter(x => x.severity === 'block' && x.status !== 'ok');
-  const report = { generated_at: now(), host: summary(h), capabilities: c, dev_method: chosenMethod(h, capabilities(h), proj), targets: feasibility(c), checks, ready: blocking.length === 0 };
+  const report = { generated_at: now(), host: summary(h), capabilities: c, dev_method: chosenMethod(h, capabilities(h), proj), targets: feas, checks, ready: blocking.length === 0 };
   writeJson(P('env-report.json'), report);
   const seen = new Set(fbEvents().filter(e => e.kind === 'check').map(e => e.id + e.status));
   for (const x of checks) if (x.status !== 'ok' && x.severity !== 'info' && !seen.has(x.id + x.status)) fb('check', { id: x.id, name: x.name, status: x.status, found: x.found || null });
@@ -1077,7 +1085,8 @@ async function refreshTrending({ quiet = false, force = false } = {}) {
 const INSPECTOR = 'skill-inspector', INSPECTOR_ID = 'skillspector/skill-inspector';
 const INSPECTOR_INSTALL = `gw skills install ${INSPECTOR_ID} --global`;
 function inspectorStatus() {
-  const r = cp.spawnSync('skillspector', ['--version'], { encoding: 'utf8', shell: process.platform === 'win32' });
+  // one command string, not args + shell (Node 26 warns on that, DEP0190); the shell finds skillspector.cmd on Windows
+  const r = process.platform === 'win32' ? cp.spawnSync('skillspector --version', { encoding: 'utf8', shell: true }) : cp.spawnSync('skillspector', ['--version'], { encoding: 'utf8' });
   return { skill: skillInstalled(INSPECTOR), cli: !r.error && r.status === 0 };
 }
 const reviews = () => readJson(P('skills-reviews.json'), {});
@@ -1143,6 +1152,130 @@ function wireHooks() {
   addHook('Stop', null, 'stop');                 // a task in progress must pass its check before the agent reports done
   writeJson(sf, s);
 }
+// ---------- CI workflows and dev containers, from pack data (templates/ci, packs/devcontainers.json) ----------
+const RUNNERS = { linux: 'ubuntu-latest', ubuntu: 'ubuntu-latest', windows: 'windows-latest', macos: 'macos-latest', mac: 'macos-latest' };
+const CI_DIR = path.join(FW, 'templates', 'ci');
+function ciFragment(id, seen = []) {   // a steps file: "# about", "# verified: …", "# timeout: …", then step lines; __INCLUDE x__ inlines another fragment
+  const f = path.join(CI_DIR, 'steps', id + '.yml');
+  if (!/^[\w-]+$/.test(id) || !exists(f)) throw new Error(`no CI fragment templates/ci/steps/${id}.yml`);
+  if (seen.includes(id)) throw new Error('CI fragment include loop: ' + [...seen, id].join(' → '));
+  const meta = { id, about: '', verified: 'no', timeout: '30' }, body = [];
+  for (const l of fs.readFileSync(f, 'utf8').replace(/\r/g, '').split('\n')) {
+    const m = !body.length && l.match(/^# (verified|timeout): (.*)$/), inc = l.match(/^__INCLUDE ([\w-]+)__$/);
+    if (m) meta[m[1]] = m[2].trim(); else if (!body.length && l.startsWith('# ')) meta.about = l.slice(2); else if (inc) body.push(...ciFragment(inc[1], [...seen, id]).body); else if (l.trim() || body.length) body.push(l);
+  }
+  while (body.length && !body[body.length - 1].trim()) body.pop();
+  return { ...meta, body };
+}
+function gitTop() {   // the repository root and this project's folder in it: workflows live at the root even in a monorepo
+  // --show-prefix, not a path.relative of two absolute paths: those can differ in spelling (Windows 8.3 names, symlinks)
+  const r = cp.spawnSync('git', ['rev-parse', '--show-prefix'], { cwd: ROOT, encoding: 'utf8' });
+  const dir = r.status === 0 ? r.stdout.trim().replace(/\/$/, '') : '';
+  return { top: dir ? path.resolve(ROOT, ...dir.split('/').map(() => '..')) : ROOT, dir: dir || '.' };
+}
+function ciPlan(proj, targets, osArg) {
+  const all = packs(), { top, dir } = gitTop();
+  const prefix = dir === '.' ? 'gw-' : `gw-${dir.replace(/[^\w.-]+/g, '-')}-`;
+  osArg = osArg || proj.ci_os;
+  return (targets.length ? targets : proj.targets || []).map(t => {
+    const pk = all[t]; if (!pk) throw new Error(`unknown target ${t}. Known targets: ${Object.keys(all).join(', ')}`);
+    const stack = (proj.stacks || {})[t], st = (pk.stacks || {})[stack], out = `.github/workflows/${prefix}${t}.yml`, base = { target: t, stack: stack || null, out, top, dir };
+    if (!stack || !st) return { ...base, why: `set the stack first: gw set stacks.${t}=<${Object.keys(pk.stacks || {}).join('|')}>` };
+    if (!st.ci) return { ...base, why: `no ready-made workflow for ${stack}: ${(pk.sandbox.S3 || {}).how || 'write one from the pack notes'}` };
+    let os = st.ci_os || (pk.ci || {}).os || ['ubuntu-latest'];   // a stack can narrow its pack's runners (KMP web tests run in headless Chrome only)
+    if (osArg) {
+      const want = [...new Set(String(osArg).split(',').map(x => RUNNERS[x.trim().toLowerCase()] || x.trim()))].filter(r => os.includes(r) || !proj.ci_os || osArg !== proj.ci_os);
+      const bad = want.filter(r => !os.includes(r));
+      if (bad.length) throw new Error(`${t} CI runs on ${os.join(', ')}; --os ${bad.join(',')} is not one of them`);
+      if (want.length) os = want;   // a project-wide ci_os only narrows the packs it overlaps
+    }
+    return { ...base, fragment: st.ci, os, services: (pk.ci || {}).services || null, vars: (pk.ci || {}).vars || {} };
+  });
+}
+function gitDefaultBranch(top) {
+  const r = cp.spawnSync('git', ['symbolic-ref', '--short', 'refs/remotes/origin/HEAD'], { cwd: top || ROOT, encoding: 'utf8' });
+  return r.status === 0 && r.stdout.trim() ? r.stdout.trim().replace(/^origin\//, '') : 'main';
+}
+function ciRender(e) {
+  const fr = ciFragment(e.fragment), sub = e.dir && e.dir !== '.';
+  const services = e.services ? fs.readFileSync(path.join(CI_DIR, 'services', e.services + '.yml'), 'utf8').replace(/\r/g, '').trimEnd() : '';
+  const verified = fr.verified === 'no' ? 'Not yet verified by Groundwork on a real runner: watch the first run.' : 'Verified by Groundwork on real runners: ' + fr.verified;
+  let y = fs.readFileSync(path.join(CI_DIR, 'workflow.yml'), 'utf8').replace(/\r/g, '');
+  const vals = { VERSION: VERSION, TARGET: e.target, STACK: e.stack, FRAGMENT: fr.id, VERIFIED: verified, NAME: JSON.stringify(`${sub ? e.dir + ' · ' : ''}${e.target} (${e.stack})`), BRANCH: gitDefaultBranch(e.top),
+    OS: '[' + e.os.join(', ') + ']', TIMEOUT: fr.timeout, SERVICES: services, STEPS: fr.body.join('\n'), DIR: sub ? e.dir + '/' : '', WORKDIR: sub ? JSON.stringify(e.dir) : '.' };
+  y = y.replace(/^__SERVICES__\n/m, services ? '__SERVICES__\n' : '');
+  if (sub) {   // a subfolder project: run there, and only when it (or this workflow) changes
+    const paths = `    paths: ${JSON.stringify([e.dir + '/**', e.out]).replace(/,/g, ', ')}\n`;
+    y = y.replace(/^(    branches: \[.*\]\n)/m, '$1' + paths).replace(/^(  pull_request:\n)/m, '$1' + paths)
+      .replace(/^(    timeout-minutes: .*\n)/m, `$1    defaults:\n      run:\n        working-directory: ${JSON.stringify(e.dir)}\n`);
+  }
+  for (const [k, v] of Object.entries({ ...vals, ...e.vars })) y = y.split(`__${k}__`).join(v);
+  const left = y.match(/__[A-Za-z][\w]*__/);
+  if (left) throw new Error(`CI template for ${e.target}/${e.stack} needs ${left[0]}: add it to packs/${e.target}.json ci.vars`);
+  return { yaml: y, verified: fr.verified, about: Object.entries(e.vars).reduce((a, [k, v]) => a.split(`__${k}__`).join(v), fr.about) };
+}
+function ciCmd(args) {
+  const [sub = 'list', ...rest] = args, osArg = flag(rest, '--os'), force = rest.includes('--force');
+  const names = rest.filter((a, i) => !a.startsWith('--') && rest[i - 1] !== '--os');
+  if (!['list', 'write', 'print'].includes(sub)) throw new Error('usage: gw ci [list] | ci print <target> [--os linux,windows,macos] | ci write [target...] [--os …] [--force]');
+  const plan = ciPlan(project(), names, osArg);
+  if (!plan.length) throw new Error('no targets yet: gw set targets=<…> (and stacks.<target>=<stack>)');
+  if (sub === 'print') { for (const e of plan) { if (!e.fragment) throw new Error(e.why); process.stdout.write(ciRender(e).yaml); } return 0; }
+  for (const e of plan) {
+    if (!e.fragment) { console.log(`- ${e.target}: ${e.why}`); continue; }
+    const r = ciRender(e), file = path.join(e.top, e.out), there = exists(file);
+    const label = `${e.target} (${e.stack}) → ${e.out}${e.dir !== '.' ? ' (repo root, runs in ' + e.dir + ')' : ''} · ${e.os.join(', ')} · ${r.verified === 'no' ? 'not yet verified on a runner' : 'verified ' + r.verified}`;
+    if (sub === 'list') { console.log(`- ${label}${there ? ' · written' : ''}\n    ${r.about}`); continue; }
+    if (there && !force) { console.log(`- ${e.target}: ${e.out} exists, kept (your edits win; --force replaces it)`); continue; }
+    fs.mkdirSync(path.dirname(file), { recursive: true }); fs.writeFileSync(file, r.yaml);
+    fb('ci-write', { target: e.target, stack: e.stack, fragment: e.fragment, verified: r.verified });
+    console.log(`- wrote ${label}`);
+  }
+  if (sub === 'write') console.log('Next: commit, push a branch, then record the run: gw run <target> S3 -- gh run watch <run-id> --exit-status');
+  else console.log('Write them: gw ci write [target...] [--os linux,windows,macos]  (or once for all: gw set ci_os=linux,windows)');
+  return 0;
+}
+const presets = () => { const { _doc, ...p } = { ...readJson(path.join(FW, 'packs', 'presets.json'), {}), ...readJson(P('presets.json'), {}) }; return p; };
+const presetsFor = targets => Object.entries(presets()).filter(([, pr]) => targets.every(t => pr.targets[t]));   // presets that cover every one of these targets
+const dcBlocks = () => readJson(path.join(FW, 'packs', 'devcontainers.json'), {});
+function devcontainerPlan(proj) {
+  const all = packs(), B = dcBlocks(), ids = [], skipped = [];
+  for (const t of proj.targets || []) {
+    const pk = all[t], stack = (proj.stacks || {})[t], st = pk && (pk.stacks || {})[stack];
+    if (!st) { skipped.push(`${t}: set the stack first (gw set stacks.${t}=<…>)`); continue; }
+    if (!(st.devcontainer || []).length) { skipped.push(`${t} (${stack}): develops on the host${pk.host_only ? ' (' + pk.host_only.join('/') + ' only)' : ''}; tests at ${pk.min_release_tier} via ${(pk.sandbox.S3 || {}).how || 'the pack notes'}`); continue; }
+    for (const id of st.devcontainer) { if (!B[id]) throw new Error(`packs/devcontainers.json has no block "${id}" (stack ${t}/${stack})`); if (!ids.includes(id)) ids.push(id); }
+  }
+  const dc = { name: proj.name || path.basename(ROOT), image: (ids.map(i => B[i]).find(b => b.image) || B.base).image, features: {} };
+  const ports = [], ext = [], env = {}, pth = [], post = [], notes = [], checks = [];
+  for (const id of ids) { const b = B[id];
+    for (const [k, v] of Object.entries(b.features || {})) if (!(k in dc.features)) dc.features[k] = v;
+    for (const x of b.ports || []) if (!ports.includes(x)) ports.push(x);
+    for (const x of b.extensions || []) if (!ext.includes(x)) ext.push(x);
+    Object.assign(env, b.env || {}); pth.push(...(b.path || []));
+    if (b.post) post.push(b.post); if (b.note) notes.push(b.note); if (b.check) checks.push({ block: id, cmd: b.check }); }
+  if (!Object.keys(dc.features).length) delete dc.features;
+  if (ports.length) dc.forwardPorts = ports;
+  if (Object.keys(env).length) dc.containerEnv = env;
+  if (pth.length) dc.remoteEnv = { PATH: '${containerEnv:PATH}:' + pth.join(':') };
+  if (post.length) dc.postCreateCommand = post.join(' && ');
+  if (ext.length) dc.customizations = { vscode: { extensions: ext } };
+  return { ids, dc, skipped, notes, checks };
+}
+function devcontainerCmd(args) {
+  const r = devcontainerPlan(project()), file = path.join(ROOT, '.devcontainer', 'devcontainer.json');
+  for (const s of r.skipped) console.log('- ' + s);
+  if (!r.ids.length) { console.log('No container setup for these targets.'); return 0; }
+  const text = `// Generated by Groundwork ${VERSION} (gw devcontainer) from packs/devcontainers.json: ${r.ids.join(', ')}. Edit freely; gw devcontainer keeps it unless --force.\n` + JSON.stringify(r.dc, null, 2) + '\n';
+  if (args.includes('--print')) { process.stdout.write(text); return 0; }
+  if (exists(file) && !args.includes('--force')) { console.log('.devcontainer/devcontainer.json exists, kept (your edits win; --force replaces it)'); return 0; }
+  fs.mkdirSync(path.dirname(file), { recursive: true }); fs.writeFileSync(file, text); fb('devcontainer-write', { blocks: r.ids });
+  console.log(`Wrote .devcontainer/devcontainer.json (${r.dc.image}; ${r.ids.join(', ')})`);
+  for (const n of r.notes) console.log('  note: ' + n);
+  console.log(`Check inside it: ${r.checks.map(c => c.cmd).join(' ; ')}\nOpen it in VS Code (Dev Containers) or: npx --yes @devcontainers/cli@0.89.0 up --workspace-folder .\nTest in it (S1): gw run <target> S1 -- npx --yes @devcontainers/cli@0.89.0 exec --workspace-folder . <test command>`);
+  return 0;
+}
+
 function init(args) {
   const profile = flag(args, '--profile') || 'standard';
   if (!exists(P('project.json'))) writeJson(P('project.json'), { name: path.basename(ROOT), stage: null, tier: null, targets: [], stacks: {}, profile, created_at: now() });
@@ -1245,11 +1378,11 @@ function printDoctor(r) {
 }
 const HELP = 'Groundwork CLI\n  init [--profile minimal|standard|strict] [--no-hooks]   set up this project (state, CLAUDE.md import, hooks) and scan the host\n' +
         '  doctor [--fresh] [--json]   scan host if needed, check tools for the chosen targets\n  plan-install   list install/fix commands for this machine (never runs them)\n' +
-        '  status | next   show phase, blockers, next step\n  set k=v ...   e.g. set tier=standard stage=greenfield targets=web,android stacks.android=flutter\n' +
+        '  status | next   show phase, blockers, next step\n  set k=v ...   e.g. set tier=standard stage=greenfield targets=web,android stacks.android=flutter · set preset=flutter [targets=android,web]\n' +
         '  phase <id> <status> ["note"]   record phase progress\n  run <target> <tier> -- <cmd>   run tests and write a receipt\n  gate <G1|G2> [--approve "..."]   check / approve a gate\n' +
         '  task [list] | add <id> "<title>" --verify "<cmd>" [--req REQ-001] | start | done | block <id> "<reason>" | reopen   tasks; done only when the check passes\n' +
         '  docs   documents this tier and features need · trace   REQ → task → test · lint   requirement quality · metrics [--json]   delivery outcomes\n' +
-        '  review add <SEV> "<finding>" --verdict <fixed|waived|deferred|open> | review done --reviewer <fresh-context|human|ci> "<summary>"\n  reuse [<git-url> [name]]   shallow-clone an open-source repo to read or reuse, with its license and credit row (phases/REUSE.md)\n  scan   print raw host profile\n  note <category> "text"   silent framework feedback (agent)\n  feedback   write .groundwork/FEEDBACK.md\n  skills [--for \"task\"] [--all] | skills fetch|install [--global]|decline <id> | skills verdict <id> <APPROVE|CAUTION|REJECT> \"reason\"   context-aware skill recommendations\n  skills refresh [--force] | skills trending on|off | skills refresh-day <mon..sun|off>   weekly trending discovery\n  maintain   upgrade/audit/dead-code/rollback/observability commands for this project\n  eol   runtime end-of-life check (endoflife.date)\n  version | verify [--clean] | upgrade <new-groundwork-folder> [--force] | migrate';
+        '  review add <SEV> "<finding>" --verdict <fixed|waived|deferred|open> | review done --reviewer <fresh-context|human|ci> "<summary>"\n  ci [list] | ci print <target> | ci write [target...] [--os linux,windows,macos] [--force]   GitHub Actions workflow per target from its pack (S3)\n  devcontainer [--print] [--force]   .devcontainer/devcontainer.json for the target stacks (S1)\n  reuse [<git-url> [name]]   shallow-clone an open-source repo to read or reuse, with its license and credit row (phases/REUSE.md)\n  scan   print raw host profile\n  note <category> "text"   silent framework feedback (agent)\n  feedback   write .groundwork/FEEDBACK.md\n  skills [--for \"task\"] [--all] | skills fetch|install [--global]|decline <id> | skills verdict <id> <APPROVE|CAUTION|REJECT> \"reason\"   context-aware skill recommendations\n  skills refresh [--force] | skills trending on|off | skills refresh-day <mon..sun|off>   weekly trending discovery\n  maintain   upgrade/audit/dead-code/rollback/observability commands for this project\n  eol   runtime end-of-life check (endoflife.date)\n  version | verify [--clean] | upgrade <new-groundwork-folder> [--force] | migrate';
 function main(argv) {
   const [cmd, ...args] = argv;
   if (['task', 'review'].includes(cmd) && args.some(a => ['--help', '-h'].includes(a) || a === 'help' && a === args[0])) args.splice(0, args.length, 'help');   // gw task add --help too
@@ -1290,15 +1423,28 @@ function main(argv) {
         else if (k === 'targets' || k === 'services') { p[k] = val.split(',').map(x => x.trim().toLowerCase()).filter(Boolean);
           const bad = k === 'targets' ? p[k].filter(t => !packs()[t]) : [];
           if (bad.length) throw new Error(`unknown target ${bad.join(',')}. Known targets: ${Object.keys(packs()).join(', ')} (an HTTP API or service is "backend"; a library or CLI is "cli")`); }
+        else if (k === 'preset') { if (!presets()[val]) throw new Error(`unknown preset ${val}. Presets: ${Object.keys(presets()).join(', ')}`); p.preset = val; }
         else if (k.startsWith('stacks.')) { p.stacks = p.stacks || {}; p.stacks[k.slice(7)] = val; }
         else if (k.startsWith('docs.')) { p.docs = p.docs || {}; p.docs[k.slice(5)] = val; }
         else if (k === 'tier' && !TIER_PHASES[val]) throw new Error('tier must be one of ' + Object.keys(TIER_PHASES));
         else if (k === 'dev_method' && val && !DEV_METHODS.includes(val)) throw new Error('dev_method must be one of ' + DEV_METHODS.join(', ') + ' (empty to clear)');
         else p[k] = val; }
+      if (args.some(a => a.startsWith('preset='))) {   // one stack for several targets; targets= in the same command takes a subset
+        const pr = presets()[p.preset].targets, want = args.some(a => a.startsWith('targets=')) ? p.targets : Object.keys(pr), bad = want.filter(t => !pr[t]);
+        if (bad.length) throw new Error(`preset ${p.preset} covers ${Object.keys(pr).join(', ')}; not ${bad.join(', ')}`);
+        p.targets = want; p.stacks = { ...(p.stacks || {}), ...Object.fromEntries(want.map(t => [t, pr[t]])) };
+      }
       if (p.dev_method === '') delete p.dev_method_reason;
       for (const k of Object.keys(p)) if (p[k] === '') delete p[k];   // `gw set dev_method=` clears an override
       writeJson(P('project.json'), p);
       console.log(`Set ${args.map(a => a.split('=')[0]).join(', ')} · stage ${p.stage || '?'} · tier ${p.tier || '?'} · features ${(p.features || []).join(',') || '-'} · targets ${(p.targets || []).join(',') || '-'}`);
+      const open = (p.targets || []).filter(t => (packs()[t] || {}).ui && !(p.stacks || {})[t]);   // UI targets with no stack yet
+      if (args.some(a => a.startsWith('targets=')) && !args.some(a => a.startsWith('preset=')) && open.length >= 2) {
+        const fit = presetsFor(open);
+        console.log(fit.length ? `One codebase for ${open.join(', ')}: ${fit.map(([id, pr]) => `${id} (${pr.title.split(':')[0]})`).join(', ')}. Use one with gw set preset=<id> targets=${open.join(',')}, or set a stack per target (stacks.<target>=…).`
+          : `No single preset covers ${open.join(', ')}: set a stack per target (stacks.<target>=…), or share code between the ones a preset covers.`);
+        console.log('Either way each target gets its own CI workflow and tests on its platform (gw ci write).');
+      }
       if (oldTier && p.tier !== oldTier) {   // re-tiering is a decision: keep why
         fs.appendFileSync(P('decisions.jsonl'), JSON.stringify({ at: now(), kind: 're-tier', from: oldTier, to: p.tier, reason: p.tier_reason || null }) + '\n');
         if (!args.some(a => a.startsWith('tier_reason='))) console.log(`Tier changed ${oldTier} → ${p.tier}. Record why: gw set tier_reason="<what changed>"`);
@@ -1333,7 +1479,7 @@ function main(argv) {
       }
       if (!pk) throw new Error(`unknown target "${target}". Known targets: ${Object.keys(all).join(', ')}${(project().targets || []).length ? ' · this project: ' + project().targets.join(', ') : ' · this project has none: use "host" for S0 runs'} (an HTTP API is "backend")`);
       // a receipt must not claim more isolation than the command shows (a host npm test is not S1)
-      const SIGN = { S1: /\b(docker|podman|nerdctl|devcontainer|compose|container)\b/i, S2: /\b(emulator|adb|simctl|xcrun|avd|qemu|virsh|vagrant|multipass|lima|utm|parallels|hyper-?v|vm)\b/i, S3: /\b(gh (run|workflow)|act|ci|gitlab|circleci|buildkite|jenkins|azure|codemagic|bitrise)\b/i };
+      const SIGN = { S1: /\b(docker|podman|nerdctl|devcontainers?|compose|container)\b/i, S2: /\b(emulator|adb|simctl|xcrun|avd|qemu|virsh|vagrant|multipass|lima|utm|parallels|hyper-?v|vm)\b/i, S3: /\b(gh (run|workflow)|act|ci|gitlab|circleci|buildkite|jenkins|azure|codemagic|bitrise)\b/i };
       if (SIGN[tier] && !SIGN[tier].test(command) && !args.slice(0, i).includes('--wrapper'))
         throw new Error(`${tier} means ${{ S1: 'a container', S2: 'an emulator or VM', S3: 'CI or a remote device' }[tier]}, but this command shows none, so it would run on the host. Use the pack's ${tier} command (gw doctor, docs/test-strategy.md), record it as S0, or, if the script itself starts the ${tier} environment, add --wrapper before --`);
       const c = projectCaps(hostProfile(), project());
@@ -1388,6 +1534,8 @@ function main(argv) {
     }
     case 'hook': return hook(args[0]);
     case 'reuse': return reuseCmd(args);
+    case 'ci': return ciCmd(args);
+    case 'devcontainer': return devcontainerCmd(args);
     case 'research': {   // gw research "<reference>" ["goal"]: record a reference app and start its research doc
       const [name, goal] = args;
       if (!name) { const p = project(); console.log((p.references || []).length ? 'References: ' + p.references.join(', ') : 'No references yet: gw research "<app or site>" "<goal>"'); return 0; }
@@ -1538,7 +1686,7 @@ function main(argv) {
   }
 }
 
-module.exports = { requiredDocs, prdRequirements, FEATURES, TEST_FILE, figmaCheck, figmaConfigured, mockupIntent, referenceIntent, docPath, changedPhases, chosenMethod, projectCaps, installGate, parseTrending, classifySkill, fitsProject, isLookalike, curatedCatalog, recommendSkills, suggestSkills, maintainInfo, catalog, buildManifest, integrity, changelogSince, capabilities, devMethod, feasibility, kvmCheck, dockerCheck, toolCheck, vcmp, installCommand, licenseClass, detectLicense };
+module.exports = { requiredDocs, prdRequirements, FEATURES, TEST_FILE, figmaCheck, figmaConfigured, mockupIntent, referenceIntent, docPath, changedPhases, chosenMethod, projectCaps, installGate, parseTrending, classifySkill, fitsProject, isLookalike, curatedCatalog, recommendSkills, suggestSkills, maintainInfo, catalog, buildManifest, integrity, changelogSince, capabilities, devMethod, feasibility, kvmCheck, dockerCheck, toolCheck, vcmp, installCommand, licenseClass, detectLicense, ciFragment, ciPlan, ciRender, devcontainerPlan, presets, presetsFor, packs };
 if (require.main === module) {
   try { const r = main(process.argv.slice(2)); if (r && r.then) r.then(c => { process.exitCode = c; }, e => { fb('error', { cmd: process.argv[2] || '', message: e.message }); console.error('gw: ' + e.message); process.exitCode = 1; }); else process.exitCode = r; } catch (e) { fb('error', { cmd: process.argv[2] || '', message: e.message }); console.error('gw: ' + e.message); process.exitCode = 1; }
 }

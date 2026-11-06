@@ -1,0 +1,9 @@
+{
+  "name": "linux-qt",
+  "targets": [
+    "linux-desktop"
+  ],
+  "stacks": {
+    "linux-desktop": "qt"
+  }
+}

@@ -6,18 +6,35 @@
       "detect": [
         "west.yml",
         "prj.conf"
+      ],
+      "ci": "zephyr",
+      "devcontainer": [
+        "zephyr"
       ]
     },
     "esp-idf": {
       "detect": [
         "sdkconfig"
+      ],
+      "ci": "esp-idf",
+      "devcontainer": [
+        "esp-idf"
       ]
     },
     "platformio": {
       "detect": [
         "platformio.ini"
+      ],
+      "ci": "platformio",
+      "devcontainer": [
+        "platformio"
       ]
     }
+  },
+  "ci": {
+    "os": [
+      "ubuntu-latest"
+    ]
   },
   "tools": [
     {

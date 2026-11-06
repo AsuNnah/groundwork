@@ -1,0 +1,10 @@
+{
+  "name": "cli-rust",
+  "targets": [
+    "cli"
+  ],
+  "stacks": {
+    "cli": "rust"
+  },
+  "ci_os": "linux,windows"
+}

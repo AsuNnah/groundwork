@@ -1,5 +1,48 @@
 # Changelog
 
+## 0.6.0 (2026-11-06)
+The roadmap items after 0.5.0: CI workflows per pack, devcontainers per stack, more packs and presets, and a scanner verified on Windows.
+
+### Added
+- **CI workflows** (`gw ci [list] | print <target> | write [target...] [--os …] [--force]`):
+  - one GitHub Actions workflow per target, assembled from `templates/ci/` (a skeleton, one step fragment per stack, service blocks);
+  - actions pinned to commit SHAs; the pack chooses the runners (Android emulator with KVM on Ubuntu, macOS for Apple targets, Windows), services (Postgres + Redis for backend) and stack variables;
+  - `--os` or `gw set ci_os=linux,windows` narrows the runners; an OS the pack can't use is an error;
+  - monorepos: when the project is a subfolder of the git repo, the workflow goes to the git root with `paths` filters and `working-directory`;
+  - every fragment carries a `# verified:` line, so an untested template says so in the generated file. 19 of 29 are verified by the sample projects on GitHub runners: Android emulator, Kotlin Multiplatform (Android, web, desktop on Linux and Windows), Node, Python, Go, Rust, Java, .NET, Flutter web, Qt, GTK, Godot, ESP-IDF and PlatformIO. The macOS and iOS fragments, Unity, React Native, .NET MAUI, Tauri, Zephyr and Flutter on Android/iOS are not verified yet;
+  - existing workflows are kept unless `--force`; `gw doctor` warns when a target's release tier runs on CI and its workflow is missing;
+  - P8 uses it for S3.
+- **Devcontainers** (`gw devcontainer [--print] [--force]`): `.devcontainer/devcontainer.json` merged from the blocks the project's stacks need (`packs/devcontainers.json`: image, features, ports, extensions, env, post-create commands), plus the notes and checks to run inside it. P3 uses it.
+- **New packs:** `game` (Godot, Unity, Unreal) and `browser-extension` (Manifest V3, WXT, Plasmo).
+- **New stacks:** Flutter and React Native for web; .NET MAUI for Android, iOS, macOS and Windows; Flutter for macOS, Windows and Linux desktop.
+- **Cross-platform presets** (`gw set preset=kotlin-multiplatform|flutter|react-native|electron|tauri|dotnet-maui [targets=…]`, `packs/presets.json`): one stack on every target it covers.
+- **A stack chosen by the targets:** when `gw set targets=…` names several UI targets with no stack yet, it lists the presets that cover all of them, for example `kotlin-multiplatform` and `flutter` for Android + iOS + web + desktop. P2 recommends one by the team's language. Either way each target keeps its own workflow and tests on its platform.
+- **Kotlin Multiplatform** (`compose-multiplatform` stack for Android, iOS, web, Windows, macOS and Linux desktop):
+  - Android uses the Android Gradle workflow (emulator included);
+  - web runs the shared tests in headless Chrome (Wasm or JS) and builds the bundle;
+  - desktop runs the JVM tests on each OS and packages with Compose Desktop;
+  - iOS runs the simulator tests and builds the Xcode app;
+  - the fragments read the project's Gradle task list, so both wizard layouts (`jvm()` or `jvm("desktop")`, Wasm or JS) work.
+  A stack can now narrow its pack's CI runners (`ci_os`): KMP web runs on Linux only.
+- `godot` in the scanners and `tools.json`.
+- **Framework CI** (in the repo, not shipped): selftest and a scanner + CLI smoke test on Ubuntu and Windows with Node 18 and the current LTS; generated workflows for sample projects in `tests/ci-fixtures/`; a devcontainer build of every block set.
+
+### Changed
+- npm 12+ and pnpm 10+ block dependencies' install scripts unless the project approves them. The Node CI fragment now warns when that happened, and P3 tells the agent to ask the user which to approve.
+- The desktop packs (Linux, Windows, macOS) have a policy for Electron projects: Electron below 43 does not install on Node 26. Its extract-zip step stops part-way and exits 0, so the binary is missing. Use Electron 43+, or pin Node 24. Found by the Electron fixture on GitHub runners.
+
+### Fixed
+- `gw ci` gave a project at the repo root a garbage workflow name and folder when the project path and git's path were spelled differently: Windows 8.3 short names (`RUNNER~1`), or symlinks. It now asks git for the project's folder.
+- On Windows with Node 26, `gw doctor` triggered a Node deprecation warning (DEP0190: args passed to a shell spawn), which also broke `gw doctor --json` when stderr was captured with stdout.
+- `scan.ps1 -Out` wrote the profile with a UTF-8 BOM on Windows PowerShell 5.1, and the CLI couldn't parse it. It now writes UTF-8 without a BOM, and the CLI strips a BOM when it reads JSON.
+- `scan.ps1 -Out` with a relative path now resolves against the current directory.
+- `scan.ps1` on Windows 11 (checked on a Windows 11 26H2 VM as SYSTEM and as a non-elevated user):
+  - the inbox `wsl.exe` stub counted as WSL, and asking it hung for about 60 s when WSL isn't installed and the machine is offline. Only the installed WSL (`Program Files\WSL`) is asked now;
+  - the WindowsApps `python.exe` stub (exit 9009) counted as Python. A tool with no version and a failing exit is not reported now;
+  - PowerShell 5.1 aliases (`curl`, `wget`) no longer count as tools.
+- `gw init` / `gw doctor` crashed (`Cannot read properties of null`) when the scan output was not a readable profile. They now say so and show how to run the scanner by hand.
+- The selftest assumed `node` and `git` on PATH, and failed on a fresh Windows machine with a portable Node. Task checks now use the Node running the selftest. Without git, the two tests that run git are skipped, and the summary says so. It also no longer leaves its temp projects behind (about 20 folders per run).
+
 ## 0.5.0 (2026-11-05)
 Verification-first: a task is done when its check passes, not when the agent says so. Based on the workflow research (spec-driven, harness and verification patterns) and real headless agent runs before and after.
 

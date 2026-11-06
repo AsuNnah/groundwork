@@ -1,0 +1,19 @@
+# Node.js setup, included by other fragments: version from .nvmrc / .node-version (default LTS), install from the lockfile
+# verified: 2026-11-06 ubuntu-latest, windows-latest
+      - id: node
+        shell: bash
+        run: echo "version=$(cat .nvmrc 2>/dev/null || cat .node-version 2>/dev/null || echo 'lts/*')" >> "$GITHUB_OUTPUT"
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: ${{ steps.node.outputs.version }}
+      - name: Install dependencies
+        shell: bash
+        run: |
+          log="$RUNNER_TEMP/gw-install.log"
+          if [ -f pnpm-lock.yaml ]; then npm install -g pnpm && pnpm install --frozen-lockfile 2>&1 | tee "$log"
+          elif [ -f yarn.lock ]; then npm install -g yarn && yarn install --frozen-lockfile 2>&1 | tee "$log"
+          elif [ -f bun.lock ] || [ -f bun.lockb ]; then npm install -g bun && bun install --frozen-lockfile 2>&1 | tee "$log"
+          elif [ -f package-lock.json ]; then npm ci 2>&1 | tee "$log"
+          else echo "::error::no lockfile: commit package-lock.json (or your package manager's lockfile) so CI installs the versions you tested"; exit 1; fi
+          # npm 12+ and pnpm 10+ skip dependencies' install scripts (Electron's binary download, native builds) unless the project approves them
+          if grep -qE "install scripts blocked|Ignored build scripts" "$log"; then echo "::warning::dependency install scripts were blocked: approve the ones you need (npm install-scripts approve <pkg>, or pnpm approve-builds) and commit package.json"; fi

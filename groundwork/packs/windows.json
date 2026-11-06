@@ -7,20 +7,66 @@
       "detect": [
         "*.csproj"
       ],
-      "scaffold": "dotnet new wpf -n {name}  (or winui template)"
+      "scaffold": "dotnet new wpf -n {name}  (or winui template)",
+      "ci": "dotnet"
     },
     "electron": {
       "detect": [
         "electron-builder.*",
         "forge.config.*"
       ],
-      "scaffold": "npx create-electron-app@latest {name}"
+      "scaffold": "npx create-electron-app@latest {name}",
+      "ci": "node",
+      "devcontainer": [
+        "node"
+      ]
     },
     "tauri": {
       "detect": [
         "src-tauri/tauri.conf.json"
       ],
-      "scaffold": "npm create tauri-app@latest"
+      "scaffold": "npm create tauri-app@latest",
+      "ci": "tauri",
+      "devcontainer": [
+        "node",
+        "rust",
+        "tauri-deps"
+      ]
+    },
+    "flutter": {
+      "detect": [
+        "pubspec.yaml",
+        "windows/"
+      ],
+      "scaffold": "flutter create --platforms windows {name}",
+      "ci": "flutter"
+    },
+    "dotnet-maui": {
+      "detect": [
+        "*.csproj with <UseMaui>true</UseMaui>"
+      ],
+      "scaffold": "dotnet new maui -n {name}",
+      "ci": "dotnet-maui"
+    },
+    "compose-multiplatform": {
+      "detect": [
+        "**/src/commonMain/kotlin/**"
+      ],
+      "scaffold": "Kotlin Multiplatform wizard at https://kmp.jetbrains.com (tick the targets you need, Compose Multiplatform for shared UI), or File > New > Kotlin Multiplatform in IntelliJ IDEA / Android Studio",
+      "ci": "kmp-desktop",
+      "devcontainer": [
+        "java"
+      ]
+    }
+  },
+  "ci": {
+    "os": [
+      "windows-latest"
+    ],
+    "vars": {
+      "flutter_build": "windows",
+      "maui_tfm": "windows",
+      "maui_workload": "maui-windows"
     }
   },
   "tools": [
@@ -52,6 +98,26 @@
       },
       {
         "id": "rustc",
+        "severity": "block"
+      }
+    ],
+    "flutter": [
+      {
+        "id": "flutter",
+        "severity": "block"
+      }
+    ],
+    "dotnet-maui": [
+      {
+        "id": "dotnet",
+        "min": "9",
+        "severity": "block"
+      }
+    ],
+    "compose-multiplatform": [
+      {
+        "id": "java",
+        "min": "17",
         "severity": "block"
       }
     ]
@@ -118,11 +184,42 @@
       "override": "[patch] in Cargo.toml",
       "eol": null,
       "ecosystem": "rust"
+    },
+    "flutter": {
+      "outdated": "flutter pub outdated",
+      "upgrade_safe": "flutter pub upgrade",
+      "upgrade_major": "flutter pub upgrade --major-versions && dart fix --apply",
+      "audit": "osv-scanner scan -r .  (reads pubspec.lock)",
+      "deadcode": "dart analyze (unused_* lints)",
+      "why_installed": "flutter pub deps",
+      "override": "dependency_overrides in pubspec.yaml",
+      "eol": null,
+      "sdk_upgrade": "flutter upgrade && dart fix --apply",
+      "ecosystem": "flutter",
+      "codemod": "dart fix --apply"
+    },
+    "dotnet-maui": {
+      "outdated": "dotnet list package --outdated",
+      "upgrade_safe": "dotnet outdated -u:Auto -vl:Minor (dotnet-outdated-tool)",
+      "upgrade_major": "one major at a time; .NET Upgrade Assistant for framework moves",
+      "audit": "dotnet list package --vulnerable --include-transitive",
+      "deadcode": "IDE0051/IDE0052 analyzers",
+      "why_installed": "dotnet nuget why <project> <package>",
+      "override": "Directory.Packages.props (central package management)",
+      "eol": "dotnet",
+      "ecosystem": "nuget"
     }
   },
   "rollback": "Roll forward: publish the previous code as a higher version (MSIX/App Installer, Velopack/Squirrel feed, winget PR). Keep beta and stable channels.",
   "observe": [
     "crash reporting (Sentry minidumps)",
     "update channel adoption"
+  ],
+  "policies": [
+    {
+      "what": "Electron projects: Electron below 43 does not install on Node 26. Its extract-zip step stops part-way and exits 0, so the binary is missing (\"Electron failed to install correctly\"). Use Electron 43+, or pin Node 24 in .nvmrc until you upgrade.",
+      "check": "https://releases.electronjs.org/",
+      "as_of": "2026-11-06"
+    }
   ]
 }

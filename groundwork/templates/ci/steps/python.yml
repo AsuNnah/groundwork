@@ -1,0 +1,20 @@
+# Python: uv when uv.lock exists, otherwise pip (requirements*.txt, pyproject.toml); then pytest. .python-version sets the version (default 3.13)
+# verified: 2026-11-06 ubuntu-latest, windows-latest
+# timeout: 20
+      - id: py
+        shell: bash
+        run: echo "version=$(cat .python-version 2>/dev/null || echo 3.13)" >> "$GITHUB_OUTPUT"
+      - uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
+        with:
+          python-version: ${{ steps.py.outputs.version }}
+      - uses: astral-sh/setup-uv@07a047e608db84b3d8c06cd9a7c7dcc9c355c18e # v10.3.2
+        if: hashFiles('__DIR__uv.lock') != ''
+      - name: Install and test
+        shell: bash
+        run: |
+          if [ -f uv.lock ]; then uv sync --locked --all-extras && uv run pytest; exit; fi
+          python -m pip install --upgrade pip
+          if [ -f requirements-dev.txt ]; then pip install -r requirements-dev.txt; elif [ -f requirements.txt ]; then pip install -r requirements.txt; fi
+          if [ -f pyproject.toml ]; then pip install -e ".[dev,test]" || echo "::warning::not installable as a package; testing from the source tree"; fi
+          pip install pytest
+          python -m pytest

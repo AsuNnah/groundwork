@@ -1,0 +1,41 @@
+# Builds every distinct dev container that `gw devcontainer` can generate and runs its toolchain checks inside it.
+name: devcontainers
+on:
+  push:
+    branches: [main]
+    paths: ['groundwork/packs/**', 'groundwork/bin/gw.js', 'scripts/devcontainer-matrix.js', '.github/workflows/devcontainers.yml']
+  pull_request:
+    paths: ['groundwork/packs/**', 'groundwork/bin/gw.js', 'scripts/devcontainer-matrix.js', '.github/workflows/devcontainers.yml']
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  plan:
+    runs-on: ubuntu-latest
+    outputs:
+      sets: ${{ steps.p.outputs.sets }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - id: p
+        run: echo "sets=$(node scripts/devcontainer-matrix.js)" >> "$GITHUB_OUTPUT"
+  build:
+    needs: plan
+    strategy:
+      fail-fast: false
+      matrix:
+        set: ${{ fromJSON(needs.plan.outputs.sets) }}
+    name: ${{ matrix.set.id }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - run: node scripts/devcontainer-matrix.js "${{ matrix.set.id }}" "$RUNNER_TEMP/proj"
+      - run: npx --yes @devcontainers/cli@0.89.0 up --workspace-folder "$RUNNER_TEMP/proj"
+      - run: npx --yes @devcontainers/cli@0.89.0 exec --workspace-folder "$RUNNER_TEMP/proj" bash .gw-check.sh   # no login shell: gw devcontainer tells users to exec commands directly

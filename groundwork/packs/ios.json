@@ -11,21 +11,48 @@
         "*.xcodeproj",
         "Package.swift"
       ],
-      "scaffold": "Xcode > New Project > App"
+      "scaffold": "Xcode > New Project > App",
+      "ci": "xcode"
     },
     "flutter": {
       "detect": [
         "pubspec.yaml",
         "ios/"
       ],
-      "scaffold": "flutter create {name}"
+      "scaffold": "flutter create {name}",
+      "ci": "ios-flutter"
     },
     "react-native": {
       "detect": [
         "app.json",
         "ios/"
       ],
-      "scaffold": "npx create-expo-app@latest {name}"
+      "scaffold": "npx create-expo-app@latest {name}",
+      "ci": "ios-react-native"
+    },
+    "dotnet-maui": {
+      "detect": [
+        "*.csproj with <UseMaui>true</UseMaui>"
+      ],
+      "scaffold": "dotnet new maui -n {name}",
+      "ci": "dotnet-maui"
+    },
+    "compose-multiplatform": {
+      "detect": [
+        "**/src/commonMain/kotlin/**"
+      ],
+      "scaffold": "Kotlin Multiplatform wizard at https://kmp.jetbrains.com (tick the targets you need, Compose Multiplatform for shared UI), or File > New > Kotlin Multiplatform in IntelliJ IDEA / Android Studio",
+      "ci": "kmp-ios"
+    }
+  },
+  "ci": {
+    "os": [
+      "macos-latest"
+    ],
+    "vars": {
+      "xcode_destination": "ios-simulator",
+      "maui_tfm": "ios",
+      "maui_workload": "maui-ios"
     }
   },
   "tools": [
@@ -98,6 +125,17 @@
       "eol": "nodejs",
       "ecosystem": "node",
       "codemod": "npx expo install --fix (Expo) / React Native Upgrade Helper"
+    },
+    "dotnet-maui": {
+      "outdated": "dotnet list package --outdated",
+      "upgrade_safe": "dotnet outdated -u:Auto -vl:Minor (dotnet-outdated-tool)",
+      "upgrade_major": "one major at a time; .NET Upgrade Assistant for framework moves",
+      "audit": "dotnet list package --vulnerable --include-transitive",
+      "deadcode": "IDE0051/IDE0052 analyzers",
+      "why_installed": "dotnet nuget why <project> <package>",
+      "override": "Directory.Packages.props (central package management)",
+      "eol": "dotnet",
+      "ecosystem": "nuget"
     }
   },
   "rollback": "No rollback. Pause phased release (up to 30 days total), ship a fixed build, request expedited review. Remote config / feature flags are the kill switch.",
@@ -111,5 +149,21 @@
       "check": "https://developer.apple.com/news/upcoming-requirements/",
       "as_of": "2026-11-04"
     }
-  ]
+  ],
+  "stack_tools": {
+    "dotnet-maui": [
+      {
+        "id": "dotnet",
+        "min": "9",
+        "severity": "block"
+      }
+    ],
+    "compose-multiplatform": [
+      {
+        "id": "java",
+        "min": "17",
+        "severity": "block"
+      }
+    ]
+  }
 }

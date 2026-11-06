@@ -1,0 +1,11 @@
+# Unity: edit-mode and play-mode tests with GameCI. Needs repository secrets UNITY_LICENSE, UNITY_EMAIL and UNITY_PASSWORD (https://game.ci/docs/github/activation)
+# verified: no
+# timeout: 60
+      - uses: game-ci/unity-test-runner@fa6ced25861c16ef56187828c43f76d00df43a23 # v4.3.2
+        env:
+          UNITY_LICENSE: ${{ secrets.UNITY_LICENSE }}
+          UNITY_EMAIL: ${{ secrets.UNITY_EMAIL }}
+          UNITY_PASSWORD: ${{ secrets.UNITY_PASSWORD }}
+        with:
+          projectPath: __WORKDIR__
+          testMode: all

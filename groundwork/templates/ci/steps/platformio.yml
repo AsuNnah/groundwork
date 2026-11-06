@@ -1,0 +1,12 @@
+# PlatformIO: host unit tests (env:native) when defined, then build every environment
+# verified: 2026-11-06 ubuntu-latest
+# timeout: 30
+      - uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
+        with:
+          python-version: '3.13'
+      - run: pip install platformio
+      - name: Host unit tests
+        shell: bash
+        run: |
+          if grep -q '^\[env:native\]' platformio.ini; then pio test -e native; else echo "no [env:native]: host tests skipped"; fi
+      - run: pio run

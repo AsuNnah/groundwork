@@ -9,6 +9,10 @@ feedback/processed/*
 !feedback/processed/.gitkeep
 # groundwork state if the framework is ever run inside this repo
 .groundwork/
+# except the CI fixtures' project settings
+!tests/ci-fixtures/*/.groundwork/
+tests/ci-fixtures/*/.groundwork/*
+!tests/ci-fixtures/*/.groundwork/project.json
 .claude/settings.local.json
 node_modules/
 .DS_Store

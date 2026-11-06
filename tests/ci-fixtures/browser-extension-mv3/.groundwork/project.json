@@ -1,0 +1,9 @@
+{
+  "name": "browser-extension-mv3",
+  "targets": [
+    "browser-extension"
+  ],
+  "stacks": {
+    "browser-extension": "mv3"
+  }
+}

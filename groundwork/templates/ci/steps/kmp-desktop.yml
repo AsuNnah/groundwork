@@ -1,0 +1,11 @@
+# Kotlin Multiplatform desktop (JVM): the desktop tests on each OS runner (under Xvfb on Linux, for Compose UI tests), then a native package when Compose Desktop is set up
+# verified: 2026-11-06 ubuntu-latest, windows-latest
+# timeout: 40
+__INCLUDE kmp-setup__
+      - name: Desktop tests and package
+        shell: bash
+        run: |
+          has() { grep -qE "^([^ :]+:)*$1( |$)" "$RUNNER_TEMP/gw-tasks.txt"; }
+          if has desktopTest; then t=desktopTest; elif has jvmTest; then t=jvmTest; else echo "::error::no desktop target: add jvm() to the kotlin { } block"; exit 1; fi
+          if [ "$RUNNER_OS" = Linux ]; then xvfb-run -a ./gradlew "$t"; else ./gradlew "$t"; fi
+          if has packageDistributionForCurrentOS; then ./gradlew packageDistributionForCurrentOS; fi

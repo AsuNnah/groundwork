@@ -1,0 +1,11 @@
+# Kotlin Multiplatform web: the shared tests in headless Chrome (Wasm, or JS when there is no Wasm target), then the production bundle
+# verified: 2026-11-06 ubuntu-latest
+# timeout: 40
+__INCLUDE kmp-setup__
+      - name: Web tests and bundle
+        shell: bash
+        run: |
+          has() { grep -qE "^([^ :]+:)*$1( |$)" "$RUNNER_TEMP/gw-tasks.txt"; }
+          if has wasmJsBrowserTest; then p=wasmJs; elif has jsBrowserTest; then p=js; else echo "::error::no web target: add wasmJs { browser() } or js { browser() } to the kotlin { } block"; exit 1; fi
+          ./gradlew "${p}BrowserTest"
+          if has "${p}BrowserDistribution"; then ./gradlew "${p}BrowserDistribution"; else ./gradlew "${p}BrowserProductionWebpack"; fi

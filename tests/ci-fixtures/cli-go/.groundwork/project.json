@@ -1,0 +1,10 @@
+{
+  "name": "cli-go",
+  "targets": [
+    "cli"
+  ],
+  "stacks": {
+    "cli": "go"
+  },
+  "ci_os": "linux,windows"
+}

@@ -1,0 +1,9 @@
+{
+  "name": "game-godot",
+  "targets": [
+    "game"
+  ],
+  "stacks": {
+    "game": "godot"
+  }
+}

@@ -1,14 +1,15 @@
 # Groundwork H0 host scan for native Windows (PowerShell 5.1+). Same JSON shape as scan.sh.
-# UNTESTED: written on a Linux host without PowerShell. Verify on a real Windows machine (roadmap M0a).
 # Usage: powershell -ExecutionPolicy Bypass -File scan.ps1 [-Out path]
 param([string]$Out)
 $ErrorActionPreference = 'SilentlyContinue'
 
-function Has($c) { [bool](Get-Command $c -ErrorAction SilentlyContinue) }
+# programs and scripts only: in PowerShell 5.1, curl and wget are aliases of Invoke-WebRequest and would count as tools
+function Has($c) { [bool](Get-Command $c -CommandType Application, ExternalScript -ErrorAction SilentlyContinue) }
 function Ver($cmd, $arg) {
   if (-not (Has $cmd)) { return $null }
   $o = (& $cmd $arg 2>&1 | Out-String)
-  if ($o -match '\d+(\.\d+)+') { $Matches[0] } else { 'present' }
+  # no version and a failing exit: a stub such as the WindowsApps python.exe (exit 9009, "Python was not found")
+  if ($o -match '\d+(\.\d+)+') { $Matches[0] } elseif ($LASTEXITCODE -eq 0) { 'present' } else { $null }
 }
 
 $os   = Get-CimInstance Win32_OperatingSystem
@@ -31,7 +32,11 @@ if ($isAdmin) {
   $hyperv = (Get-WindowsOptionalFeature -Online -FeatureName Microsoft-Hyper-V-All).State -eq 'Enabled'
   $wsl2   = (Get-WindowsOptionalFeature -Online -FeatureName VirtualMachinePlatform).State -eq 'Enabled'
 }
-if (-not $wsl2 -and (Has 'wsl')) { $wsl2 = ((wsl --status 2>&1 | Out-String) -match '2') }
+# System32\wsl.exe is an inbox stub on Windows 11: without WSL installed it hangs about 60 s offline, and it prints UTF-16 unless WSL_UTF8 is set.
+# Installed WSL (the package from wsl --install) lives in Program Files\WSL, so only that one is asked.
+$env:WSL_UTF8 = '1'; $wslVer = $null; $wslExe = Join-Path $env:ProgramFiles 'WSL\wsl.exe'
+if (Test-Path $wslExe) { $o = (& $wslExe --version 2>&1 | Out-String); if ($LASTEXITCODE -eq 0 -and $o -match '\d+(\.\d+)+') { $wslVer = $Matches[0] } }
+if (-not $wsl2 -and $wslVer) { $wsl2 = ((& $wslExe --status 2>&1 | Out-String) -match '\b2\b') }
 
 $dockerOk = $false; $dockerWhy = ''
 if (Has 'docker') { docker info *> $null; $dockerOk = ($LASTEXITCODE -eq 0); if (-not $dockerOk) { $dockerWhy = 'daemon not running (start Docker Desktop)' } }
@@ -42,11 +47,12 @@ $tools = [ordered]@{}
 $probe = [ordered]@{ git='--version'; gh='--version'; node='--version'; npm='--version'; pnpm='--version'; bun='--version';
   python='--version'; uv='--version'; java='-version'; gradle='--version'; adb='version'; flutter='--version'; dart='--version';
   dotnet='--version'; go='version'; rustc='--version'; cargo='--version'; cmake='--version'; 'qemu-system-x86_64'='--version';
-  playwright='--version'; appium='--version'; maestro='--version'; mise='--version'; claude='--version'; skillspector='--version'; rea='--version'; scrapling='--version'; wsl='--version' }
+  playwright='--version'; appium='--version'; maestro='--version'; mise='--version'; claude='--version'; skillspector='--version'; rea='--version'; scrapling='--version'; godot='--version' }
 foreach ($k in $probe.Keys) { $v = Ver $k $probe[$k]; if ($v) { $tools[$k -replace '-system-x86_64',''] = $v } }
+if ($wslVer) { $tools['wsl'] = $wslVer }
 if (Test-Path "${env:ProgramFiles(x86)}\Microsoft Visual Studio\Installer\vswhere.exe") { $tools['msvc'] = 'present' }
 
-$profile = [ordered]@{
+$hp = [ordered]@{
   schema = 'groundwork.host-profile.v1'; scanned_at = (Get-Date).ToUniversalTime().ToString('yyyy-MM-ddTHH:mm:ssZ'); scanner = 'scan.ps1'
   os = [ordered]@{ family='windows'; distro=$os.Caption; version=$os.Version; kernel=$os.BuildNumber; wsl=$false; wsl2_available=$wsl2; package_managers=($pkg -join ' ') }
   cpu = [ordered]@{ arch=$arch; model=$cpu.Name.Trim(); threads=[int]$cpu.NumberOfLogicalProcessors; virt_extensions=[bool]$cpu.VirtualizationFirmwareEnabled }
@@ -60,6 +66,8 @@ $profile = [ordered]@{
   user = [ordered]@{ admin_noninteractive=$isAdmin; proxy=[bool]($env:HTTPS_PROXY) }
   toolchains = $tools
 }
-$json = $profile | ConvertTo-Json -Depth 5
-if ($Out) { New-Item -ItemType Directory -Force (Split-Path $Out) | Out-Null; Set-Content -Path $Out -Value $json -Encoding UTF8; Write-Host "wrote $Out" }
+$json = $hp | ConvertTo-Json -Depth 5
+if ($Out) {   # UTF-8 without a BOM: Set-Content -Encoding UTF8 in PowerShell 5.1 adds one, and JSON parsers reject it
+  $Out = $ExecutionContext.SessionState.Path.GetUnresolvedProviderPathFromPSPath($Out)
+  New-Item -ItemType Directory -Force (Split-Path $Out) | Out-Null; [IO.File]::WriteAllText($Out, $json, [Text.UTF8Encoding]::new($false)); Write-Host "wrote $Out" }
 else { $json }

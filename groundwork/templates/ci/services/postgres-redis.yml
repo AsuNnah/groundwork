@@ -1,0 +1,18 @@
+# Service containers for integration tests (Linux runners only). Match the major versions to production.
+    services:
+      postgres:
+        image: postgres:17
+        env:
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: app
+        ports: ['5432:5432']
+        options: >-
+          --health-cmd "pg_isready -U postgres" --health-interval 5s --health-timeout 5s --health-retries 12
+      redis:
+        image: redis:7
+        ports: ['6379:6379']
+        options: >-
+          --health-cmd "redis-cli ping" --health-interval 5s --health-timeout 5s --health-retries 12
+    env:
+      DATABASE_URL: postgres://postgres:postgres@localhost:5432/app
+      REDIS_URL: redis://localhost:6379

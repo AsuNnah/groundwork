@@ -1,0 +1,10 @@
+{
+  "name": "web-vite-react",
+  "targets": [
+    "web"
+  ],
+  "stacks": {
+    "web": "vite-react"
+  },
+  "ci_os": "linux,windows"
+}

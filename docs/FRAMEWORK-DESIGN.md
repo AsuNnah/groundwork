@@ -517,3 +517,14 @@ Keep the old skill working (thin wrapper calling `gw`) until the core is stable.
 
 ## 16. Reuse proven open source (0.5.0, 2026-11-06)
 Code that already runs elsewhere is cheaper than code written and debugged from zero. An always-on rule sends the agent to `phases/REUSE.md` before it writes a non-trivial part: search the package registry, then GitHub; check the license; prefer a dependency (approved in P4), then vendoring, then adapting. `gw reuse <git-url>` makes a shallow, git-ignored clone, reads the license (LICENSE text, then package metadata), and prints the credit row. The clone is untrusted input under the P4 rules. `docs/credits.md` is the record, and GATE 2 checks each row: a source, a license, and a license class that allows reuse (GPL/AGPL only in a GPL project; none, SSPL, BUSL and similar only with the user's recorded decision).
+
+## 17. CI, devcontainers and cross-platform stacks (0.6.0, 2026-11-06)
+- **Tests and CI follow the targets, not the codebase.** `gw ci write` writes one GitHub Actions workflow per target. It is assembled from `templates/ci/` (a skeleton, one step fragment per stack, service blocks), and the pack chooses the runners. A shared Kotlin Multiplatform codebase still gets an Android emulator job, a headless-Chrome web job, and desktop jobs on Linux and Windows. Each fragment says whether it has been verified on a real runner. The sample projects in `tests/ci-fixtures/` are what verify them.
+- **Devcontainers:** `gw devcontainer` merges the blocks that the project's stacks need (`packs/devcontainers.json`). The repo CI builds every block set.
+- **A stack chosen by the targets:** when several UI targets have no stack yet, `gw set targets=…` lists the presets that cover all of them (`packs/presets.json`). P2 recommends one by the team's language, or a stack per target.
+- **Milestone status:**
+  - M0a is done on Linux and Windows 11 (a VM, as SYSTEM and as a non-elevated user). macOS and WSL are still open.
+  - M3 is done: an Android Compose sample and a KMP sample run their on-device tests on the CI emulator.
+  - M4 is done for Electron on Linux and Windows, Qt, GTK, .NET on Windows, and KMP desktop. Tauri is not verified yet.
+  - M5 is open (it needs a macOS runner).
+  - M6 has been started: CLI, embedded (ESP-IDF, PlatformIO), game (Godot) and browser-extension samples are verified on CI.
