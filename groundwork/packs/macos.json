@@ -156,6 +156,11 @@
       "what": "Mac App Store uploads follow Apple's yearly Xcode/SDK minimum (Xcode 26 since 2026-04-28).",
       "check": "https://developer.apple.com/news/upcoming-requirements/",
       "as_of": "2026-11-04"
+    },
+    {
+      "what": "Electron projects: Electron below 43 does not install on Node 26. Its extract-zip step stops part-way and exits 0, so the binary is missing (\"Electron failed to install correctly\"). Use Electron 43+, or pin Node 24 in .nvmrc until you upgrade.",
+      "check": "https://releases.electronjs.org/",
+      "as_of": "2026-11-06"
     }
   ],
   "stack_tools": {

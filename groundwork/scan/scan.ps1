@@ -1,14 +1,15 @@
 # Groundwork H0 host scan for native Windows (PowerShell 5.1+). Same JSON shape as scan.sh.
-# UNTESTED: written on a Linux host without PowerShell. Verify on a real Windows machine (roadmap M0a).
 # Usage: powershell -ExecutionPolicy Bypass -File scan.ps1 [-Out path]
 param([string]$Out)
 $ErrorActionPreference = 'SilentlyContinue'
 
-function Has($c) { [bool](Get-Command $c -ErrorAction SilentlyContinue) }
+# -CommandType: a miss would otherwise search every module for a cmdlet of that name (about 1.5 s per tool)
+function Has($c) { [bool](Get-Command $c -CommandType Application, ExternalScript -ErrorAction SilentlyContinue) }
 function Ver($cmd, $arg) {
   if (-not (Has $cmd)) { return $null }
   $o = (& $cmd $arg 2>&1 | Out-String)
-  if ($o -match '\d+(\.\d+)+') { $Matches[0] } else { 'present' }
+  # no version and a failing exit: a stub such as the WindowsApps python.exe (exit 9009, "Python was not found")
+  if ($o -match '\d+(\.\d+)+') { $Matches[0] } elseif ($LASTEXITCODE -eq 0) { 'present' } else { $null }
 }
 
 $os   = Get-CimInstance Win32_OperatingSystem
@@ -31,7 +32,10 @@ if ($isAdmin) {
   $hyperv = (Get-WindowsOptionalFeature -Online -FeatureName Microsoft-Hyper-V-All).State -eq 'Enabled'
   $wsl2   = (Get-WindowsOptionalFeature -Online -FeatureName VirtualMachinePlatform).State -eq 'Enabled'
 }
-if (-not $wsl2 -and (Has 'wsl')) { $wsl2 = ((wsl --status 2>&1 | Out-String) -match '2') }
+# wsl.exe is an inbox stub on Windows 11: it exists without WSL installed, and prints UTF-16 unless WSL_UTF8 is set
+$env:WSL_UTF8 = '1'; $wslVer = $null
+if (Has 'wsl') { $o = (wsl --version 2>&1 | Out-String); if ($LASTEXITCODE -eq 0 -and $o -match '\d+(\.\d+)+') { $wslVer = $Matches[0] } }
+if (-not $wsl2 -and $wslVer) { $wsl2 = ((wsl --status 2>&1 | Out-String) -match '\b2\b') }
 
 $dockerOk = $false; $dockerWhy = ''
 if (Has 'docker') { docker info *> $null; $dockerOk = ($LASTEXITCODE -eq 0); if (-not $dockerOk) { $dockerWhy = 'daemon not running (start Docker Desktop)' } }
@@ -42,8 +46,9 @@ $tools = [ordered]@{}
 $probe = [ordered]@{ git='--version'; gh='--version'; node='--version'; npm='--version'; pnpm='--version'; bun='--version';
   python='--version'; uv='--version'; java='-version'; gradle='--version'; adb='version'; flutter='--version'; dart='--version';
   dotnet='--version'; go='version'; rustc='--version'; cargo='--version'; cmake='--version'; 'qemu-system-x86_64'='--version';
-  playwright='--version'; appium='--version'; maestro='--version'; mise='--version'; claude='--version'; skillspector='--version'; rea='--version'; scrapling='--version'; godot='--version'; wsl='--version' }
+  playwright='--version'; appium='--version'; maestro='--version'; mise='--version'; claude='--version'; skillspector='--version'; rea='--version'; scrapling='--version'; godot='--version' }
 foreach ($k in $probe.Keys) { $v = Ver $k $probe[$k]; if ($v) { $tools[$k -replace '-system-x86_64',''] = $v } }
+if ($wslVer) { $tools['wsl'] = $wslVer }
 if (Test-Path "${env:ProgramFiles(x86)}\Microsoft Visual Studio\Installer\vswhere.exe") { $tools['msvc'] = 'present' }
 
 $hp = [ordered]@{

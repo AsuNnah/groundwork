@@ -230,7 +230,7 @@ const proj = (files = {}) => {
 };
 t('task done only when its check passes; WIP 1; circuit breaker at 3', () => {
   const p = proj();
-  assert.equal(p.gw(['task', 'add', 'T01', 'fix', '--verify', 'node -e "process.exit(1)"']).code, 0);
+  const a1 = p.gw(['task', 'add', 'T01', 'fix', '--verify', 'node -e "process.exit(1)"']); assert.equal(a1.code, 0, a1.out);
   assert.equal(p.gw(['task', 'add', 'T02', 'other', '--verify', 'node -e "0"']).code, 0);
   assert.equal(p.gw(['task', 'start', 'T01']).code, 0);
   assert.equal(p.gw(['task', 'start', 'T02']).code, 1, 'second task refused while T01 is in progress');
@@ -474,6 +474,10 @@ t('host profiles with a UTF-8 BOM (Windows PowerShell 5.1) still parse', () => {
   h.os.family = fam; h.cpu.arch = { x64: 'x86_64', arm64: 'arm64' }[process.arch] || process.arch;
   const p = proj({ '.groundwork/host-profile.json': '﻿' + JSON.stringify(h) });
   assert.match(p.gw(['doctor', '--json']).out, /BOM-TEST-GPU/, 'profile read, not re-scanned');
-  assert.match(require('fs').readFileSync(require('path').join(__dirname, '..', 'scan', 'scan.ps1'), 'utf8'), /UTF8Encoding\]::new\(\$false\)/, 'scan.ps1 writes UTF-8 without a BOM');
+  const ps = require('fs').readFileSync(require('path').join(__dirname, '..', 'scan', 'scan.ps1'), 'utf8');   // found on a Windows 11 VM; no PowerShell here
+  assert.match(ps, /UTF8Encoding\]::new\(\$false\)/, 'scan.ps1 writes UTF-8 without a BOM');
+  assert.match(ps, /Get-Command \$c -CommandType Application/, 'Has() skips the module search (seconds per missing tool)');
+  assert.match(ps, /elseif \(\$LASTEXITCODE -eq 0\) \{ 'present' \} else \{ \$null \}/, 'a failing stub (WindowsApps python.exe) is not a tool');
+  assert.match(ps, /WSL_UTF8/); assert.ok(!/wsl='--version'/.test(ps), 'the inbox wsl.exe stub is not WSL');
 });
 console.log(`\n${n} checks passed`);

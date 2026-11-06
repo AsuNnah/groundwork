@@ -95,7 +95,9 @@ function scan() {
     ? cp.spawnSync('powershell', ['-NoProfile', '-ExecutionPolicy', 'Bypass', '-File', path.join(FW, 'scan', 'scan.ps1'), '-Out', out], { encoding: 'utf8' })
     : cp.spawnSync('sh', [path.join(FW, 'scan', 'scan.sh'), '--out', out], { encoding: 'utf8', cwd: ROOT });
   if (r.status !== 0 || !exists(out)) throw new Error('host scan failed: ' + (r.stderr || r.error));
-  return readJson(out);
+  const h = readJson(out);
+  if (!h || !h.os) throw new Error(`host scan wrote ${path.relative(ROOT, out)}, but it is not a readable host profile. Run the scanner by hand to see why: ${process.platform === 'win32' ? 'powershell -ExecutionPolicy Bypass -File groundwork\\scan\\scan.ps1' : 'sh groundwork/scan/scan.sh'}`);
+  return h;
 }
 function hostChanged(h) {
   if (!h) return true;

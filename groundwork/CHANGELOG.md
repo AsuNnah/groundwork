@@ -20,7 +20,8 @@ The roadmap items after 0.5.0: CI workflows per pack, devcontainers per stack, m
 - **Framework CI** (in the repo, not shipped): selftest and a scanner + CLI smoke test on Ubuntu and Windows with Node 18 and the current LTS; generated workflows for sample projects in `tests/ci-fixtures/`; a devcontainer build of every block set.
 
 ### Changed
-- npm 12+ and pnpm 10+ block dependencies' install scripts unless the project approves them. The Node CI fragment now warns when that happened, and P3 tells the agent to ask the user which to approve. Found when the Electron fixture installed without its binary.
+- npm 12+ and pnpm 10+ block dependencies' install scripts unless the project approves them. The Node CI fragment now warns when that happened, and P3 tells the agent to ask the user which to approve.
+- The desktop packs (Linux, Windows, macOS) have a policy for Electron projects: Electron below 43 does not install on Node 26. Its extract-zip step stops part-way and exits 0, so the binary is missing. Use Electron 43+, or pin Node 24. Found by the Electron fixture on GitHub runners.
 
 ### Fixed
 - `gw ci` gave a project at the repo root a garbage workflow name and folder when the project path and git's path were spelled differently: Windows 8.3 short names (`RUNNER~1`), or symlinks. It now asks git for the project's folder.
