@@ -23,7 +23,7 @@ The rest of this page is the same thing by hand.
 Pick one:
 ```sh
 # a specific release (recommended): use the latest tag from https://github.com/AsuNnah/groundwork/releases
-git clone --depth 1 --branch v0.4.0 https://github.com/AsuNnah/groundwork /tmp/groundwork-new
+git clone --depth 1 --branch v0.5.0 https://github.com/AsuNnah/groundwork /tmp/groundwork-new
 
 # or the latest main
 git clone --depth 1 https://github.com/AsuNnah/groundwork /tmp/groundwork-new
