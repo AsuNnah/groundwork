@@ -39,6 +39,16 @@ jobs:
         run: |
           P=$(grep -l '<UseMaui>true</UseMaui>' $(git ls-files '*.csproj') | head -1)
           F=$(grep -oE 'net[0-9.]+-android[0-9.]*' "$P" | head -1)
+          if [ "$RUNNER_OS" = macOS ]; then
+            # .NET for iOS and Mac Catalyst accepts one Xcode major.minor; runner images keep several side by side
+            X=$(dotnet msbuild "$P" -getProperty:RecommendedXcodeVersion -p:TargetFramework="$F" | cut -d. -f1,2)
+            A=$(ls -d "/Applications/Xcode_$X.app" /Applications/Xcode_"$X".[0-9]*.app 2>/dev/null | head -1)
+            if [ -z "$A" ]; then
+              echo "::error::This .NET workload needs Xcode $X, and this runner has $(ls -d /Applications/Xcode_*.app | sed 's#.*/Xcode_##; s#\.app##' | tr '\n' ' '). Pin a workload set for an installed Xcode in global.json (sdk.workloadVersion), or run on a runner image with Xcode $X."
+              exit 1
+            fi
+            sudo xcode-select -s "$A/Contents/Developer"
+          fi
           # a MAUI project lists every platform, and restore needs every listed platform's workload (NETSDK1178): the iOS ones
           # can't exist on Linux, so build this runner's platform alone
           dotnet build "$P" -f "$F" -p:TargetFrameworks="$F" -c Debug

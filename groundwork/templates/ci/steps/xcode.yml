@@ -1,5 +1,5 @@
 # Xcode project, workspace or Swift package: build and test the first scheme (or $SCHEME) on __xcode_destination__
-# verified: no
+# verified: 2026-11-06 macos-latest
 # timeout: 45
       - name: Build and test
         shell: bash

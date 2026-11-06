@@ -413,12 +413,13 @@ t('every pack stack with a CI fragment renders a pinned, complete workflow', () 
 });
 t('gw ci writes one workflow per target, narrows runners, keeps edits', () => {
   const p = proj();
-  p.gw(['set', 'targets=web,android,ios', 'stacks.web=vite-react', 'stacks.android=kotlin-compose']);
+  p.gw(['set', 'targets=web,android,ios,backend', 'stacks.web=vite-react', 'stacks.android=kotlin-compose', 'stacks.backend=dotnet']);
   const l = p.gw(['ci']).out;
   assert.match(l, /web \(vite-react\) → \.github\/workflows\/gw-web\.yml · ubuntu-latest, windows-latest, macos-latest/); assert.match(l, /ios: set the stack first/);
-  // a runner the fragment wasn't proven on is named (the node fragment is verified on Linux and Windows; update this when macOS is)
-  assert.match(l, /web \(vite-react\).* · verified \d{4}-\d\d-\d\d ubuntu-latest, windows-latest \(not yet on macos-latest\)/);
-  assert.match(p.gw(['ci', 'print', 'web']).out, /Verified by Groundwork on real runners: .*\. Not yet on macos-latest: watch the first run there\./);
+  // a runner the fragment wasn't proven on is named (the dotnet fragment is verified on Windows only; update this when a Linux run proves it)
+  assert.match(l, /backend \(dotnet\).* · verified \d{4}-\d\d-\d\d windows-latest \(not yet on ubuntu-latest\)/);
+  assert.match(p.gw(['ci', 'print', 'backend']).out, /Verified by Groundwork on real runners: .*\. Not yet on ubuntu-latest: watch the first run there\./);
+  assert.doesNotMatch(l, /web \(vite-react\).*not yet on/, 'every web runner is proven');
   assert.doesNotMatch(l, /android \(kotlin-compose\).*not yet on/, 'every android runner is proven');
   assert.equal(p.gw(['ci', 'write', 'web', '--os', 'linux,windows']).code, 0);
   const y = require('fs').readFileSync(require('path').join(p.d, '.github/workflows/gw-web.yml'), 'utf8');

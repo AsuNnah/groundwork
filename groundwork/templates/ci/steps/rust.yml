@@ -1,5 +1,5 @@
 # Rust: toolchain from rust-toolchain.toml (or stable), fmt check, clippy, test
-# verified: 2026-11-06 ubuntu-latest, windows-latest
+# verified: 2026-11-06 ubuntu-latest, windows-latest, macos-latest
 # timeout: 30
       - name: Toolchain
         shell: bash

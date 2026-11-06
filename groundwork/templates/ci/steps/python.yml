@@ -1,5 +1,5 @@
 # Python: uv when uv.lock exists, otherwise pip (requirements*.txt, pyproject.toml); then pytest. .python-version sets the version (default 3.13)
-# verified: 2026-11-06 ubuntu-latest, windows-latest
+# verified: 2026-11-06 ubuntu-latest, windows-latest, macos-latest
 # timeout: 20
       - id: py
         shell: bash
