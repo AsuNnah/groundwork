@@ -1,5 +1,5 @@
 # Unity: edit-mode and play-mode tests with GameCI. Needs repository secrets UNITY_EMAIL, UNITY_PASSWORD and UNITY_LICENSE (Personal) or UNITY_SERIAL (Pro): https://game.ci/docs/github/activation
-# verified: no
+# verified: 2026-11-06 ubuntu-latest
 # timeout: 60
       - name: Check the Unity licence secrets
         shell: bash

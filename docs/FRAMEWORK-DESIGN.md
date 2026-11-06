@@ -527,4 +527,4 @@ Code that already runs elsewhere is cheaper than code written and debugged from 
   - M3 is done: Android Compose, KMP, React Native (Expo) and Flutter samples run their on-device tests on the CI emulator. .NET MAUI builds for Android.
   - M4 is done for Electron and Tauri on Linux, Windows and macOS, Qt, GTK, .NET and .NET MAUI on Windows, KMP desktop on all three, Flutter and .NET MAUI (Mac Catalyst) on macOS.
   - M5 is done on GitHub's macOS runners: SwiftUI, Flutter, React Native, KMP and .NET MAUI samples build for the iOS Simulator, and the SwiftUI and Flutter ones run their tests on it.
-  - M6 has been started: CLI, embedded (ESP-IDF, PlatformIO, Zephyr), game (Godot) and browser-extension samples are verified on CI. Unity needs a licence in the repository secrets.
+  - M6 has been started: CLI, embedded (ESP-IDF, PlatformIO, Zephyr), game (Godot, Unity) and browser-extension samples are verified on CI.

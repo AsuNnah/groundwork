@@ -1,7 +1,7 @@
 {
   "version": "0.6.1",
   "files": {
-    "CHANGELOG.md": "c4337114935fb2db",
+    "CHANGELOG.md": "d813f832ba4dfacc",
     "GROUNDWORK.md": "e49c22b64a55114c",
     "README.md": "9786e185f43f1e92",
     "VERSION": "87b241b275c59169",
@@ -80,7 +80,7 @@
     "templates/ci/steps/qt-cmake.yml": "fe1b8a8d38704940",
     "templates/ci/steps/rust.yml": "fc50602aecfff7de",
     "templates/ci/steps/tauri.yml": "2acc16237d1486e9",
-    "templates/ci/steps/unity.yml": "59da316da3870607",
+    "templates/ci/steps/unity.yml": "b73e601e6a399b71",
     "templates/ci/steps/xcode.yml": "3f37b2b88f1c8504",
     "templates/ci/steps/zephyr.yml": "7db6c1867b01d584",
     "templates/ci/workflow.yml": "1b9132949748ad9e",

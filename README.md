@@ -198,7 +198,7 @@ Rules: keep `groundwork/` dependency-free (POSIX sh, PowerShell 5.1+, Node stdli
 - [x] More packs and presets: game engines, browser extensions, cross-platform presets with a stack chosen by the targets (0.6.0)
 - [x] Verified macOS runs on GitHub's macOS runners: `scan.sh`, the CLI, and the macOS and iOS CI fragments (0.6.1)
 - [x] Verify the remaining CI fragments on real projects: React Native, .NET MAUI, Tauri, Zephyr, Flutter on Android (0.6.1)
-- [ ] Verify the Unity fragment (needs a Unity licence in the repository secrets)
+- [x] Verify the Unity fragment (0.6.1)
 - [ ] `scan.sh` on a developer's own Mac, beyond GitHub's runner image
 
 ## Acknowledgements

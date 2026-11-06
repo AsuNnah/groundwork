@@ -16,7 +16,7 @@ The remaining CI fragments run on real projects, macOS and iOS included (on GitH
 - Framework CI runs the selftest and the scanner + CLI smoke test on macOS too.
 
 ### Verified
-28 of 29 fragments are now verified by the sample projects in `tests/ci-fixtures/` on GitHub runners, on every runner their packs use. New in this release:
+All 29 fragments are now verified by the sample projects in `tests/ci-fixtures/` on GitHub runners, on every runner their packs use. New in this release:
 - **iOS and macOS** (`macos-latest`: macOS 26 on Apple silicon):
   - a SwiftUI app's tests on the iOS Simulator and on macOS;
   - Flutter: the integration test on the iOS Simulator, and the macOS app build;
@@ -27,8 +27,9 @@ The remaining CI fragments run on real projects, macOS and iOS included (on GitH
   - `scan.sh` and the CLI.
 - **Android:** Flutter (the integration test on the emulator), React Native with Expo (Jest, release APK, a Maestro flow) and .NET MAUI.
 - **Desktop and embedded:** Tauri 2 on Linux and Windows, .NET MAUI on Windows, and Zephyr (twister on `native_sim`).
+- **Game:** Unity 6 with GameCI and a Personal licence: edit-mode and play-mode tests.
 
-Not yet verified: Unity, which needs a Unity licence in the repository secrets. "macOS" here means GitHub's runner image, not a developer's own Mac.
+"macOS" here means GitHub's runner image, not a developer's own Mac.
 
 ## 0.6.0 (2026-11-06)
 The roadmap items after 0.5.0: CI workflows per pack, devcontainers per stack, more packs and presets, and a scanner verified on Windows.
