@@ -5,6 +5,5 @@
   ],
   "stacks": {
     "web": "vite-react"
-  },
-  "ci_os": "linux,windows"
+  }
 }

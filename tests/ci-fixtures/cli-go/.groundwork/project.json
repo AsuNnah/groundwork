@@ -5,6 +5,5 @@
   ],
   "stacks": {
     "cli": "go"
-  },
-  "ci_os": "linux,windows"
+  }
 }

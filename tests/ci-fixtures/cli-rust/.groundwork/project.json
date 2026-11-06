@@ -5,6 +5,5 @@
   ],
   "stacks": {
     "cli": "rust"
-  },
-  "ci_os": "linux,windows"
+  }
 }

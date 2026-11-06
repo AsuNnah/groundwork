@@ -2,11 +2,13 @@
   "name": "desktop-tauri",
   "targets": [
     "linux-desktop",
-    "windows"
+    "windows",
+    "macos"
   ],
   "stacks": {
     "linux-desktop": "tauri",
-    "windows": "tauri"
+    "windows": "tauri",
+    "macos": "tauri"
   },
   "preset": "tauri"
 }

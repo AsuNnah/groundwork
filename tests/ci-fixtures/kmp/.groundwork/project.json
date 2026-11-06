@@ -5,12 +5,16 @@
     "android",
     "web",
     "linux-desktop",
-    "windows"
+    "windows",
+    "ios",
+    "macos"
   ],
   "stacks": {
     "android": "compose-multiplatform",
     "web": "compose-multiplatform",
     "linux-desktop": "compose-multiplatform",
-    "windows": "compose-multiplatform"
+    "windows": "compose-multiplatform",
+    "ios": "compose-multiplatform",
+    "macos": "compose-multiplatform"
   }
 }

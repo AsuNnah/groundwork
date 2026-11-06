@@ -1,0 +1,11 @@
+{
+  "name": "mobile-react-native",
+  "targets": [
+    "android",
+    "ios"
+  ],
+  "stacks": {
+    "android": "react-native",
+    "ios": "react-native"
+  }
+}

@@ -1,0 +1,13 @@
+{
+  "expo": {
+    "name": "Fixture RN",
+    "slug": "fixture-react-native",
+    "version": "1.0.0",
+    "android": {
+      "package": "fixture.rn"
+    },
+    "ios": {
+      "bundleIdentifier": "fixture.rn"
+    }
+  }
+}
