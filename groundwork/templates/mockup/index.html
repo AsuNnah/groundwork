@@ -1,0 +1,64 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Mockup: APP NAME</title>
+<!-- Groundwork mockup starter: one file, no dependencies. Put the DBD tokens below,
+     one <section class="screen" id="..."> per screen, and link screens with data-go="id". -->
+<style>
+  :root {
+    --color-primary: #3b5bdb; --color-on-primary: #ffffff;
+    --color-surface: #ffffff; --color-bg: #f1f3f5; --color-text: #212529; --color-muted: #868e96;
+    --color-error: #c92a2a; --font-body: system-ui, sans-serif; --space: 8px; --radius: 12px;
+    --frame-w: 390px; --frame-h: 844px;            /* phone; use 1440px × 900px for desktop */
+  }
+  @media (prefers-color-scheme: dark) { :root { --color-surface: #1c1f24; --color-bg: #111316; --color-text: #e9ecef; --color-muted: #adb5bd; } }
+  * { box-sizing: border-box; }
+  body { margin: 0; font-family: var(--font-body); background: var(--color-bg); color: var(--color-text); }
+  nav.index { display: flex; flex-wrap: wrap; gap: var(--space); padding: calc(var(--space) * 2); }
+  nav.index button { font: inherit; padding: 6px 12px; border-radius: 999px; border: 1px solid var(--color-muted); background: none; color: inherit; cursor: pointer; }
+  .frame { width: var(--frame-w); max-width: 100%; height: var(--frame-h); margin: 0 auto 32px; background: var(--color-surface);
+           border-radius: 32px; box-shadow: 0 8px 32px rgb(0 0 0 / .15); overflow: auto; position: relative; }
+  .screen { display: none; padding: calc(var(--space) * 2); min-height: 100%; }
+  .screen.active { display: block; }
+  .screen h1 { font-size: 22px; margin: calc(var(--space) * 2) 0; }
+  .btn { display: block; width: 100%; min-height: 48px; border: 0; border-radius: var(--radius); background: var(--color-primary);
+         color: var(--color-on-primary); font: inherit; font-weight: 600; cursor: pointer; margin-top: calc(var(--space) * 2); }
+  .card { padding: calc(var(--space) * 2); border-radius: var(--radius); background: var(--color-bg); margin-bottom: var(--space); }
+  .muted { color: var(--color-muted); }
+  .state-label { position: absolute; top: 8px; right: 12px; font-size: 11px; color: var(--color-muted); }
+</style>
+</head>
+<body>
+<nav class="index" aria-label="Screens"></nav>
+<div class="frame">
+  <section class="screen" id="home" data-title="Home">
+    <span class="state-label">default</span>
+    <h1>Home</h1>
+    <div class="card">Sample item <div class="muted">Real-looking sample content</div></div>
+    <button class="btn" data-go="detail">Open detail</button>
+    <button class="btn" data-go="home-empty" style="background:none;color:var(--color-primary)">See empty state</button>
+  </section>
+  <section class="screen" id="home-empty" data-title="Home (empty)">
+    <span class="state-label">empty</span>
+    <h1>Home</h1>
+    <p class="muted">Nothing here yet. Explain what to do first.</p>
+    <button class="btn" data-go="home">Add the first item</button>
+  </section>
+  <section class="screen" id="detail" data-title="Detail">
+    <span class="state-label">default</span>
+    <h1>Detail</h1>
+    <p>Content of the selected item.</p>
+    <button class="btn" data-go="home">Back</button>
+  </section>
+</div>
+<script>
+  const screens = [...document.querySelectorAll('.screen')], nav = document.querySelector('nav.index');
+  const show = id => { screens.forEach(s => s.classList.toggle('active', s.id === id)); history.replaceState(null, '', '#' + id); };
+  screens.forEach(s => { const b = document.createElement('button'); b.textContent = s.dataset.title || s.id; b.onclick = () => show(s.id); nav.append(b); });
+  document.addEventListener('click', e => { const go = e.target.closest('[data-go]'); if (go) show(go.dataset.go); });
+  show(location.hash.slice(1) || screens[0].id);
+</script>
+</body>
+</html>

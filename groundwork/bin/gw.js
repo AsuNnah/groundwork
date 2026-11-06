@@ -43,6 +43,7 @@ function fb(kind, data = {}) {
     if (!exists(GW)) return;
     fs.mkdirSync(path.dirname(FB()), { recursive: true });
     fs.appendFileSync(FB(), JSON.stringify({ at: now(), v: VERSION, phase: state().phase || null, kind, ...data }) + '\n');
+    feedbackReport();   // keep FEEDBACK.md current: users copy it whenever they like
   } catch { /* feedback must never break the tool */ }
 }
 const fbEvents = () => { try { return fs.readFileSync(FB(), 'utf8').split('\n').filter(Boolean).map(l => JSON.parse(l)); } catch { return []; } };
@@ -139,6 +140,18 @@ function devMethod(h, c) {
     : { id: 'native-user-scope', why: 'no usable container engine: mise/uv in ~/.local' + (c.admin ? '' : ', no sudo') };
   return { id: 'manual', why: 'unknown host' };
 }
+// the project may override the host's dev method (e.g. a no-Docker rule); non-container methods then don't use local containers
+const DEV_METHODS = ['devcontainer', 'native-user-scope', 'wsl2-first', 'native-winget', 'native-macos', 'light', 'in-place', 'manual'];
+function projectCaps(h, proj) {
+  const c = capabilities(h);
+  if (proj.dev_method && !['devcontainer', 'in-place'].includes(proj.dev_method)) c.containers = false;
+  return c;
+}
+function chosenMethod(h, c, proj) {
+  const auto = devMethod(h, c);
+  if (!proj.dev_method || proj.dev_method === auto.id) return auto;
+  return { id: proj.dev_method, why: 'project override' + (proj.dev_method_reason ? ': ' + proj.dev_method_reason : '') + ` (host default: ${auto.id}); local container tiers off`, override: true, host_default: auto.id };
+}
 // project overrides live in .groundwork/ so the framework folder can be replaced on upgrade
 function packs() {
   const load = dir => !exists(dir) ? {} : Object.fromEntries(fs.readdirSync(dir).filter(f => f.endsWith('.json') && f !== 'tools.json')
@@ -221,17 +234,43 @@ function toolCheck(h, spec, why) {
   if (spec.min && t !== 'present' && vcmp(t, spec.min) < 0) return { ...base, status: 'misconfigured', found: t, required: '>= ' + spec.min, install: true };
   return { ...base, status: 'ok', found: t };
 }
+// Figma MCP for mockups (phases/MOCKUP.md). Files only: config presence, never credentials; the agent verifies the login with whoami.
+const FIGMA_MCP = /mcp\.figma\.com|127\.0\.0\.1:3845/;
+function figmaConfigured(home = os.homedir()) {
+  const hit = f => { try { return FIGMA_MCP.test(fs.readFileSync(f, 'utf8')); } catch { return false; } };
+  if ([path.join(ROOT, '.mcp.json'), path.join(home, '.claude.json'), path.join(home, '.claude', 'settings.json'), path.join(ROOT, '.claude', 'settings.json')].some(hit)) return true;
+  const seek = (d, depth) => { if (depth < 0) return false;   // plugin caches: <plugin>/.mcp.json
+    try { for (const e of fs.readdirSync(d, { withFileTypes: true })) { const f = path.join(d, e.name);
+      if (e.isFile() && e.name === '.mcp.json' && /figma/i.test(d) && hit(f)) return true;
+      if (e.isDirectory() && seek(f, depth - 1)) return true; } } catch { }
+    return false; };
+  return seek(path.join(home, '.claude', 'plugins'), 5);
+}
+function figmaCheck(proj, all = packs()) {
+  if (!(proj.targets || []).some(t => (all[t] || {}).ui)) return null;   // only projects with screens
+  const base = { id: 'figma', name: 'Figma MCP (mockups, phases/MOCKUP.md)', severity: 'warn', why: 'visual mockups you can open, comment on and share' };
+  if (figmaConfigured()) return { ...base, status: 'unknown', found: 'Figma MCP is set up; login not verified',
+    fix: 'agent: call the Figma whoami tool. If it fails, MANUAL ACTION by the user: in Claude Code run /mcp, choose figma, Authenticate, and sign in to Figma in the browser (on a headless machine, open the printed link on any device). No Figma account? Sign up free at figma.com. Steps that need the browser (capture a web app, open the file): MANUAL ACTION: log in to figma.com in the browser and install/turn on the Claude in Chrome extension',
+    impact: 'until verified, mockups fall back to the HTML prototype' };
+  return { ...base, status: 'missing', found: 'no Figma plugin or MCP configured for this agent',
+    fix: 'suggest turning it on. Agent, with approval: claude mcp add --transport http figma https://mcp.figma.com/mcp (or the user installs the Figma plugin via /plugin). Then MANUAL ACTION by the user: restart the agent, run /mcp → figma → Authenticate, and sign in to Figma (free account is enough); for browser steps also log in to figma.com in the browser and install/turn on the Claude in Chrome extension',
+    impact: 'mockups use the no-account HTML prototype instead' };
+}
 function doctor(h, proj) {
-  const c = capabilities(h), checks = [];
+  const c = projectCaps(h, proj), checks = [];
   checks.push(toolCheck(h, { id: 'git', severity: 'block' }, 'version control'));
   checks.push(dockerCheck(h));
   checks.push(kvmCheck(h, c));
   { const ins = inspectorStatus();   // vetting third-party skills before install (phases/P4.md)
-    checks.push(ins.skill && ins.cli ? { id: 'skill-vetting', name: 'Skill vetting (skill-inspector + SkillSpector)', status: 'ok', severity: 'warn' }
-      : { id: ins.skill ? 'skillspector' : 'skill-vetting', name: 'Skill vetting (skill-inspector + SkillSpector)', status: ins.skill ? 'misconfigured' : 'missing', severity: 'warn',
+    checks.push(ins.skill ? { id: 'skill-vetting', name: 'Skill vetting (skill-inspector + SkillSpector)', status: 'ok', severity: ins.cli ? 'warn' : 'info',
+        ...(ins.cli ? {} : { found: 'skill-inspector installed; optional SkillSpector CLI not installed (reviews are semantic-only, see gw plan-install)' }) }
+      : { id: ins.skill ? 'skillspector' : 'skill-vetting', name: 'Skill vetting (skill-inspector + SkillSpector)', status: 'missing', severity: 'warn',
           found: ins.skill ? 'skill-inspector installed, SkillSpector CLI missing' : (ins.cli ? 'SkillSpector CLI only' : 'neither installed'),
           impact: ins.skill ? 'skill reviews are semantic-only (lower confidence)' : 'skill reviews fall back to the manual checklist in phases/P4.md',
           fix: ins.skill ? 'install the SkillSpector CLI (see gw plan-install), with approval' : `install it first, Groundwork uses it to vet every skill: ${INSPECTOR_INSTALL}; optional scanner: see gw plan-install`, install: ins.skill }); }
+  if ((proj.references || []).length) for (const id of ['rea', 'scrapling'])   // reference-app research (phases/RESEARCH.md)
+    checks.push(toolCheck(h, { id, severity: 'warn', why: 'reference-app research: ' + (id === 'rea' ? 'how an app, APK, binary or site works inside' : 'fetch and parse reference web pages') }));
+  { const f = figmaCheck(proj); if (f) checks.push(f); }
   if (!c.ci_remote) checks.push({ id: 'gh', name: 'GitHub CLI (CI sandboxes, S3)', status: 'missing', severity: 'warn', install: true });
   if ((h.memory.total_gb || 0) < 8) checks.push({ id: 'ram', name: 'RAM', status: 'misconfigured', severity: 'warn', found: h.memory.total_gb + ' GB', required: '>= 8 GB for emulators' });
   if ((h.disk.free_gb_workdir || 0) < 20) checks.push({ id: 'disk', name: 'Free disk', status: 'misconfigured', severity: 'warn', found: h.disk.free_gb_workdir + ' GB', required: '>= 20 GB' });
@@ -250,10 +289,10 @@ function doctor(h, proj) {
     if (pk.host_only && !pk.host_only.some(o => c['host_' + o])) checks.push({ id: target + ':host', target, name: pk.title + ' on this host', status: 'unsupported', severity: 'warn', found: pk.non_mac_note || `needs ${pk.host_only.join('/')} host`, fix: pk.sandbox.S3 && pk.sandbox.S3.how });
   }
   const blocking = checks.filter(x => x.severity === 'block' && x.status !== 'ok');
-  const report = { generated_at: now(), host: summary(h), capabilities: c, dev_method: devMethod(h, c), targets: feasibility(c), checks, ready: blocking.length === 0 };
+  const report = { generated_at: now(), host: summary(h), capabilities: c, dev_method: chosenMethod(h, capabilities(h), proj), targets: feasibility(c), checks, ready: blocking.length === 0 };
   writeJson(P('env-report.json'), report);
   const seen = new Set(fbEvents().filter(e => e.kind === 'check').map(e => e.id + e.status));
-  for (const x of checks) if (x.status !== 'ok' && !seen.has(x.id + x.status)) fb('check', { id: x.id, name: x.name, status: x.status, found: x.found || null });
+  for (const x of checks) if (x.status !== 'ok' && x.severity !== 'info' && !seen.has(x.id + x.status)) fb('check', { id: x.id, name: x.name, status: x.status, found: x.found || null });
   return report;
 }
 function summary(h) {
@@ -263,7 +302,7 @@ function installCommand(h, id) {
   const entry = tools()[id]; if (!entry) return null;
   const pms = (h.os.package_managers || '').split(' ').filter(Boolean);
   const have = k => k === 'any' || (h.toolchains || {})[k] || pms.includes(k);
-  const order = ['mise', ...pms, 'uv', 'any'];
+  const order = ['mise', ...pms, 'uv', 'npm', 'any'];
   for (const k of order) if (entry.install[k] && have(k)) return { via: k, cmd: entry.install[k] };
   const k = Object.keys(entry.install)[0];
   return { via: k + ' (not on this host)', cmd: entry.install[k] };
@@ -292,15 +331,25 @@ function statusText() {
   }
   const g = ['G1', 'G2'].map(x => `${x}:${exists(P('gates', x + '.json')) ? 'approved' : 'open'}`).join(' ');
   lines.push(`Gates: ${g} · current phase: ${n.phase || 'done'} → ${n.do}`);
+  if (st.recheck && st.recheck.length) lines.push(`Re-check after the framework upgrade (their instructions changed): ${st.recheck.join(', ')}`);
   return lines.join('\n');
 }
 
 // ---------- gates & runs ----------
 const MARKER = /\[NEEDS CLARIFICATION/;
+const DOC_KEYS = { 'prd.md': 'prd', 'plan.md': 'plan', 'test-strategy.md': 'test_strategy' };
+// where a project doc lives: docs.<key> override > docs_dir > docs/; file names match case-insensitively (PRD.md)
+function docPath(name, proj = project()) {
+  const o = (proj.docs || {})[DOC_KEYS[name] || name.replace(/\.md$/, '')];
+  if (o) return o;
+  const dir = proj.docs_dir || 'docs';
+  try { const hit = fs.readdirSync(path.join(ROOT, dir)).find(f => f.toLowerCase() === name); if (hit) return path.posix.join(dir, hit); } catch { }
+  return path.posix.join(dir, name);
+}
 function gateCheck(id) {
   const proj = project(), problems = [], read = f => { try { return fs.readFileSync(path.join(ROOT, f), 'utf8'); } catch { return null; } };
   if (id === 'G1') {
-    const need = proj.tier === 'small' ? ['docs/plan.md'] : ['docs/prd.md', 'docs/plan.md', 'docs/test-strategy.md'];
+    const need = (proj.tier === 'small' ? ['plan.md'] : ['prd.md', 'plan.md', 'test-strategy.md']).map(n => docPath(n, proj));
     for (const f of need) { const t = read(f); if (t == null) problems.push(`missing ${f}`); else if (MARKER.test(t)) problems.push(`${f} still has [NEEDS CLARIFICATION] markers`); }
     if (!exists(P('tasks.json'))) problems.push('missing .groundwork/tasks.json');
     const env = readJson(P('env-report.json'));
@@ -374,10 +423,16 @@ function migrate({ quiet = false } = {}) {
   p.framework_version = VERSION; writeJson(P('project.json'), p);
   wireGitignore();
   if (exists(path.join(ROOT, '.claude', 'skills', 'groundwork'))) wireSkill();
+  try { if (JSON.stringify((readJson(SETTINGS(), {}) || {}).hooks || {}).includes('gw.js') && JSON.stringify(readJson(SETTINGS(), {}).hooks).includes('hook session-start')) wireHooks(); } catch { }
   fs.appendFileSync(P('decisions.jsonl'), JSON.stringify({ at: now(), kind: 'framework-upgrade', from, to: VERSION }) + '\n');
   fb('upgrade', { from, to: VERSION });
+  // finished phases whose instructions changed since the backed-up old folder (gw upgrade); manual copies have no backup
+  const bdir = P('backups'), old = exists(bdir) ? fs.readdirSync(bdir).filter(d => d.startsWith(`groundwork-${from}-`)).sort().pop() : null;
+  const recheck = old ? changedPhases(readJson(path.join(bdir, old, 'MANIFEST.json'), { files: {} }), readJson(path.join(FW, 'MANIFEST.json'), { files: {} }), state()) : [];
+  if (recheck.length) { const st = state(); st.recheck = [...new Set([...(st.recheck || []), ...recheck])]; writeJson(P('state.json'), st); }
   const notes = changelogSince(from);
-  if (!quiet) console.log(`Groundwork upgraded ${from} → ${VERSION}. State migrated.` + (notes ? '\n' + notes : ''));
+  if (!quiet) console.log(`Groundwork upgraded ${from} → ${VERSION}. State migrated.` + (notes ? '\n' + notes : '') +
+    (recheck.length ? `\nPhases already done whose instructions changed: ${recheck.join(', ')}. Re-read those phase files, apply the new steps, then gw phase <id> done.` : ''));
   return { from, to: VERSION };
 }
 function changelogSince(from, dir = FW) {
@@ -403,6 +458,11 @@ function upgrade(src, args) {
   if (integ.modified.length) console.log('Local edits found in the old folder (kept only in the backup; move them to .groundwork/packs/, .groundwork/tools.json or CLAUDE.md):\n  ' + integ.modified.join('\n  '));
   const r = cp.spawnSync(process.execPath, [path.join(FW, 'bin', 'gw.js'), 'migrate'], { stdio: 'inherit', cwd: ROOT, env: { ...process.env, GW_PROJECT_DIR: ROOT } });
   return r.status || 0;
+}
+// phases marked done (or skipped) whose phase file differs between two manifests
+function changedPhases(oldM, newM, st) {
+  return Object.keys(st.phases || {}).filter(id => ['done', 'skipped'].includes(st.phases[id].status))
+    .filter(id => { const f = `phases/${id}.md`; return oldM.files[f] && newM.files[f] && oldM.files[f] !== newM.files[f]; });
 }
 
 // ---------- skill catalogue ----------
@@ -656,7 +716,9 @@ async function refreshTrending({ quiet = false, force = false } = {}) {
     }
   }
   writeJson(P('skills-discovered.json'), { refreshed_at: now(), from: tr.fetched_at, project_targets: proj.targets || [], skills: picked, skipped });
-  if (skipped.lookalike.length) fb('trending-lookalike', { skills: skipped.lookalike });
+  { const seen = new Set(fbEvents().filter(e => e.kind === 'trending-lookalike').flatMap(e => e.repos || []));
+    const repos = [...new Set(skipped.lookalike.map(x => x.split('/').slice(0, 2).join('/')))].filter(r => !seen.has(r));
+    if (repos.length) fb('trending-lookalike', { repos, skills: skipped.lookalike.length }); }
   log(`Kept ${picked.length} trending skills that fit this project (skipped: ${skipped.lookalike.length} lookalikes of known sources, ${skipped.nofit} not fitting, ${skipped.nodesc} unreadable).`);
   return picked;
 }
@@ -715,6 +777,21 @@ async function eolCheck(h) {
 
 // ---------- init ----------
 const HOOK_CMD = 'node "$CLAUDE_PROJECT_DIR/groundwork/bin/gw.js" hook';
+const SETTINGS = () => path.join(ROOT, '.claude', 'settings.json');
+function wireHooks() {
+  const sf = SETTINGS(), s = readJson(sf, {});
+  if (exists(sf) && !readJson(sf)) throw new Error('.claude/settings.json is not valid JSON; fix it or pass --no-hooks');
+  s.hooks = s.hooks || {};
+  const addHook = (ev, matcher, sub) => {
+    s.hooks[ev] = s.hooks[ev] || [];
+    if (JSON.stringify(s.hooks[ev]).includes('groundwork/bin/gw.js')) return;
+    s.hooks[ev].push({ ...(matcher ? { matcher } : {}), hooks: [{ type: 'command', command: `${HOOK_CMD} ${sub}` }] });
+  };
+  addHook('SessionStart', null, 'session-start');
+  addHook('PreToolUse', 'Edit|Write|MultiEdit|NotebookEdit', 'pre-edit');
+  addHook('UserPromptSubmit', null, 'prompt');   // spots "learn X" / "app like X" and points the agent at RESEARCH.md
+  writeJson(sf, s);
+}
 function init(args) {
   const profile = flag(args, '--profile') || 'standard';
   if (!exists(P('project.json'))) writeJson(P('project.json'), { name: path.basename(ROOT), stage: null, tier: null, targets: [], stacks: {}, profile, created_at: now() });
@@ -726,19 +803,7 @@ function init(args) {
   const ag = path.join(ROOT, 'AGENTS.md');
   if (exists(ag) && !fs.readFileSync(ag, 'utf8').includes('groundwork/GROUNDWORK.md')) fs.appendFileSync(ag, '\n## Groundwork framework\nRead and follow groundwork/GROUNDWORK.md before any development work.\n');
   wireSkill();
-  if (profile !== 'minimal' && !args.includes('--no-hooks')) {
-    const sf = path.join(ROOT, '.claude', 'settings.json'), s = readJson(sf, {});
-    if (exists(sf) && !readJson(sf)) throw new Error('.claude/settings.json is not valid JSON; fix it or pass --no-hooks');
-    s.hooks = s.hooks || {};
-    const addHook = (ev, matcher, sub) => {
-      s.hooks[ev] = s.hooks[ev] || [];
-      if (JSON.stringify(s.hooks[ev]).includes('groundwork/bin/gw.js')) return;
-      s.hooks[ev].push({ ...(matcher ? { matcher } : {}), hooks: [{ type: 'command', command: `${HOOK_CMD} ${sub}` }] });
-    };
-    addHook('SessionStart', null, 'session-start');
-    addHook('PreToolUse', 'Edit|Write|MultiEdit|NotebookEdit', 'pre-edit');
-    writeJson(sf, s);
-  }
+  if (profile !== 'minimal' && !args.includes('--no-hooks')) wireHooks();
   const p = project(); p.profile = profile; p.framework_version = VERSION; writeJson(P('project.json'), p);
   const r = doctor(hostProfile({ fresh: true }), project());
   const st = state(); st.phases.H0 = { status: 'done', at: now() }; writeJson(P('state.json'), st);
@@ -746,6 +811,21 @@ function init(args) {
 }
 
 // ---------- hooks ----------
+// does a user message point at a reference app to learn from? (English + Indonesian; the agent makes the final call)
+const APPWORD = String.raw`(app|apps|application|aplikasi|apk|site|website|web|situs|bot|game|tool|platform|extension|plugin|software|program)`;
+const REF_PATTERNS = [
+  /\b(learn|study|research|analy[sz]e|investigate)\b.{0,30}\b(how|from|what|why|the way|cara)\b|\breverse[- ]?engineer|\b(look into|figure out|find out) how\b/,
+  /\b(pelajari|pelajarin|mempelajari|belajar dari|teliti|meneliti|analisa|analisis|bedah|tiru|niru|meniru|contek|nyontek|cari tahu cara)\b/,
+  /\b(clone of|copy of|inspired by|modell?ed on)\b/,
+  new RegExp(String.raw`\b(like|similar to|same as|based on|seperti|mirip|kayak|kaya|ala|sejenis)\b.{0,40}\b${APPWORD}\b|\b${APPWORD}\b.{0,30}\b(like|similar to|same as|seperti|mirip|kayak|kaya|ala|sejenis)\b`),
+  /\b(for|as) (a )?reference\b|\breferen(ce|si|sinya)\b|\bacuan\b|\bcontoh(nya)? (dari|aplikasi|app|web)\b|\bpatokan\b/,
+];
+function referenceIntent(text) {
+  const raw = String(text || ''), t = raw.toLowerCase().replace(/\b(would|'d|looks|look|seems|seem|feels|feel|sounds) like\b/g, '')
+    .replace(/\b(like|seperti|kayak) (this|that|it|before|so|usual|normal|biasa|sebelumnya|ini|itu)\b/g, '');
+  return REF_PATTERNS.some(r => r.test(t)) || /\b(learn|study|analy[sz]e|research)\s+[A-Z][\w.-]+/.test(raw);   // "learn Splitwise": a proper name
+}
+const mockupIntent = text => /\b(mock-?ups?|wireframes?|prototypes?|figma|ui\s*\/\s*ux|desain (ui|aplikasi|tampilan)|tampilan(nya)? (aplikasi|app|layar)|lihat tampilan|visual(isasi)? (aplikasi|app)|see (how it|what it) looks?|how (will|would) (it|the app) look)\b/i.test(String(text || ''));
 function hook(sub) {
   const p = project(); if (!exists(P('project.json'))) return 0;   // not initialised: stay silent
   if (sub === 'session-start') {
@@ -760,13 +840,21 @@ function hook(sub) {
     try { const t = recText(recommendSkills(p, nextStep().phase, currentTaskText(), { limit: 3 }).filter(r => r.id !== INSPECTOR_ID), 'Groundwork skill suggestions for the current phase/task:'); if (t) console.log(t); } catch { }   // inspector already has its own banner
     return 0;
   }
+  if (sub === 'prompt') {   // UserPromptSubmit: stdout becomes context for the agent
+    let input = {}; try { input = JSON.parse(fs.readFileSync(0, 'utf8') || '{}'); } catch { }
+    if (referenceIntent(input.prompt)) console.log('Groundwork: this message may point at a reference app or site to learn from. If it does, follow groundwork/phases/RESEARCH.md: ' +
+      'make the goal clear first (ask if it is vague), record it with gw research "<name>" "<goal>", recommend the depth the goal needs, and escalate to the next method if the goal is not met. If it does not, ignore this note.');
+    if (mockupIntent(input.prompt)) console.log('Groundwork: this message asks to see the design. Follow groundwork/phases/MOCKUP.md: offer Figma (if connected) or an HTML clickable prototype, cover every screen state, and record the user\'s approval in docs/dbd.md.');
+    return 0;
+  }
   if (sub === 'pre-edit') {
     // incidents and security fixes are emergencies: their playbooks (OPERATE/SECURITY) replace GATE 1
     if (p.profile === 'minimal' || !['standard', 'large'].includes(p.tier) || ['incident', 'security'].includes(p.stage) || exists(P('gates', 'G1.json'))) return 0;
     let input = {}; try { input = JSON.parse(fs.readFileSync(0, 'utf8') || '{}'); } catch { }
     const f = path.relative(ROOT, (input.tool_input || {}).file_path || (input.tool_input || {}).notebook_path || '').split(path.sep).join('/');
     const allowed = /^(docs\/|\.groundwork\/|groundwork\/|\.claude\/|tests?\/|spec\/|__tests__\/)|(\.md|\.test\.[a-z]+|_test\.[a-z]+|\.spec\.[a-z]+)$|^(CLAUDE|AGENTS|README|CONSTRAINTS)/i;
-    if (!f || f.startsWith('..') || allowed.test(f)) return 0;
+    const docDirs = [p.docs_dir, ...Object.values(p.docs || {}).map(d => path.posix.dirname(d))].filter(d => d && d !== '.');
+    if (!f || f.startsWith('..') || allowed.test(f) || docDirs.some(d => f.startsWith(d.replace(/\/?$/, '/')))) return 0;
     process.stderr.write(`Groundwork: GATE 1 (plan approval) is not approved yet for this ${p.tier} project, so source edits are blocked.\n` +
       `Allowed now: docs/, tests, .groundwork/. Next: finish groundwork/phases/P6.md, then gw gate G1 --approve "<user's words>".\n`);
     fb('edit-blocked', { file: f });
@@ -817,11 +905,17 @@ function main(argv) {
     case 'set': {   // gw set tier=standard stage=greenfield targets=web,android stacks.android=flutter name=x
       const p = project();
       for (const kv of args) { const [k, ...v] = kv.split('='); const val = v.join('=');
-        if (k === 'targets' || k === 'services') p[k] = val.split(',').map(x => x.trim().toLowerCase()).filter(Boolean);
+        if (k === 'references') p[k] = val.split(',').map(x => x.trim()).filter(Boolean);
+        else if (k === 'targets' || k === 'services') p[k] = val.split(',').map(x => x.trim().toLowerCase()).filter(Boolean);
         else if (k.startsWith('stacks.')) { p.stacks = p.stacks || {}; p.stacks[k.slice(7)] = val; }
+        else if (k.startsWith('docs.')) { p.docs = p.docs || {}; p.docs[k.slice(5)] = val; }
         else if (k === 'tier' && !TIER_PHASES[val]) throw new Error('tier must be one of ' + Object.keys(TIER_PHASES));
+        else if (k === 'dev_method' && val && !DEV_METHODS.includes(val)) throw new Error('dev_method must be one of ' + DEV_METHODS.join(', ') + ' (empty to clear)');
         else p[k] = val; }
+      if (p.dev_method === '') delete p.dev_method_reason;
+      for (const k of Object.keys(p)) if (p[k] === '') delete p[k];   // `gw set dev_method=` clears an override
       writeJson(P('project.json'), p); console.log(JSON.stringify(p, null, 2));
+      if (args.some(a => /^dev_method=/.test(a)) && exists(P('host-profile.json'))) { const r = doctor(hostProfile(), p); console.log(`Dev method: ${r.dev_method.id}: ${r.dev_method.why}`); }
       if (args.some(a => /^(stage|targets|services|stacks\.)/.test(a))) { const t = recText(recommendSkills(p, nextStep().phase, currentTaskText(), { limit: 3 }), 'Skills worth adding for this project now:'); if (t) console.log(t); }
       return 0;
     }
@@ -830,7 +924,9 @@ function main(argv) {
       if (!PHASES.some(p => p[0] === id) || !['done', 'skipped', 'in_progress', 'blocked'].includes(status)) throw new Error('usage: gw phase <H0..P11> <done|skipped|in_progress|blocked> ["note"]');
       if (id === 'P6' && status === 'done' && !exists(P('gates', 'G1.json'))) throw new Error('P6 needs GATE 1: gw gate G1 --approve "..."');
       if (id === 'P10' && status === 'done' && !exists(P('gates', 'G2.json'))) throw new Error('P10 needs GATE 2: gw gate G2 --approve "..."');
-      const st = state(); st.phases[id] = { status, at: now(), ...(note ? { note } : {}) }; writeJson(P('state.json'), st);
+      const st = state(); st.phases[id] = { status, at: now(), ...(note ? { note } : {}) };
+      if (st.recheck) { st.recheck = st.recheck.filter(x => x !== id); if (!st.recheck.length) delete st.recheck; }
+      writeJson(P('state.json'), st);
       st.phase = nextStep().phase; writeJson(P('state.json'), st);
       if (status === 'blocked' || status === 'skipped') fb('phase-' + status, { id, note: note || null });
       fbRefresh(); console.log(statusText());
@@ -840,7 +936,7 @@ function main(argv) {
     case 'run': {     // gw run <target> <S0|S1|S2|S3> -- <command...>
       const [target, tier] = args, i = args.indexOf('--');
       if (!target || !/^S[0-3]$/.test(tier || '') || i < 0) throw new Error('usage: gw run <target> <S0..S3> -- <command>');
-      const c = capabilities(hostProfile()), pk = packs()[target];
+      const c = projectCaps(hostProfile(), project()), pk = packs()[target];
       if (!pk) throw new Error('unknown target ' + target);
       if ((tier === 'S1' || tier === 'S2') && !tierAvailable(pk, tier, c))
         throw new Error(`${tier} is not available for ${target} on this host (see gw doctor). Fix the warning, or run on CI and record it as S3.`);
@@ -860,6 +956,21 @@ function main(argv) {
       console.log(`${id} approved and recorded.`); return 0;
     }
     case 'hook': return hook(args[0]);
+    case 'research': {   // gw research "<reference>" ["goal"]: record a reference app and start its research doc
+      const [name, goal] = args;
+      if (!name) { const p = project(); console.log((p.references || []).length ? 'References: ' + p.references.join(', ') : 'No references yet: gw research "<app or site>" "<goal>"'); return 0; }
+      const p = project(); p.references = [...new Set([...(p.references || []), name])]; writeJson(P('project.json'), p);
+      const slug = name.toLowerCase().replace(/^https?:\/\//, '').replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '').slice(0, 60) || 'reference';
+      const doc = path.posix.join(p.docs_dir || 'docs', 'research', slug + '.md'), abs = path.join(ROOT, doc);
+      if (!exists(abs)) { fs.mkdirSync(path.dirname(abs), { recursive: true });
+        fs.writeFileSync(abs, fs.readFileSync(path.join(FW, 'templates', 'reference-research.md'), 'utf8').replace('<app / site / bot>', name)
+          .replace('- Why: <what we want to learn, linked to REQ IDs if known>', '- Goal: ' + (goal || '[NEEDS CLARIFICATION: what must we learn, what for, and how do we know we are done?]'))); }
+      console.log(`Reference recorded: ${name} · research doc: ${doc}` + (goal ? '' : '\nGoal not given: ask the user what they want to learn and why, then fill the Goal line.') +
+        '\nNext: groundwork/phases/RESEARCH.md: pick the depth the goal needs, tell the user why, and escalate if the goal is not met.');
+      const r = doctor(hostProfile(), p); const miss = r.checks.filter(c => ['rea', 'scrapling'].includes(c.id) && c.status !== 'ok');
+      if (miss.length) console.log('Research tools not installed yet: ' + miss.map(c => c.id).join(', ') + ' (suggest only if the chosen depth needs them; gw plan-install shows the commands)');
+      return 0;
+    }
     case 'note': {    // silent agent self-observation: gw note <category> "text"
       const [category, ...rest] = args, text = rest.join(' ').trim();
       if (!NOTE_KINDS.includes(category) || !text) throw new Error('usage: gw note <' + NOTE_KINDS.join('|') + '> "text"');
@@ -998,7 +1109,7 @@ function main(argv) {
   }
 }
 
-module.exports = { installGate, parseTrending, classifySkill, fitsProject, isLookalike, curatedCatalog, recommendSkills, suggestSkills, maintainInfo, catalog, buildManifest, integrity, changelogSince, capabilities, devMethod, feasibility, kvmCheck, dockerCheck, toolCheck, vcmp, installCommand };
+module.exports = { figmaCheck, figmaConfigured, mockupIntent, referenceIntent, docPath, changedPhases, chosenMethod, projectCaps, installGate, parseTrending, classifySkill, fitsProject, isLookalike, curatedCatalog, recommendSkills, suggestSkills, maintainInfo, catalog, buildManifest, integrity, changelogSince, capabilities, devMethod, feasibility, kvmCheck, dockerCheck, toolCheck, vcmp, installCommand };
 if (require.main === module) {
   try { const r = main(process.argv.slice(2)); if (r && r.then) r.then(c => { process.exitCode = c; }, e => { fb('error', { cmd: process.argv[2] || '', message: e.message }); console.error('gw: ' + e.message); process.exitCode = 1; }); else process.exitCode = r; } catch (e) { fb('error', { cmd: process.argv[2] || '', message: e.message }); console.error('gw: ' + e.message); process.exitCode = 1; }
 }

@@ -10,7 +10,7 @@ A portable, host-adaptive development framework for AI coding agents (Claude Cod
    - creates `.groundwork/` (project state);
    - adds `@groundwork/GROUNDWORK.md` to `CLAUDE.md` (and a pointer in `AGENTS.md` if one exists);
    - adds the `/groundwork` skill in `.claude/skills/`;
-   - adds 2 hooks to `.claude/settings.json`: a session-start status and the GATE 1 edit guard. Use `--no-hooks` to skip them, or `--profile minimal` for no hooks or gate enforcement;
+   - adds 3 hooks to `.claude/settings.json`: a session-start status, the GATE 1 edit guard, and a prompt hook that spots reference apps ("learn X", "app like X", "pelajari X") and requests to see the design ("mockup", "wireframe", "Figma", "tampilan aplikasi"), pointing the agent at `phases/RESEARCH.md` or `phases/MOCKUP.md`. Use `--no-hooks` to skip them, or `--profile minimal` for no hooks or gate enforcement;
    - scans the machine and prints the environment report.
 3. Start your agent and say what you want to build. It follows `GROUNDWORK.md`.
 
@@ -23,6 +23,8 @@ Without running `init`, you can still tell the agent "follow groundwork/GROUNDWO
 ```
 gw init | doctor [--fresh] | plan-install | status | next
 gw set tier=standard targets=web,android stacks.android=flutter
+gw set docs_dir=app/docs | docs.prd=<path> | dev_method=native-user-scope dev_method_reason="…"
+gw research "<app or site>" ["goal"]                  # record a reference app, start docs/research/<x>.md
 gw phase <H0..P11> <done|skipped|in_progress|blocked> ["note"]
 gw run <target> <S0|S1|S2|S3> -- <test command>     # writes a receipt
 gw gate <G1|G2> [--approve "user's words"]
@@ -37,10 +39,16 @@ gw gate <G1|G2> [--approve "user's words"]
 | `scan/` | zero-dependency host scanners (`scan.sh`, `scan.ps1`) |
 | `bin/gw.js` | CLI (Node 18+, no dependencies) |
 | `packs/` | one JSON per target (web, backend, android, ios, macos, windows, linux-desktop, cli, embedded) + the `tools.json` install catalogue |
-| `templates/` | PRD, FSD, TRD, SRD, ADR, plan, test strategy, skill requirements, tech debt, incident, runbook |
+| `templates/` | planning: PRD, ADR, plan, test strategy, skill requirements · design: FSD, AFD (flows), TRD, BSD (API + DB), DBD (UI brief), SRD (security), platform notes · change: system overview, proposal, delta, bugfix · research: reference app · verify: UAT · after release: upgrade report, tech debt, security exceptions, incident, runbook, lessons |
 | `catalog/skills.json` | pinned skill catalogue |
 | `MANIFEST.json`, `CHANGELOG.md`, `VERSION` | release metadata used by `gw upgrade` / `gw verify` |
 | `test/selftest.js` | `node groundwork/test/selftest.js` |
+
+## Existing projects
+Groundwork maps onto what is already there instead of duplicating it (details: `phases/P0.md`, "Fitting an existing project"):
+- docs in another folder: `gw set docs_dir=<path>`, or per file `docs.prd=`, `docs.plan=`, `docs.test_strategy=`;
+- a project rule against the host's dev method (e.g. no Docker): `gw set dev_method=native-user-scope dev_method_reason="…"`;
+- several products in one folder: one `groundwork/` copy per product.
 
 ## Updating Groundwork in a project
 Your project data is never in this folder. It lives in `.groundwork/` and `docs/`, so an update only replaces framework files.
@@ -70,6 +78,8 @@ If a change would help every project, it belongs in the framework instead: the a
 | Refactoring, tech debt (reactive) | `phases/MAINTAIN.md` | `templates/tech-debt.md` |
 | Monitoring, incidents, hotfix, rollback | `phases/OPERATE.md` | `templates/incident.md`, `templates/runbook.md` |
 | Vulnerabilities, advisories, leaked secrets | `phases/SECURITY.md` | osv-scanner, gitleaks, trivy, syft via `gw plan-install` |
+| See the app before it's built: wireframes, mockups, clickable prototype | `phases/MOCKUP.md` | Figma MCP (optional), `templates/mockup/index.html` (no account) |
+| "Make it like X": how a reference app works | `phases/RESEARCH.md` | `templates/reference-research.md`; Scrapling and REA via `gw plan-install` |
 
 ## Skill catalogue
 `gw skills` suggests agent skills for the current phase, stage, targets and stacks. They come from `catalog/skills.json`: 69 curated skills from [ECC](https://github.com/affaan-m/ecc), [Superpowers](https://github.com/obra/superpowers) and [agent-skills](https://github.com/addyosmani/agent-skills), all MIT-licensed and pinned to exact commits.

@@ -1,6 +1,7 @@
 {
   "id": "android",
   "title": "Android app",
+  "ui": true,
   "stacks": {
     "kotlin-compose": {
       "detect": [
@@ -132,10 +133,10 @@
       "codemod": "npx expo install --fix (Expo) / React Native Upgrade Helper"
     }
   },
-  "rollback": "No real rollback. Play Console: Releases > Manage rollout > Halt rollout; ship a fix (or the old code rebuilt) with a HIGHER versionCode. Always staged rollout 1%\u21925%\u219220%\u219250%\u2192100% watching crash-free rate. Remote config / feature flags are the kill switch.",
+  "rollback": "No real rollback. Play Console: Releases > Manage rollout > Halt rollout; ship a fix (or the old code rebuilt) with a HIGHER versionCode. Always staged rollout 1%→5%→20%→50%→100% watching crash-free rate. Remote config / feature flags are the kill switch.",
   "observe": [
     "crash reporting (Firebase Crashlytics or Sentry)",
-    "crash-free users \u2265 99.5% before widening a staged rollout",
+    "crash-free users ≥ 99.5% before widening a staged rollout",
     "Play Console vitals (ANR rate)"
   ],
   "policies": [

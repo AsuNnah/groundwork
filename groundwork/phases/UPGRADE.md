@@ -8,7 +8,7 @@ Commands for each stack are in the pack's `maintain` section (`gw maintain`). Pl
 - `gw maintain` prints the outdated/audit commands for this project's stacks. Run the **outdated** command for each stack.
 - `gw eol` checks runtimes against endoflife.date: it warns when end of life is under 180 days away and fails when it has already passed.
 - Check the pack `policies` for the targets, e.g. the Play target API level and the Apple Xcode minimum.
-- Write the findings to `docs/upgrades/<YYYYMMDD>.md` as a table: package, current, wanted (in range), latest, class (patch/minor/major/0.x/sdk), reason (security / policy / EOL / feature / routine).
+- Write the findings to `docs/upgrades/<YYYYMMDD>.md` (`templates/upgrade.md`) as a table: package, current, wanted (in range), latest, class (patch/minor/major/0.x/sdk), reason (security / policy / EOL / feature / routine).
 
 ## 2. Order of work
 1. Security fixes (see `SECURITY.md`).

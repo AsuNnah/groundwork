@@ -1,6 +1,7 @@
 {
   "id": "web",
   "title": "Web app (browser)",
+  "ui": true,
   "stacks": {
     "vite-react": {
       "detect": [

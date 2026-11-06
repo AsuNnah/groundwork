@@ -164,4 +164,54 @@ t('install gate: inspector bootstrap, verdicts, pinned ref', () => {
   assert.ok(g(null, 'r1', ['--skip-inspection', 'reviewed by hand']).ok);
   assert.ok(!g({ ref: 'r1', verdict: 'REJECT' }, 'r1', ['--skip-inspection', 'trust me']).ok, '--skip-inspection is not a REJECT override'); assert.ok(!g(null, 'r1', ['--skip-inspection', '--force']).ok, 'skip needs a reason');
 });
+t('template tables have consistent columns', () => {
+  const fs = require('fs'), path = require('path'), dir = path.join(__dirname, '..', 'templates');
+  for (const f of fs.readdirSync(dir).filter(x => x.endsWith('.md'))) {
+    let hdr = null;
+    fs.readFileSync(path.join(dir, f), 'utf8').split('\n').forEach((l, i) => {
+      if (!l.startsWith('|')) { hdr = null; return; }
+      const n = (l.trim().match(/(?<!\\)\|/g) || []).length - 1;
+      if (hdr === null) hdr = n; else assert.strictEqual(n, hdr, `${f}:${i + 1} has ${n} columns, header has ${hdr}`);
+    });
+  }
+});
+t('every template a phase names exists', () => {
+  const fs = require('fs'), path = require('path');
+  const dir = path.join(__dirname, '..');
+  const docs = [...fs.readdirSync(path.join(dir, 'phases')).map(f => path.join('phases', f)), 'GROUNDWORK.md'];
+  for (const d of docs) for (const m of fs.readFileSync(path.join(dir, d), 'utf8').matchAll(/templates\/([\w.-]+\.md)/g))
+    assert.ok(fs.existsSync(path.join(dir, 'templates', m[1])), `${d} names missing templates/${m[1]}`);
+});
+t('feedback 0.4.0: docs location, dev method override, phase re-check', () => {
+  assert.strictEqual(gw.docPath('prd.md', { docs: { prd: 'app/docs/PRD.md' } }), 'app/docs/PRD.md', 'explicit doc path');
+  assert.strictEqual(gw.docPath('plan.md', { docs_dir: 'no-such-dir/docs' }), 'no-such-dir/docs/plan.md', 'docs_dir');
+  assert.strictEqual(gw.docPath('test-strategy.md', { docs: { test_strategy: 'x/ts.md' } }), 'x/ts.md', 'key with underscore');
+  const h = { os: { family: 'linux' }, machine: { kind: 'desktop' } }, c = { containers: true };
+  assert.strictEqual(gw.chosenMethod(h, c, {}).id, 'devcontainer');
+  const o = gw.chosenMethod(h, c, { dev_method: 'native-user-scope', dev_method_reason: 'no Docker in dev' });
+  assert.ok(o.override && o.id === 'native-user-scope' && o.host_default === 'devcontainer' && /no Docker/.test(o.why));
+  const oldM = { files: { 'phases/P2.md': 'a', 'phases/P3.md': 'b', 'phases/P4.md': 'c' } }, newM = { files: { 'phases/P2.md': 'A', 'phases/P3.md': 'b', 'phases/P4.md': 'C' } };
+  assert.strictEqual(gw.installCommand({ os: { package_managers: 'apt' }, toolchains: { npm: '10.9' } }, 'rea').via, 'npm', 'npm install route');
+  assert.deepStrictEqual(gw.changedPhases(oldM, newM, { phases: { P2: { status: 'done' }, P3: { status: 'done' }, P4: { status: 'in_progress' } } }), ['P2'], 'only done phases whose file changed');
+});
+t('reference-app intent (English + Indonesian)', () => {
+  for (const s of ['pelajari aplikasi Splitwise', 'learn how Notion handles offline sync', 'learn Splitwise', 'i want app like Duolingo', 'use Linear for reference',
+    'aku mau aplikasi seperti gojek', 'bikin bot kayak MEE6', 'pakai Mobbin sebagai acuan', 'reverse engineer this APK', 'make a clone of Wordle']) assert.ok(gw.referenceIntent(s), s);
+  for (const s of ['fix the login bug', 'do it like this', 'I would like to add dark mode', 'it looks like a bug', 'sepertinya gagal', 'based on the PRD write the plan',
+    'learn python basics first', 'the app crashes like before', 'perbaiki error di bot']) assert.ok(!gw.referenceIntent(s), s);
+});
+t('mockup intent', () => {
+  for (const s of ['bikin mockup dulu', 'show me a wireframe', 'can we do it in Figma', 'gimana tampilan aplikasi nya', 'I want to see how it looks', 'UI/UX design first']) assert.ok(gw.mockupIntent(s), s);
+  for (const s of ['fix the login bug', 'the prototype pollution advisory'.replace('prototype', 'proto'), 'deploy the bot']) assert.ok(!gw.mockupIntent(s), s);
+});
+t('figma detection: plugin config, UI targets only', () => {
+  const fs = require('fs'), os = require('os'), path = require('path');
+  const home = fs.mkdtempSync(path.join(os.tmpdir(), 'gw-figma-'));
+  assert.ok(!gw.figmaConfigured(home), 'nothing configured');
+  const plug = path.join(home, '.claude', 'plugins', 'cache', 'figma'); fs.mkdirSync(plug, { recursive: true });
+  fs.writeFileSync(path.join(plug, '.mcp.json'), JSON.stringify({ mcpServers: { figma: { type: 'http', url: 'https://mcp.figma.com/mcp' } } }));
+  assert.ok(gw.figmaConfigured(home), 'Figma plugin found');
+  assert.strictEqual(gw.figmaCheck({ targets: ['backend'] }), null, 'no screens, no Figma check');
+  const c = gw.figmaCheck({ targets: ['web'] }); assert.ok(c && /MANUAL ACTION/.test(c.fix), 'UI project gets a check that says what is manual');
+});
 console.log(`\n${n} checks passed`);

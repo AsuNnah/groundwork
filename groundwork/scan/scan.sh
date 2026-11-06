@@ -114,6 +114,7 @@ tool appium appium --version; tool maestro maestro --version
 tool mise mise --version;    tool asdf asdf --version
 tool claude claude --version
 tool skillspector skillspector --version
+tool rea rea --version;      tool scrapling scrapling --version
 
 json=$(cat <<EOF
 {

@@ -1,5 +1,72 @@
 # Changelog
 
+## 0.4.0 (2026-11-05)
+From real-run feedback (3 projects: a Discord/Telegram bot workspace, a web+backend app, a Rust server) and user requests.
+
+### Added
+- **Reference-app research** (`phases/RESEARCH.md`, `templates/reference-research.md`):
+  - when the user says "like X", the agent works out how X works from evidence: docs → source → using it → Scrapling → REA;
+  - it suggests the tool the question needs whatever it costs, with approval, and lawfully;
+  - **starts automatically:** a new `UserPromptSubmit` hook spots "learn X", "pelajari X", "I want an app like X", "X for reference", "bikin kayak X" (English + Indonesian) and points the agent at the playbook;
+  - existing projects with hooks get the new hook on upgrade;
+  - the agent asks for the goal if it's vague (what to learn, what for, when it's done), recommends the depth the goal needs, and after each method checks the goal, stepping up to the next method or another route until it's met;
+  - `gw research "<X>" ["goal"]` records the reference, creates `docs/research/<x>.md`, and has doctor check Scrapling and REA;
+  - `gw plan-install` prints the pinned installs (`scrapling[fetchers,ai]==0.5.1`, `rea-agents@6.8.0`).
+- **Mockups before building** (`phases/MOCKUP.md`, `templates/mockup/index.html`, a Mockups section in `templates/dbd.md`):
+  - P5 adds wireframe → visual mockup → clickable prototype for every screen state and size;
+  - built in **Figma** through the official Figma MCP when the user wants it and has connected it (editable layers, DBD tokens as variables, comments read back), otherwise as a no-account HTML clickable prototype;
+  - the user's approval is a P6 pre-build check, P7 builds from the mockup, and P8/P9 compare against it;
+  - the prompt hook also spots "mockup", "wireframe", "Figma", "tampilan aplikasi".
+  - **Figma first when the machine can use it:** packs with screens declare `"ui": true`, and doctor then checks whether a Figma plugin or MCP is set up (config files only, never credentials);
+  - the agent verifies the login with `whoami` and tells the user exactly what to do, marking each **manual action**: turn it on (`claude mcp add …` or `/plugin`), restart, `/mcp` → Authenticate, a free sign-up, or logging in to figma.com plus the Claude in Chrome extension for browser steps;
+  - it falls back to the HTML prototype if there's no internet, the user declines, or setup fails.
+- **Existing projects map instead of duplicate:**
+  - `gw set docs_dir=<path>` or `docs.prd=/docs.plan=/docs.test_strategy=` (GATE 1 and the edit guard follow them; doc names match case-insensitively). This replaces pointer files.
+  - P0 explains: adopting another ID scheme, phases done out of order, workspaces with several products.
+- **Dev method override:** `gw set dev_method=native-user-scope dev_method_reason="no Docker in dev"`. Doctor and `gw run` honour it, with local container tiers off.
+- **Upgrade re-check:** `gw upgrade` flags finished phases whose instructions changed. They show in `gw status` until they're marked done again.
+- P4: verify each MCP server or connector a later phase needs with one harmless call.
+- P0: every task gets P0, even a one-line fix (one command at the trivial tier). Workarounds are logged.
+- Copy-paste prompts for an AI agent: set up (README) and update (UPGRADING.md).
+- **Templates aligned with their original sources and latest versions.** Every template names its lineage, and `docs/TEMPLATE-SOURCES.md` lists origin, latest version and URL-level references:
+  - PRD: ISO/IEC/IEEE 29148 requirement quality;
+  - FSD: Spolsky's scenarios and non-goals;
+  - AFD: Cockburn use cases (main success scenario, extensions, guarantees);
+  - TRD: arc42 v9, 42010:2022, C4 runtime/deployment views, quality scenarios;
+  - ADR: MADR 4.0 (drivers, confirmation);
+  - BSD: OpenAPI 3.2, AsyncAPI 3, RFC 9457, deprecation policy;
+  - DBD: W3C DTCG tokens 2025.10, WCAG 2.2 criteria;
+  - mockup review: heuristic evaluation, severity 0–4, AI-persona limits;
+  - SRD: Threat Modeling Manifesto, ASVS 5.0, SSDF, LINDDUN;
+  - security exceptions: VEX statuses;
+  - test strategy: 29119-3 risk-based, exit criteria;
+  - runbook: alert playbooks;
+  - incident: contributing factors (LFI/VOID);
+  - change delta: the exact OpenSpec format;
+  - plus intent (appetite, no-gos), plan, UAT, bugfix, lessons, tech debt, upgrade;
+  - a new selftest checks table column consistency in every template.
+- **Templates aligned with real project docs** (compared against two real runs' document sets):
+  - new `intent.md` (confirmed statement of intent, written before the PRD) and `mockup-review.md` (blind review by independent persona reviewers);
+  - PRD gains summary, goals and metrics, domain model, scope and constraints, AI requirements, rollout, alternatives, open decisions, decision log;
+  - FSD gains Part 0 conventions (screen spec layout, shared components, dialogs, validation, roles, scenario IDs), traceability, reconciliation, a large-project split;
+  - AFD gains a flow index with AF IDs, code anchors, system flows;
+  - TRD gains system context, technology, configuration, network exposure, NFR responses, build/release, engineering constraints;
+  - BSD gains roles, file and log formats, other protocols;
+  - DBD gains audience and job, principles, information architecture, components and states, deliberately absent;
+  - SRD gains trust boundaries, per-round threat tables, pen-test results, residual risk, review history and cadence;
+  - plan gains delivered, dependencies, backlog, test approach;
+  - research gains a verdict, reuse decisions, a compatibility contract, PRD corrections, a verify list, and full reports.
+- Templates for every document the phases ask for: `afd.md` (app flows), `bsd.md` (API contracts + DB schema + migrations), `dbd.md` (UI design brief: tokens, screen states, accessibility), `platform.md` (per-target permissions, signing, store rules), `system-overview.md`, `change-proposal.md`, `change-delta.md`, `bugfix.md`, `uat.md`, `lessons.md`, `upgrade.md`, `security-exceptions.md`.
+- Phases P5, P8, P11, CHANGE, UPGRADE and SECURITY now point at them.
+- Selftest: every `templates/*.md` named in a phase file must exist.
+
+### Fixed
+- Doctor reported skill vetting as "misconfigured" when only the optional SkillSpector CLI was missing.
+- `.groundwork/FEEDBACK.md` went stale between phases. It's now rebuilt on every event.
+- Info-level checks (e.g. Playwright installed per project) are no longer logged as problems.
+- Trending lookalikes logged ~120 skill names per refresh. Now each new impersonating repo is logged once.
+- `gw plan-install` never chose npm-based install commands.
+
 ## 0.3.3 (2026-11-05)
 - **Required skill inspection with `skill-inspector`** (NVIDIA SkillSpector):
   - Every skill fetched from a GitHub repo, curated or trending, must have a recorded verdict for its exact commit before `gw skills install` accepts it (`gw skills verdict <id> APPROVE|CAUTION|REJECT "reason"`).

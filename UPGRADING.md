@@ -2,11 +2,28 @@
 
 Your project data is never touched: it lives in `.groundwork/` and `docs/`. An upgrade only replaces the `groundwork/` folder.
 
+## Easiest: paste this to your AI agent
+Open your agent **in the project folder** and paste:
+
+```text
+Update Groundwork in this project to the latest release.
+1. Run node groundwork/bin/gw.js version and tell me the current version.
+2. Download the latest release of https://github.com/AsuNnah/groundwork into a temporary folder outside
+   this project (git clone --depth 1 --branch <latest v* tag>). If it is not newer, stop and tell me.
+3. Run: node groundwork/bin/gw.js upgrade <temporary folder>/groundwork
+   (it backs up the old folder, replaces it, and migrates the project state; my docs/ and .groundwork/ stay).
+4. Tell me in plain words: old → new version, what changed (from the printed changelog), any local edits
+   it warned about, and any phases it flags for re-check. Then re-check those phases.
+5. Run node groundwork/bin/gw.js verify and node groundwork/bin/gw.js doctor, and report the results.
+6. Delete the temporary folder. Commit only if I ask.
+```
+The rest of this page is the same thing by hand.
+
 ## 1. Get the new version
 Pick one:
 ```sh
 # a specific release (recommended): use the latest tag from https://github.com/AsuNnah/groundwork/releases
-git clone --depth 1 --branch v0.3.3 https://github.com/AsuNnah/groundwork /tmp/groundwork-new
+git clone --depth 1 --branch v0.4.0 https://github.com/AsuNnah/groundwork /tmp/groundwork-new
 
 # or the latest main
 git clone --depth 1 https://github.com/AsuNnah/groundwork /tmp/groundwork-new
@@ -26,7 +43,8 @@ It:
 1. backs up the current folder to `.groundwork/backups/`;
 2. replaces the folder rather than merging, so files removed in the new version are deleted;
 3. warns about any framework files you edited locally;
-4. migrates project state and prints the changelog since your version.
+4. migrates project state and prints the changelog since your version;
+5. flags phases you already finished whose instructions changed, so the agent re-checks them (shown in `gw status` until done).
 
 Downgrades are refused unless you pass `--force`.
 

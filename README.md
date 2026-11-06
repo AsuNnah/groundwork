@@ -9,7 +9,7 @@ scan host → intake & size → requirements → target & stack → environment 
 → review → release [GATE 2] → learn
 ```
 
-> Status: **alpha (v0.3.3)**. The Linux scanner, CLI, gates, hooks, and feedback loop are tested on Linux. The Windows scanner (`scan.ps1`) and the macOS path are untested. Feedback from real runs is how it improves (see [Learning from real runs](#learning-from-real-runs)).
+> Status: **alpha (v0.4.0)**. The Linux scanner, CLI, gates, hooks, and feedback loop are tested on Linux. The Windows scanner (`scan.ps1`) and the macOS path are untested. Feedback from real runs is how it improves (see [Learning from real runs](#learning-from-real-runs)).
 
 ---
 
@@ -26,13 +26,31 @@ Groundwork does. Some examples:
 
 Each comes with the exact fix and a fallback.
 
-## Quick start
+## Easiest: paste this to your AI agent
+Open your agent (Claude Code or similar) **in your project folder** and paste the block below. It downloads Groundwork, sets it up, and reports what this machine still needs.
+
+```text
+Set up the Groundwork framework in this project.
+1. If a groundwork/ folder already exists here, stop and tell me: I need the update prompt instead.
+2. Download the latest release of https://github.com/AsuNnah/groundwork into a temporary folder outside
+   this project (git clone --depth 1 --branch <latest v* tag>; if git is missing, use the release zip).
+3. Copy only its groundwork/ folder into this project's root. Then delete the temporary folder.
+4. Run: node groundwork/bin/gw.js init
+   If Node.js 18+ is missing, run the scanner instead (sh groundwork/scan/scan.sh, or on Windows
+   powershell -ExecutionPolicy Bypass -File groundwork\scan\scan.ps1) and tell me how to install Node first.
+5. Explain the environment report in plain words: what is ready, what is missing or misconfigured,
+   the exact fix for each, and what it affects. Install nothing without asking me.
+6. From now on follow groundwork/GROUNDWORK.md, and ask me what I want to build.
+```
+Updating later: paste the prompt in [UPGRADING.md](UPGRADING.md#easiest-paste-this-to-your-ai-agent).
+
+## Quick start (by hand)
 
 ```bash
 # 1. copy the framework folder into your project root
 cp -r groundwork/ /path/to/your-project/
 
-# 2. one-time setup (state folder, CLAUDE.md import, /groundwork skill, 2 hooks, host scan)
+# 2. one-time setup (state folder, CLAUDE.md import, /groundwork skill, 3 hooks, host scan)
 cd /path/to/your-project
 node groundwork/bin/gw.js init
 
@@ -87,6 +105,8 @@ Each pack declares stacks (with detection markers and scaffolds), required tools
 | Dependency / SDK / runtime updates | `UPGRADE` | outdated → classify (patch/minor/major/0.x/SDK) → one major at a time → codemods → tests at release tier. `gw eol` checks runtime end of life live via endoflife.date. Pack `policies` track store deadlines (Play target API, Apple Xcode minimum). |
 | Refactoring, tech debt (reactive) | `MAINTAIN` | debt registry with `(impact × frequency) / cost`, boy-scout rule, characterization tests before touching legacy code, strangler fig, dead-code tools per stack |
 | Production | `OPERATE` | minimal observability per target, SEV1–4 incident flow (mitigate first), hotfix from the release tag, **rollback per target** (mobile: halt the staged rollout and roll forward, since there's no rollback), blameless postmortems |
+| See it before it's built | `MOCKUP` | wireframe → visual mockup → clickable prototype for every screen and state, in **Figma** (official Figma MCP, when connected) or a no-account HTML prototype; your approval comes before GATE 1, and the build follows the mockup |
+| Reference apps ("like X") | `RESEARCH` | how the reference works, from evidence: docs → source → using it → [Scrapling](https://github.com/D4Vinci/Scrapling) → [REA](https://github.com/morluto/rea) (apps, APKs, binaries); starts automatically on "learn X" / "app like X" / "pelajari X", asks for the goal if it is vague, recommends the depth the goal needs and steps up to the next method until the goal is met; lawful and authorised only, never copying proprietary code |
 | Security | `SECURITY` | osv-scanner, gitleaks, stack audits; priority from KEV, EPSS, reachability and exposure (P0 = 72 h … P3 = next upgrade); reactive advisory flow; leaked-secret response |
 
 `gw maintain` prints the exact outdated, upgrade, audit, dead-code, override, rollback and observability commands for your project's stacks.
@@ -118,7 +138,7 @@ Project data in `.groundwork/` and `docs/` is never touched. Project-specific pa
 While it works, the agent **silently** logs framework-level friction with `gw note <category> "…"`, and the CLI logs automatic signals: errors, blocked edits, failed gates, checks and runs, skipped phases. The agent never asks the user for feedback.
 
 1. Everything is compiled into the project's `.groundwork/FEEDBACK.md`, which is gitignored.
-2. Copy it into this repo's [`feedback/inbox/`](feedback/README.md).
+2. Copy it into this repo's [`feedback/inbox/`](feedback/README.md), e.g. `cp <project>/.groundwork/FEEDBACK.md feedback/inbox/$(date +%F)-<project>.md`. The raw events are in `<project>/.groundwork/feedback/events.jsonl`.
 3. Ask an agent in this repo to "process feedback". [`CLAUDE.md`](CLAUDE.md) defines the triage into [`feedback/BACKLOG.md`](feedback/BACKLOG.md) and the release steps.
 
 ## CLI
@@ -127,6 +147,8 @@ While it works, the agent **silently** logs framework-level friction with `gw no
 gw init [--profile minimal|standard|strict] [--no-hooks]
 gw doctor [--fresh] [--json]      gw plan-install        gw status | next
 gw set tier=standard targets=web,android stacks.android=flutter
+gw set docs_dir=<path> | dev_method=<method>
+gw research "<reference app>" ["goal"]
 gw phase <H0..P11> <done|skipped|in_progress|blocked> ["note"]
 gw run <target> <S0..S3> -- <cmd> gw gate <G1|G2> [--approve "user's words"]
 gw note <category> "text"         gw feedback
