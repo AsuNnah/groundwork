@@ -24,6 +24,7 @@ The roadmap items after 0.5.0: CI workflows per pack, devcontainers per stack, m
 
 ### Fixed
 - `gw ci` gave a project at the repo root a garbage workflow name and folder when the project path and git's path were spelled differently: Windows 8.3 short names (`RUNNER~1`), or symlinks. It now asks git for the project's folder.
+- On Windows with Node 26, `gw doctor` triggered a Node deprecation warning (DEP0190: args passed to a shell spawn), which also broke `gw doctor --json` when stderr was captured with stdout.
 - `scan.ps1 -Out` wrote the profile with a UTF-8 BOM on Windows PowerShell 5.1, and the CLI couldn't parse it. It now writes UTF-8 without a BOM, and the CLI strips a BOM when it reads JSON.
 - `scan.ps1 -Out` with a relative path now resolves against the current directory.
 

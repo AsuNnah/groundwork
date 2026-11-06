@@ -1,11 +1,11 @@
 {
   "version": "0.6.0",
   "files": {
-    "CHANGELOG.md": "9b7faecc097693e5",
+    "CHANGELOG.md": "909ddd7504cb6a39",
     "GROUNDWORK.md": "e49c22b64a55114c",
     "README.md": "9786e185f43f1e92",
     "VERSION": "97a5d6e540a6120d",
-    "bin/gw.js": "25e595c6b0c0198c",
+    "bin/gw.js": "2773ddc1ccffc2f4",
     "bin/selftest.js": "a50237c62b8f9637",
     "catalog/skills.json": "ec948c42ba7fb112",
     "hooks/SKILL.md": "50629d5cb9267d5d",

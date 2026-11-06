@@ -1083,7 +1083,8 @@ async function refreshTrending({ quiet = false, force = false } = {}) {
 const INSPECTOR = 'skill-inspector', INSPECTOR_ID = 'skillspector/skill-inspector';
 const INSPECTOR_INSTALL = `gw skills install ${INSPECTOR_ID} --global`;
 function inspectorStatus() {
-  const r = cp.spawnSync('skillspector', ['--version'], { encoding: 'utf8', shell: process.platform === 'win32' });
+  // one command string, not args + shell (Node 26 warns on that, DEP0190); the shell finds skillspector.cmd on Windows
+  const r = process.platform === 'win32' ? cp.spawnSync('skillspector --version', { encoding: 'utf8', shell: true }) : cp.spawnSync('skillspector', ['--version'], { encoding: 'utf8' });
   return { skill: skillInstalled(INSPECTOR), cli: !r.error && r.status === 0 };
 }
 const reviews = () => readJson(P('skills-reviews.json'), {});
