@@ -40,11 +40,11 @@ jobs:
           P=$(grep -l '<UseMaui>true</UseMaui>' $(git ls-files '*.csproj') | head -1)
           F=$(grep -oE 'net[0-9.]+-android[0-9.]*' "$P" | head -1)
           if [ "$RUNNER_OS" = macOS ]; then
-            # .NET for iOS and Mac Catalyst accepts one Xcode major.minor; runner images keep several side by side
-            out=$(dotnet msbuild "$P" -getProperty:RecommendedXcodeVersion -p:TargetFramework="$F" -p:TargetFrameworks="$F" 2>&1) || true
+            # .NET for iOS and Mac Catalyst accepts one Xcode major.minor (_RecommendedXcodeVersion: every release sets it, the public name is new in 2026); runner images keep several Xcodes
+            out=$(dotnet msbuild "$P" -getProperty:_RecommendedXcodeVersion -p:TargetFramework="$F" -p:TargetFrameworks="$F" 2>&1) || true
             X=$(printf '%s\n' "$out" | grep -oE '^[0-9]+\.[0-9]+' | tail -1 || true)
             if [ -z "$X" ]; then
-              printf '%s\n' "$out"; echo "::error::Could not read the Xcode version this .NET workload needs (RecommendedXcodeVersion)."; exit 1
+              printf '%s\n' "$out"; echo "::error::Could not read the Xcode version this .NET workload needs (_RecommendedXcodeVersion)."; exit 1
             fi
             A=$(ls -d "/Applications/Xcode_$X.app" /Applications/Xcode_"$X".[0-9]*.app 2>/dev/null | head -1 || true)
             echo "This .NET workload needs Xcode $X: ${A:-not on this runner}"

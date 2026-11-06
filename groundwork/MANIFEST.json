@@ -1,7 +1,7 @@
 {
   "version": "0.6.1",
   "files": {
-    "CHANGELOG.md": "154bcb4c938ac426",
+    "CHANGELOG.md": "c4337114935fb2db",
     "GROUNDWORK.md": "e49c22b64a55114c",
     "README.md": "9786e185f43f1e92",
     "VERSION": "87b241b275c59169",
@@ -57,7 +57,7 @@
     "templates/ci/steps/android-flutter.yml": "7eee7e0591bbf92d",
     "templates/ci/steps/android-gradle.yml": "0a5b0b80b3852132",
     "templates/ci/steps/android-react-native.yml": "ec3de298be56625b",
-    "templates/ci/steps/dotnet-maui.yml": "3bb508d1b45adb2a",
+    "templates/ci/steps/dotnet-maui.yml": "0509160c021913ae",
     "templates/ci/steps/dotnet.yml": "f104ebebd6619501",
     "templates/ci/steps/esp-idf.yml": "59a2963665c2144e",
     "templates/ci/steps/flutter-setup.yml": "97e0fd6f461c5927",
