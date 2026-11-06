@@ -36,7 +36,7 @@ The roadmap items after 0.5.0: CI workflows per pack, devcontainers per stack, m
 - On Windows with Node 26, `gw doctor` triggered a Node deprecation warning (DEP0190: args passed to a shell spawn), which also broke `gw doctor --json` when stderr was captured with stdout.
 - `scan.ps1 -Out` wrote the profile with a UTF-8 BOM on Windows PowerShell 5.1, and the CLI couldn't parse it. It now writes UTF-8 without a BOM, and the CLI strips a BOM when it reads JSON.
 - `scan.ps1 -Out` with a relative path now resolves against the current directory.
-- `scan.ps1` on Windows 11 (checked on a Windows 11 26H2 VM as SYSTEM, as an admin and as a standard user):
+- `scan.ps1` on Windows 11 (checked on a Windows 11 26H2 VM as SYSTEM and as a non-elevated user):
   - the inbox `wsl.exe` stub counted as WSL, and asking it hung for about 60 s when WSL isn't installed and the machine is offline. Only the installed WSL (`Program Files\WSL`) is asked now;
   - the WindowsApps `python.exe` stub (exit 9009) counted as Python. A tool with no version and a failing exit is not reported now;
   - PowerShell 5.1 aliases (`curl`, `wget`) no longer count as tools.
