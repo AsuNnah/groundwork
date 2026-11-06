@@ -1,5 +1,5 @@
 # JVM: Gradle wrapper or Maven (mvnw / pom.xml) build and test. .java-version sets the JDK (default 21)
-# verified: no
+# verified: 2026-11-06 ubuntu-latest
 # timeout: 30
       - uses: actions/setup-java@b843ebf9b913146b38da2eaa7aeddf76074ae1ad # v6.1.0
         with:

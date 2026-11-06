@@ -1,5 +1,5 @@
 # Android (Gradle): unit tests, lint and debug builds, then instrumented tests on an emulator (API 35, KVM on the Linux runner)
-# verified: no
+# verified: 2026-11-06 ubuntu-latest
 # timeout: 45
       - uses: actions/setup-java@b843ebf9b913146b38da2eaa7aeddf76074ae1ad # v6.1.0
         with:

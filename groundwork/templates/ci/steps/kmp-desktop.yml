@@ -1,5 +1,5 @@
 # Kotlin Multiplatform desktop (JVM): the desktop tests on each OS runner (under Xvfb on Linux, for Compose UI tests), then a native package when Compose Desktop is set up
-# verified: no
+# verified: 2026-11-06 ubuntu-latest, windows-latest
 # timeout: 40
 __INCLUDE kmp-setup__
       - name: Desktop tests and package

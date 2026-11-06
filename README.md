@@ -192,10 +192,12 @@ Rules: keep `groundwork/` dependency-free (POSIX sh, PowerShell 5.1+, Node stdli
 - [x] Host scan, capability rules, dev-method selection, target feasibility
 - [x] Phases H0–P11, templates, gates, hooks, run receipts, silent feedback loop
 - [x] Post-release playbooks (upgrade, maintain, operate, security), skill catalogue, framework upgrade/verify
-- [ ] Verified Windows (`scan.ps1`) and macOS runs
-- [ ] Ready-to-use CI workflow templates per pack (Android emulator, macOS, Windows runners)
-- [ ] Devcontainer generation per stack
-- [ ] More packs (game engines, browser extensions, cross-platform presets)
+- [x] Verified Windows runs (`scan.ps1` and the CLI on Windows 11, and the CI on Windows runners) (0.6.0)
+- [x] Ready-to-use CI workflow templates per pack: Android emulator, Windows and Linux runners, Kotlin Multiplatform (0.6.0)
+- [x] Devcontainer generation per stack (0.6.0)
+- [x] More packs and presets: game engines, browser extensions, cross-platform presets with a stack chosen by the targets (0.6.0)
+- [ ] Verified macOS runs (`scan.sh` on macOS, and the macOS and iOS CI fragments)
+- [ ] Verify the remaining CI fragments on real projects (Unity, React Native, .NET MAUI, Tauri, Zephyr)
 
 ## Acknowledgements
 Skill inspection by [NVIDIA SkillSpector](https://github.com/nvidia/skillspector) (Apache-2.0). Ideas borrowed (with thanks) from [ECC](https://github.com/affaan-m/ecc), [BMAD Method](https://github.com/bmad-code-org/BMAD-METHOD), [GitHub Spec Kit](https://github.com/github/spec-kit), [Superpowers](https://github.com/obra/superpowers), [GSD](https://github.com/open-gsd/gsd-core), [Kiro](https://kiro.dev), [OpenSpec](https://github.com/Fission-AI/OpenSpec), [AWS AI-DLC](https://github.com/awslabs/aidlc-workflows), and [agent-skills](https://github.com/addyosmani/agent-skills). See [`docs/FRAMEWORK-DESIGN.md`](docs/FRAMEWORK-DESIGN.md) §2 for what was taken from each.

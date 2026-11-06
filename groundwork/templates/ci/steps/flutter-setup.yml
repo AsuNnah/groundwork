@@ -1,5 +1,5 @@
 # Flutter SDK (stable channel, cached) and packages; included by the Flutter fragments
-# verified: no
+# verified: 2026-11-06 ubuntu-latest
       - uses: subosito/flutter-action@1a449444c387b1966244ae4d4f8c696479add0b2 # v2.23.0
         with:
           channel: stable

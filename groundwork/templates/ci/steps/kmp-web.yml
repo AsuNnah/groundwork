@@ -1,5 +1,5 @@
 # Kotlin Multiplatform web: the shared tests in headless Chrome (Wasm, or JS when there is no Wasm target), then the production bundle
-# verified: no
+# verified: 2026-11-06 ubuntu-latest
 # timeout: 40
 __INCLUDE kmp-setup__
       - name: Web tests and bundle

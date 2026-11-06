@@ -222,7 +222,8 @@ const proj = (files = {}) => {
   put('.groundwork/project.json', { name: 'p', tier: 'standard', targets: [], stacks: {}, profile: 'standard', framework_version: require('fs').readFileSync(path.join(__dirname, '..', 'VERSION'), 'utf8').trim() });
   put('.groundwork/state.json', { phase: 'P7', phases: {}, waivers: [] });
   for (const [f, c] of Object.entries(files)) put(f, c);
-  const env = { ...process.env, GW_PROJECT_DIR: d, GW_HOME: path.join(d, '.home') };
+  const pk = Object.keys(process.env).find(k => k.toUpperCase() === 'PATH') || 'PATH';   // Windows spells it Path
+  const env = { ...process.env, [pk]: path.dirname(process.execPath) + path.delimiter + (process.env[pk] || ''), GW_PROJECT_DIR: d, GW_HOME: path.join(d, '.home') };   // task checks call "node": the one running this test, even when it isn't on PATH
   cp.spawnSync('git', ['init', '-q'], { cwd: d }); cp.spawnSync('git', ['-c', 'user.email=t@t.t', '-c', 'user.name=t', 'commit', '-q', '--allow-empty', '-m', 'base'], { cwd: d });
   const gwc = (args, input) => { const r = cp.spawnSync(process.execPath, [path.join(__dirname, '..', 'bin', 'gw.js'), ...args], { cwd: d, env, input: input || '', encoding: 'utf8' }); return { code: r.status, out: r.stdout + r.stderr }; };
   const read = f => JSON.parse(fs.readFileSync(path.join(d, f), 'utf8'));
@@ -493,8 +494,8 @@ t('host profiles with a UTF-8 BOM (Windows PowerShell 5.1) still parse', () => {
   assert.match(p.gw(['doctor', '--json']).out, /BOM-TEST-GPU/, 'profile read, not re-scanned');
   const ps = require('fs').readFileSync(require('path').join(__dirname, '..', 'scan', 'scan.ps1'), 'utf8');   // found on a Windows 11 VM; no PowerShell here
   assert.match(ps, /UTF8Encoding\]::new\(\$false\)/, 'scan.ps1 writes UTF-8 without a BOM');
-  assert.match(ps, /Get-Command \$c -CommandType Application/, 'Has() skips the module search (seconds per missing tool)');
+  assert.match(ps, /Get-Command \$c -CommandType Application/, 'Has() counts programs only, not aliases such as curl');
   assert.match(ps, /elseif \(\$LASTEXITCODE -eq 0\) \{ 'present' \} else \{ \$null \}/, 'a failing stub (WindowsApps python.exe) is not a tool');
-  assert.match(ps, /WSL_UTF8/); assert.ok(!/wsl='--version'/.test(ps), 'the inbox wsl.exe stub is not WSL');
+  assert.match(ps, /WSL_UTF8/); assert.match(ps, /Test-Path \$wslExe/, 'never runs the System32 stub (60 s offline)'); assert.ok(!/wsl='--version'/.test(ps), 'the inbox wsl.exe stub is not WSL');
 });
 console.log(`\n${n} checks passed`);

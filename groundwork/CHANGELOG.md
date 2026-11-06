@@ -9,7 +9,7 @@ The roadmap items after 0.5.0: CI workflows per pack, devcontainers per stack, m
   - actions pinned to commit SHAs; the pack chooses the runners (Android emulator with KVM on Ubuntu, macOS for Apple targets, Windows), services (Postgres + Redis for backend) and stack variables;
   - `--os` or `gw set ci_os=linux,windows` narrows the runners; an OS the pack can't use is an error;
   - monorepos: when the project is a subfolder of the git repo, the workflow goes to the git root with `paths` filters and `working-directory`;
-  - every fragment carries a `# verified:` line, so an untested template says so in the generated file;
+  - every fragment carries a `# verified:` line, so an untested template says so in the generated file. 19 of 29 are verified by the sample projects on GitHub runners: Android emulator, Kotlin Multiplatform (Android, web, desktop on Linux and Windows), Node, Python, Go, Rust, Java, .NET, Flutter web, Qt, GTK, Godot, ESP-IDF and PlatformIO. The macOS and iOS fragments, Unity, React Native, .NET MAUI, Tauri, Zephyr and Flutter on Android/iOS are not verified yet;
   - existing workflows are kept unless `--force`; `gw doctor` warns when a target's release tier runs on CI and its workflow is missing;
   - P8 uses it for S3.
 - **Devcontainers** (`gw devcontainer [--print] [--force]`): `.devcontainer/devcontainer.json` merged from the blocks the project's stacks need (`packs/devcontainers.json`: image, features, ports, extensions, env, post-create commands), plus the notes and checks to run inside it. P3 uses it.
@@ -36,6 +36,12 @@ The roadmap items after 0.5.0: CI workflows per pack, devcontainers per stack, m
 - On Windows with Node 26, `gw doctor` triggered a Node deprecation warning (DEP0190: args passed to a shell spawn), which also broke `gw doctor --json` when stderr was captured with stdout.
 - `scan.ps1 -Out` wrote the profile with a UTF-8 BOM on Windows PowerShell 5.1, and the CLI couldn't parse it. It now writes UTF-8 without a BOM, and the CLI strips a BOM when it reads JSON.
 - `scan.ps1 -Out` with a relative path now resolves against the current directory.
+- `scan.ps1` on Windows 11 (checked on a Windows 11 26H2 VM as SYSTEM, as an admin and as a standard user):
+  - the inbox `wsl.exe` stub counted as WSL, and asking it hung for about 60 s when WSL isn't installed and the machine is offline. Only the installed WSL (`Program Files\WSL`) is asked now;
+  - the WindowsApps `python.exe` stub (exit 9009) counted as Python. A tool with no version and a failing exit is not reported now;
+  - PowerShell 5.1 aliases (`curl`, `wget`) no longer count as tools.
+- `gw init` / `gw doctor` crashed (`Cannot read properties of null`) when the scan output was not a readable profile. They now say so and show how to run the scanner by hand.
+- The selftest assumed `node` on PATH (task checks call it), and failed on a fresh Windows machine with a portable Node.
 
 ## 0.5.0 (2026-11-05)
 Verification-first: a task is done when its check passes, not when the agent says so. Based on the workflow research (spec-driven, harness and verification patterns) and real headless agent runs before and after.

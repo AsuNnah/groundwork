@@ -1,5 +1,5 @@
 # Godot 4: import headless, then tests (GUT in addons/gut, or a tests/run_tests.gd script that quits with the exit code). Set the version to your project's
-# verified: no
+# verified: 2026-11-06 ubuntu-latest
 # timeout: 30
       - uses: chickensoft-games/setup-godot@ac93246ea68518a384c1c280a496e5989341f2f6 # v2.4.3
         with:

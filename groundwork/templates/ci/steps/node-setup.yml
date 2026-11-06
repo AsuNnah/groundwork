@@ -1,5 +1,5 @@
 # Node.js setup, included by other fragments: version from .nvmrc / .node-version (default LTS), install from the lockfile
-# verified: no
+# verified: 2026-11-06 ubuntu-latest, windows-latest
       - id: node
         shell: bash
         run: echo "version=$(cat .nvmrc 2>/dev/null || cat .node-version 2>/dev/null || echo 'lts/*')" >> "$GITHUB_OUTPUT"

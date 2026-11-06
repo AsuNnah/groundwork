@@ -1,4 +1,4 @@
 # ESP-IDF: build in Espressif's official image (set the tag to your IDF version)
-# verified: no
+# verified: 2026-11-06 ubuntu-latest
 # timeout: 30
       - run: docker run --rm -v "$PWD":/project -w /project espressif/idf:v5.5 idf.py build

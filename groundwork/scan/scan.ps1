@@ -3,7 +3,7 @@
 param([string]$Out)
 $ErrorActionPreference = 'SilentlyContinue'
 
-# -CommandType: a miss would otherwise search every module for a cmdlet of that name (about 1.5 s per tool)
+# programs and scripts only: in PowerShell 5.1, curl and wget are aliases of Invoke-WebRequest and would count as tools
 function Has($c) { [bool](Get-Command $c -CommandType Application, ExternalScript -ErrorAction SilentlyContinue) }
 function Ver($cmd, $arg) {
   if (-not (Has $cmd)) { return $null }
@@ -32,10 +32,11 @@ if ($isAdmin) {
   $hyperv = (Get-WindowsOptionalFeature -Online -FeatureName Microsoft-Hyper-V-All).State -eq 'Enabled'
   $wsl2   = (Get-WindowsOptionalFeature -Online -FeatureName VirtualMachinePlatform).State -eq 'Enabled'
 }
-# wsl.exe is an inbox stub on Windows 11: it exists without WSL installed, and prints UTF-16 unless WSL_UTF8 is set
-$env:WSL_UTF8 = '1'; $wslVer = $null
-if (Has 'wsl') { $o = (wsl --version 2>&1 | Out-String); if ($LASTEXITCODE -eq 0 -and $o -match '\d+(\.\d+)+') { $wslVer = $Matches[0] } }
-if (-not $wsl2 -and $wslVer) { $wsl2 = ((wsl --status 2>&1 | Out-String) -match '\b2\b') }
+# System32\wsl.exe is an inbox stub on Windows 11: without WSL installed it hangs about 60 s offline, and it prints UTF-16 unless WSL_UTF8 is set.
+# Installed WSL (the package from wsl --install) lives in Program Files\WSL, so only that one is asked.
+$env:WSL_UTF8 = '1'; $wslVer = $null; $wslExe = Join-Path $env:ProgramFiles 'WSL\wsl.exe'
+if (Test-Path $wslExe) { $o = (& $wslExe --version 2>&1 | Out-String); if ($LASTEXITCODE -eq 0 -and $o -match '\d+(\.\d+)+') { $wslVer = $Matches[0] } }
+if (-not $wsl2 -and $wslVer) { $wsl2 = ((& $wslExe --status 2>&1 | Out-String) -match '\b2\b') }
 
 $dockerOk = $false; $dockerWhy = ''
 if (Has 'docker') { docker info *> $null; $dockerOk = ($LASTEXITCODE -eq 0); if (-not $dockerOk) { $dockerWhy = 'daemon not running (start Docker Desktop)' } }

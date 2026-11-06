@@ -1,5 +1,5 @@
 # Flutter desktop or web: analyze, test, then `flutter build __flutter_build__` (the pack sets the platform)
-# verified: no
+# verified: 2026-11-06 ubuntu-latest
 # timeout: 30
       - name: Linux desktop build dependencies
         if: runner.os == 'Linux' && '__flutter_build__' == 'linux'
