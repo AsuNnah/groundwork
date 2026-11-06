@@ -1,12 +1,12 @@
 {
   "version": "0.6.0",
   "files": {
-    "CHANGELOG.md": "868a89dfe9fd9216",
+    "CHANGELOG.md": "a376f04e97e16044",
     "GROUNDWORK.md": "e49c22b64a55114c",
     "README.md": "9786e185f43f1e92",
     "VERSION": "97a5d6e540a6120d",
     "bin/gw.js": "ba1343cf1e330889",
-    "bin/selftest.js": "b0e8f68d14ee4476",
+    "bin/selftest.js": "3931271575b544ef",
     "catalog/skills.json": "ec948c42ba7fb112",
     "hooks/SKILL.md": "50629d5cb9267d5d",
     "packs/android.json": "f0a5c9a6930a7d22",

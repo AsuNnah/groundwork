@@ -1,6 +1,10 @@
 // node groundwork/bin/selftest.js : checks decision rules against synthetic hosts.
 'use strict';
 const assert = require('assert');
+// every temp project (here and in the gw processes it starts) goes under one folder, removed at exit; runs used to leave them all behind
+const TMP = require('fs').mkdtempSync(require('path').join(require('os').tmpdir(), 'gw-selftest-'));
+for (const k of ['TMPDIR', 'TEMP', 'TMP']) process.env[k] = TMP;
+process.on('exit', () => { try { require('fs').rmSync(TMP, { recursive: true, force: true }); } catch { /* a file still open on Windows: leave it */ } });
 const gw = require('../bin/gw.js');
 
 const base = () => ({
