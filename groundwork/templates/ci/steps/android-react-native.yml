@@ -20,6 +20,8 @@ __INCLUDE node-setup__
 __INCLUDE kvm__
       - uses: reactivecircus/android-emulator-runner@a421e43855164a8197daf9d8d40fe71c6996bb0d # v2.38.0
         if: hashFiles('__DIR__.maestro/**') != ''
+        env:
+          MAESTRO_CLI_NO_ANALYTICS: '1'   # Maestro sends usage analytics unless told not to
         with:
           working-directory: __WORKDIR__
           api-level: 35

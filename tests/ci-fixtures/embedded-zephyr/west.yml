@@ -1,4 +1,5 @@
-# This application is the west manifest repository (T2). Only Zephyr itself: native_sim needs no HAL modules.
+# This application is the west manifest repository (T2), laid out like zephyrproject-rtos/example-application.
+# Importing Zephyr's manifest registers its west commands; the allowlist keeps the modules out (native_sim needs none).
 manifest:
   self:
     path: app
@@ -9,3 +10,6 @@ manifest:
     - name: zephyr
       remote: zephyrproject-rtos
       revision: v4.5.0
+      import:
+        name-allowlist:
+          - cmsis_6

@@ -68,6 +68,8 @@ jobs:
           sudo udevadm trigger --name-match=kvm
       - uses: reactivecircus/android-emulator-runner@a421e43855164a8197daf9d8d40fe71c6996bb0d # v2.38.0
         if: hashFiles('tests/ci-fixtures/android-react-native/.maestro/**') != ''
+        env:
+          MAESTRO_CLI_NO_ANALYTICS: '1'   # Maestro sends usage analytics unless told not to
         with:
           working-directory: "tests/ci-fixtures/android-react-native"
           api-level: 35

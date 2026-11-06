@@ -1,5 +1,5 @@
 # Tauri: Linux webview dependencies, Node + Rust, frontend tests if any, Rust tests, then a debug app build
-# verified: no
+# verified: 2026-11-06 ubuntu-latest, windows-latest
 # timeout: 45
       - name: Linux build dependencies
         if: runner.os == 'Linux'
