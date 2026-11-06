@@ -1,5 +1,5 @@
 # .NET MAUI: install the workload, then build for __maui_tfm__ and run test projects
-# verified: 2026-11-06 ubuntu-latest, windows-latest
+# verified: 2026-11-06 ubuntu-latest, windows-latest, macos-latest
 # timeout: 45
       - uses: actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68 # v6.0.0
         with:
