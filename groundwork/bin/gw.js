@@ -1182,7 +1182,7 @@ function ciPlan(proj, targets, osArg) {
     const stack = (proj.stacks || {})[t], st = (pk.stacks || {})[stack], out = `.github/workflows/${prefix}${t}.yml`, base = { target: t, stack: stack || null, out, top, dir };
     if (!stack || !st) return { ...base, why: `set the stack first: gw set stacks.${t}=<${Object.keys(pk.stacks || {}).join('|')}>` };
     if (!st.ci) return { ...base, why: `no ready-made workflow for ${stack}: ${(pk.sandbox.S3 || {}).how || 'write one from the pack notes'}` };
-    let os = (pk.ci || {}).os || ['ubuntu-latest'];
+    let os = st.ci_os || (pk.ci || {}).os || ['ubuntu-latest'];   // a stack can narrow its pack's runners (KMP web tests run in headless Chrome only)
     if (osArg) {
       const want = [...new Set(String(osArg).split(',').map(x => RUNNERS[x.trim().toLowerCase()] || x.trim()))].filter(r => os.includes(r) || !proj.ci_os || osArg !== proj.ci_os);
       const bad = want.filter(r => !os.includes(r));
@@ -1236,6 +1236,7 @@ function ciCmd(args) {
   return 0;
 }
 const presets = () => { const { _doc, ...p } = { ...readJson(path.join(FW, 'packs', 'presets.json'), {}), ...readJson(P('presets.json'), {}) }; return p; };
+const presetsFor = targets => Object.entries(presets()).filter(([, pr]) => targets.every(t => pr.targets[t]));   // presets that cover every one of these targets
 const dcBlocks = () => readJson(path.join(FW, 'packs', 'devcontainers.json'), {});
 function devcontainerPlan(proj) {
   const all = packs(), B = dcBlocks(), ids = [], skipped = [];
@@ -1437,6 +1438,13 @@ function main(argv) {
       for (const k of Object.keys(p)) if (p[k] === '') delete p[k];   // `gw set dev_method=` clears an override
       writeJson(P('project.json'), p);
       console.log(`Set ${args.map(a => a.split('=')[0]).join(', ')} · stage ${p.stage || '?'} · tier ${p.tier || '?'} · features ${(p.features || []).join(',') || '-'} · targets ${(p.targets || []).join(',') || '-'}`);
+      const open = (p.targets || []).filter(t => (packs()[t] || {}).ui && !(p.stacks || {})[t]);   // UI targets with no stack yet
+      if (args.some(a => a.startsWith('targets=')) && !args.some(a => a.startsWith('preset=')) && open.length >= 2) {
+        const fit = presetsFor(open);
+        console.log(fit.length ? `One codebase for ${open.join(', ')}: ${fit.map(([id, pr]) => `${id} (${pr.title.split(':')[0]})`).join(', ')}. Use one with gw set preset=<id> targets=${open.join(',')}, or set a stack per target (stacks.<target>=…).`
+          : `No single preset covers ${open.join(', ')}: set a stack per target (stacks.<target>=…), or share code between the ones a preset covers.`);
+        console.log('Either way each target gets its own CI workflow and tests on its platform (gw ci write).');
+      }
       if (oldTier && p.tier !== oldTier) {   // re-tiering is a decision: keep why
         fs.appendFileSync(P('decisions.jsonl'), JSON.stringify({ at: now(), kind: 're-tier', from: oldTier, to: p.tier, reason: p.tier_reason || null }) + '\n');
         if (!args.some(a => a.startsWith('tier_reason='))) console.log(`Tier changed ${oldTier} → ${p.tier}. Record why: gw set tier_reason="<what changed>"`);
@@ -1678,7 +1686,7 @@ function main(argv) {
   }
 }
 
-module.exports = { requiredDocs, prdRequirements, FEATURES, TEST_FILE, figmaCheck, figmaConfigured, mockupIntent, referenceIntent, docPath, changedPhases, chosenMethod, projectCaps, installGate, parseTrending, classifySkill, fitsProject, isLookalike, curatedCatalog, recommendSkills, suggestSkills, maintainInfo, catalog, buildManifest, integrity, changelogSince, capabilities, devMethod, feasibility, kvmCheck, dockerCheck, toolCheck, vcmp, installCommand, licenseClass, detectLicense, ciFragment, ciPlan, ciRender, devcontainerPlan, presets, packs };
+module.exports = { requiredDocs, prdRequirements, FEATURES, TEST_FILE, figmaCheck, figmaConfigured, mockupIntent, referenceIntent, docPath, changedPhases, chosenMethod, projectCaps, installGate, parseTrending, classifySkill, fitsProject, isLookalike, curatedCatalog, recommendSkills, suggestSkills, maintainInfo, catalog, buildManifest, integrity, changelogSince, capabilities, devMethod, feasibility, kvmCheck, dockerCheck, toolCheck, vcmp, installCommand, licenseClass, detectLicense, ciFragment, ciPlan, ciRender, devcontainerPlan, presets, presetsFor, packs };
 if (require.main === module) {
   try { const r = main(process.argv.slice(2)); if (r && r.then) r.then(c => { process.exitCode = c; }, e => { fb('error', { cmd: process.argv[2] || '', message: e.message }); console.error('gw: ' + e.message); process.exitCode = 1; }); else process.exitCode = r; } catch (e) { fb('error', { cmd: process.argv[2] || '', message: e.message }); console.error('gw: ' + e.message); process.exitCode = 1; }
 }

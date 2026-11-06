@@ -65,6 +65,19 @@
       "devcontainer": [
         "node"
       ]
+    },
+    "compose-multiplatform": {
+      "detect": [
+        "**/src/commonMain/kotlin/**"
+      ],
+      "scaffold": "Kotlin Multiplatform wizard at https://kmp.jetbrains.com (tick the targets you need, Compose Multiplatform for shared UI), or File > New > Kotlin Multiplatform in IntelliJ IDEA / Android Studio",
+      "ci": "kmp-web",
+      "devcontainer": [
+        "java"
+      ],
+      "ci_os": [
+        "ubuntu-latest"
+      ]
     }
   },
   "ci": {
@@ -201,5 +214,14 @@
     "error tracking (Sentry or self-hosted GlitchTip) tagged with release version",
     "uptime check (Uptime Kuma self-hosted, or UptimeRobot free)",
     "Core Web Vitals (web-vitals lib)"
-  ]
+  ],
+  "stack_tools": {
+    "compose-multiplatform": [
+      {
+        "id": "java",
+        "min": "17",
+        "severity": "block"
+      }
+    ]
+  }
 }

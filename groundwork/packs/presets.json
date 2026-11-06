@@ -1,5 +1,16 @@
 {
   "_doc": "Cross-platform presets: one stack for several targets. `gw set preset=<id>` sets targets and stacks.<target> together; add targets=<subset> to take only some of them.",
+  "kotlin-multiplatform": {
+    "title": "Kotlin Multiplatform with Compose Multiplatform: one Kotlin codebase, native on Android",
+    "targets": {
+      "android": "compose-multiplatform",
+      "ios": "compose-multiplatform",
+      "web": "compose-multiplatform",
+      "windows": "compose-multiplatform",
+      "macos": "compose-multiplatform",
+      "linux-desktop": "compose-multiplatform"
+    }
+  },
   "flutter": {
     "title": "Flutter: one Dart codebase",
     "targets": {

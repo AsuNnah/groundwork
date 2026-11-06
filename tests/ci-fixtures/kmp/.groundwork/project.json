@@ -1,0 +1,16 @@
+{
+  "name": "kmp",
+  "preset": "kotlin-multiplatform",
+  "targets": [
+    "android",
+    "web",
+    "linux-desktop",
+    "windows"
+  ],
+  "stacks": {
+    "android": "compose-multiplatform",
+    "web": "compose-multiplatform",
+    "linux-desktop": "compose-multiplatform",
+    "windows": "compose-multiplatform"
+  }
+}

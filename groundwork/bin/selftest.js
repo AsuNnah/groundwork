@@ -396,7 +396,7 @@ t('every pack stack with a CI fragment renders a pinned, complete workflow', () 
     const [e] = gw.ciPlan({ targets: [id], stacks: { [id]: stack } }, [], null), y = gw.ciRender(e).yaml; n++;
     assert.ok(!/__[A-Za-z]\w*__/.test(y) && !/\t/.test(y), `${id}/${stack}: placeholder or tab left`);
     for (const u of y.match(/uses: .*/g)) assert.match(u, /^uses: [\w.-]+\/[\w./-]+@[0-9a-f]{40} # v\d/, `${id}/${stack}: unpinned ${u}`);
-    assert.match(y, /^name: /m); assert.match(y, /runs-on: \$\{\{ matrix\.os \}\}/); assert.match(y, new RegExp(`os: \\[${(pk.ci.os || []).join(', ')}\\]`));
+    assert.match(y, /^name: /m); assert.match(y, /runs-on: \$\{\{ matrix\.os \}\}/); assert.match(y, new RegExp(`os: \\[${(st.ci_os || pk.ci.os || []).join(', ')}\\]`));
     if (pk.ci.services) assert.match(y, /services:\n      postgres:/);
   }
   assert.ok(n >= 30, 'stacks with CI: ' + n);
@@ -467,6 +467,23 @@ t('presets set several targets to one stack; packs ignore the data files', () =>
   p.gw(['set', 'preset=tauri', 'targets=linux-desktop,windows']);
   const j = p.read('.groundwork/project.json'); assert.deepEqual(j.targets, ['linux-desktop', 'windows']); assert.equal(j.stacks.windows, 'tauri'); assert.equal(j.preset, 'tauri');
   assert.equal(p.gw(['set', 'preset=tauri', 'targets=android']).code, 1); assert.equal(p.gw(['set', 'preset=nope']).code, 1);
+});
+t('several UI targets get the presets that cover them all, then one workflow per target on its own platform', () => {
+  const ids = ts => gw.presetsFor(ts).map(x => x[0]);
+  assert.deepEqual(ids(['android', 'ios', 'web', 'windows']), ['kotlin-multiplatform', 'flutter']);
+  assert.ok(ids(['android', 'ios']).includes('react-native') && ids(['windows', 'macos', 'linux-desktop']).includes('tauri'));
+  const p = proj();
+  const r = p.gw(['set', 'targets=android,ios,web,windows,backend']);
+  assert.match(r.out, /One codebase for android, ios, web, windows: kotlin-multiplatform \(Kotlin Multiplatform[^)]*\), flutter \(Flutter\)/); assert.match(r.out, /own CI workflow/);
+  assert.doesNotMatch(p.gw(['set', 'targets=web']).out, /One codebase/, 'one target: nothing to share');
+  p.gw(['set', 'preset=kotlin-multiplatform', 'targets=android,web,windows,linux-desktop']);
+  assert.equal(p.read('.groundwork/project.json').stacks.web, 'compose-multiplatform');
+  assert.equal(p.gw(['ci', 'write']).code, 0);
+  const y = f => require('fs').readFileSync(require('path').join(p.d, '.github', 'workflows', f), 'utf8');
+  assert.match(y('gw-android.yml'), /android-emulator-runner@/); assert.match(y('gw-android.yml'), /connectedDebugAndroidTest/);
+  assert.match(y('gw-web.yml'), /wasmJsBrowserTest/); assert.match(y('gw-web.yml'), /os: \[ubuntu-latest\]/);
+  assert.match(y('gw-windows.yml'), /os: \[windows-latest\]/); assert.match(y('gw-windows.yml'), /desktopTest/);
+  assert.match(y('gw-linux-desktop.yml'), /xvfb-run -a \.\/gradlew/);
 });
 t('host profiles with a UTF-8 BOM (Windows PowerShell 5.1) still parse', () => {
   const h = base(), fam = { linux: 'linux', darwin: 'macos', win32: 'windows' }[process.platform];

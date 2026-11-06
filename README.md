@@ -99,7 +99,7 @@ Problems are **notifications, not dead ends**. Each one has a status (`missing`,
 `groundwork/packs/*.json`: **web, backend, android, ios, macos, windows, linux-desktop, cli, embedded, game, browser-extension**.
 Each pack declares stacks (with detection markers and scaffolds), required tools with minimum versions, sandbox recipes per tier, test tooling, and release steps. `packs/tools.json` maps each tool to install commands per package manager (mise, winget, brew, apt, dnf, pacman, official installers). To add a target, add a JSON file; the core code doesn't change.
 
-- **Cross-platform presets** (`packs/presets.json`): `gw set preset=flutter` (or react-native, electron, tauri, dotnet-maui) sets one stack on every target it covers; `targets=` in the same command takes a subset.
+- **Cross-platform presets** (`packs/presets.json`): `gw set preset=kotlin-multiplatform` (or flutter, react-native, electron, tauri, dotnet-maui) sets one stack on every target it covers; `targets=` in the same command takes a subset. Choose several UI targets and `gw set` lists the presets that cover them all. Tests and CI still follow each target: Android on an emulator, iOS on a macOS simulator, web in a browser, desktop on each OS.
 - **CI workflows** (`gw ci write [target…]`): a ready GitHub Actions workflow per target from `templates/ci/`, with actions pinned to commit SHAs, the pack's runners (Android emulator on KVM, macOS, Windows), services such as Postgres and Redis, and monorepo support (workflow at the git root, `paths` filters, `working-directory`). Each step fragment says whether it has been verified on real runners.
 - **Devcontainers** (`gw devcontainer`): `.devcontainer/devcontainer.json` merged from the blocks your targets' stacks need (`packs/devcontainers.json`), with post-create commands and the checks to run inside it.
 
@@ -155,7 +155,7 @@ gw set docs_dir=<path> | dev_method=<method>
 gw research "<reference app>" ["goal"]
 gw phase <H0..P11> <done|skipped|in_progress|blocked> ["note"]
 gw run <target> <S0..S3> -- <cmd> gw gate <G1|G2> [--approve "user's words"]
-gw set preset=<flutter|react-native|electron|tauri|dotnet-maui> [targets=a,b]
+gw set preset=<kotlin-multiplatform|flutter|react-native|electron|tauri|dotnet-maui> [targets=a,b]
 gw ci [list] | print <target> | write [target...] [--os linux,windows,macos] [--force]
 gw devcontainer [--print] [--force]
 gw note <category> "text"         gw feedback

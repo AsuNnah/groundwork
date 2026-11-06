@@ -15,7 +15,15 @@ The roadmap items after 0.5.0: CI workflows per pack, devcontainers per stack, m
 - **Devcontainers** (`gw devcontainer [--print] [--force]`): `.devcontainer/devcontainer.json` merged from the blocks the project's stacks need (`packs/devcontainers.json`: image, features, ports, extensions, env, post-create commands), plus the notes and checks to run inside it. P3 uses it.
 - **New packs:** `game` (Godot, Unity, Unreal) and `browser-extension` (Manifest V3, WXT, Plasmo).
 - **New stacks:** Flutter and React Native for web; .NET MAUI for Android, iOS, macOS and Windows; Flutter for macOS, Windows and Linux desktop.
-- **Cross-platform presets** (`gw set preset=flutter|react-native|electron|tauri|dotnet-maui [targets=…]`, `packs/presets.json`): one stack on every target it covers.
+- **Cross-platform presets** (`gw set preset=kotlin-multiplatform|flutter|react-native|electron|tauri|dotnet-maui [targets=…]`, `packs/presets.json`): one stack on every target it covers.
+- **A stack chosen by the targets:** when `gw set targets=…` names several UI targets with no stack yet, it lists the presets that cover all of them, for example `kotlin-multiplatform` and `flutter` for Android + iOS + web + desktop. P2 recommends one by the team's language. Either way each target keeps its own workflow and tests on its platform.
+- **Kotlin Multiplatform** (`compose-multiplatform` stack for Android, iOS, web, Windows, macOS and Linux desktop):
+  - Android uses the Android Gradle workflow (emulator included);
+  - web runs the shared tests in headless Chrome (Wasm or JS) and builds the bundle;
+  - desktop runs the JVM tests on each OS and packages with Compose Desktop;
+  - iOS runs the simulator tests and builds the Xcode app;
+  - the fragments read the project's Gradle task list, so both wizard layouts (`jvm()` or `jvm("desktop")`, Wasm or JS) work.
+  A stack can now narrow its pack's CI runners (`ci_os`): KMP web runs on Linux only.
 - `godot` in the scanners and `tools.json`.
 - **Framework CI** (in the repo, not shipped): selftest and a scanner + CLI smoke test on Ubuntu and Windows with Node 18 and the current LTS; generated workflows for sample projects in `tests/ci-fixtures/`; a devcontainer build of every block set.
 

@@ -57,6 +57,17 @@
         "flutter",
         "desktop"
       ]
+    },
+    "compose-multiplatform": {
+      "detect": [
+        "**/src/commonMain/kotlin/**"
+      ],
+      "scaffold": "Kotlin Multiplatform wizard at https://kmp.jetbrains.com (tick the targets you need, Compose Multiplatform for shared UI), or File > New > Kotlin Multiplatform in IntelliJ IDEA / Android Studio",
+      "ci": "kmp-desktop",
+      "devcontainer": [
+        "java",
+        "desktop"
+      ]
     }
   },
   "ci": {
@@ -146,6 +157,13 @@
     "flutter": [
       {
         "id": "flutter",
+        "severity": "block"
+      }
+    ],
+    "compose-multiplatform": [
+      {
+        "id": "java",
+        "min": "17",
         "severity": "block"
       }
     ]

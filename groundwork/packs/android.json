@@ -51,6 +51,17 @@
         "java",
         "android-sdk"
       ]
+    },
+    "compose-multiplatform": {
+      "detect": [
+        "**/src/commonMain/kotlin/**"
+      ],
+      "scaffold": "Kotlin Multiplatform wizard at https://kmp.jetbrains.com (tick the targets you need, Compose Multiplatform for shared UI), or File > New > Kotlin Multiplatform in IntelliJ IDEA / Android Studio",
+      "ci": "android-gradle",
+      "devcontainer": [
+        "java",
+        "android-sdk"
+      ]
     }
   },
   "ci": {
