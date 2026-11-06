@@ -1,1 +1,1 @@
-{ "name": "fixture-electron", "private": true, "main": "main.js", "scripts": { "test": "node test/smoke.js" }, "devDependencies": { "electron": "^38.0.0" } }
+{ "name": "fixture-electron", "private": true, "main": "main.js", "scripts": { "test": "node test/smoke.js" }, "devDependencies": { "electron": "^38.0.0" }, "allowScripts": { "electron@38.8.6": true } }

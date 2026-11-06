@@ -1,0 +1,9 @@
+{
+  "name": "embedded-esp-idf",
+  "targets": [
+    "embedded"
+  ],
+  "stacks": {
+    "embedded": "esp-idf"
+  }
+}

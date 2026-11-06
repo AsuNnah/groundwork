@@ -1164,12 +1164,14 @@ function ciFragment(id, seen = []) {   // a steps file: "# about", "# verified: 
   while (body.length && !body[body.length - 1].trim()) body.pop();
   return { ...meta, body };
 }
-function gitTop() {   // the repository root: workflows live there even when this project is a subfolder (monorepo)
-  const r = cp.spawnSync('git', ['rev-parse', '--show-toplevel'], { cwd: ROOT, encoding: 'utf8' });
-  return r.status === 0 && r.stdout.trim() ? path.resolve(r.stdout.trim()) : ROOT;
+function gitTop() {   // the repository root and this project's folder in it: workflows live at the root even in a monorepo
+  // --show-prefix, not a path.relative of two absolute paths: those can differ in spelling (Windows 8.3 names, symlinks)
+  const r = cp.spawnSync('git', ['rev-parse', '--show-prefix'], { cwd: ROOT, encoding: 'utf8' });
+  const dir = r.status === 0 ? r.stdout.trim().replace(/\/$/, '') : '';
+  return { top: dir ? path.resolve(ROOT, ...dir.split('/').map(() => '..')) : ROOT, dir: dir || '.' };
 }
 function ciPlan(proj, targets, osArg) {
-  const all = packs(), top = gitTop(), dir = path.relative(top, ROOT).split(path.sep).join('/') || '.';
+  const all = packs(), { top, dir } = gitTop();
   const prefix = dir === '.' ? 'gw-' : `gw-${dir.replace(/[^\w.-]+/g, '-')}-`;
   osArg = osArg || proj.ci_os;
   return (targets.length ? targets : proj.targets || []).map(t => {

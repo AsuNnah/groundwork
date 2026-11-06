@@ -19,5 +19,5 @@ if (r.status !== 0) throw new Error(r.stderr);
 const p = JSON.parse(r.stdout);
 fs.mkdirSync(path.join(dir, '.devcontainer'), { recursive: true });
 fs.writeFileSync(path.join(dir, '.devcontainer', 'devcontainer.json'), JSON.stringify(p.dc, null, 2));
-fs.writeFileSync(path.join(dir, '.gw-check.sh'), 'set -e\n' + p.checks.map(c => `echo "== ${c.block}: ${c.cmd.replace(/"/g, '\\"')}"\n${c.cmd}`).join('\n') + '\n');
+fs.writeFileSync(path.join(dir, '.gw-check.sh'), 'set -e\ntrap \'echo "failed; PATH=$PATH"\' ERR\n' + p.checks.map(c => `echo "== ${c.block}: ${c.cmd.replace(/"/g, '\\"')}"\n${c.cmd}`).join('\n') + '\n');
 console.log(JSON.stringify(p.dc, null, 2));

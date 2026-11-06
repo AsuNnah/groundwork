@@ -1,0 +1,12 @@
+{
+  "name": "desktop-electron",
+  "targets": [
+    "linux-desktop",
+    "windows"
+  ],
+  "stacks": {
+    "linux-desktop": "electron",
+    "windows": "electron"
+  },
+  "preset": "electron"
+}

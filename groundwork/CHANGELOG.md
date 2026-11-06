@@ -19,7 +19,11 @@ The roadmap items after 0.5.0: CI workflows per pack, devcontainers per stack, m
 - `godot` in the scanners and `tools.json`.
 - **Framework CI** (in the repo, not shipped): selftest and a scanner + CLI smoke test on Ubuntu and Windows with Node 18 and the current LTS; generated workflows for sample projects in `tests/ci-fixtures/`; a devcontainer build of every block set.
 
+### Changed
+- npm 12+ and pnpm 10+ block dependencies' install scripts unless the project approves them. The Node CI fragment now warns when that happened, and P3 tells the agent to ask the user which to approve. Found when the Electron fixture installed without its binary.
+
 ### Fixed
+- `gw ci` gave a project at the repo root a garbage workflow name and folder when the project path and git's path were spelled differently: Windows 8.3 short names (`RUNNER~1`), or symlinks. It now asks git for the project's folder.
 - `scan.ps1 -Out` wrote the profile with a UTF-8 BOM on Windows PowerShell 5.1, and the CLI couldn't parse it. It now writes UTF-8 without a BOM, and the CLI strips a BOM when it reads JSON.
 - `scan.ps1 -Out` with a relative path now resolves against the current directory.
 

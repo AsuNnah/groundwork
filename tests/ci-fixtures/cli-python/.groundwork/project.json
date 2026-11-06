@@ -1,0 +1,10 @@
+{
+  "name": "cli-python",
+  "targets": [
+    "cli"
+  ],
+  "stacks": {
+    "cli": "python"
+  },
+  "ci_os": "linux,windows"
+}

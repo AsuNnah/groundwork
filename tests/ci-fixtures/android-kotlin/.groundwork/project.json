@@ -1,0 +1,9 @@
+{
+  "name": "android-kotlin",
+  "targets": [
+    "android"
+  ],
+  "stacks": {
+    "android": "kotlin-compose"
+  }
+}

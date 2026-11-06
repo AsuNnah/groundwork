@@ -428,6 +428,10 @@ t('a project in a subfolder of the repo gets its workflow at the repo root, scop
   assert.match(y, /working-directory: "apps\/web"/); assert.match(y, /paths: \["apps\/web\/\*\*", "\.github\/workflows\/gw-apps-web-web\.yml"\]/);
   assert.match(y, /os: \[ubuntu-latest\]/, 'ci_os from project.json'); assert.match(y, /hashFiles\('apps\/web\/playwright\.config\.\*'\)/);
   assert.ok(!fs.existsSync(path.join(app, '.github')));
+  // the same repo through another spelling of its path: a symlink here, an 8.3 short name (RUNNER~1) on Windows runners
+  const alias = top + '-alias', via = path.join(alias, 'apps', 'web'); fs.symlinkSync(top, alias, process.platform === 'win32' ? 'junction' : 'dir');
+  const r2 = cp.spawnSync(process.execPath, [path.join(__dirname, 'gw.js'), 'ci', 'list'], { cwd: via, env: { ...process.env, GW_PROJECT_DIR: via }, encoding: 'utf8' });
+  assert.match(r2.stdout, /→ \.github\/workflows\/gw-apps-web-web\.yml \(repo root, runs in apps\/web\)/, r2.stdout + r2.stderr);
 });
 t('doctor points a CI-only release tier at gw ci write', () => {
   const h = base(); h.virtualization.kvm_usable = false;

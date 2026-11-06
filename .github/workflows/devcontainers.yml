@@ -38,4 +38,4 @@ jobs:
           persist-credentials: false
       - run: node scripts/devcontainer-matrix.js "${{ matrix.set.id }}" "$RUNNER_TEMP/proj"
       - run: npx --yes @devcontainers/cli@0.89.0 up --workspace-folder "$RUNNER_TEMP/proj"
-      - run: npx --yes @devcontainers/cli@0.89.0 exec --workspace-folder "$RUNNER_TEMP/proj" bash -l .gw-check.sh
+      - run: npx --yes @devcontainers/cli@0.89.0 exec --workspace-folder "$RUNNER_TEMP/proj" bash .gw-check.sh   # no login shell: gw devcontainer tells users to exec commands directly

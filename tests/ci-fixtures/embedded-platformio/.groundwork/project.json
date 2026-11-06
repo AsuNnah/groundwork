@@ -1,0 +1,9 @@
+{
+  "name": "embedded-platformio",
+  "targets": [
+    "embedded"
+  ],
+  "stacks": {
+    "embedded": "platformio"
+  }
+}

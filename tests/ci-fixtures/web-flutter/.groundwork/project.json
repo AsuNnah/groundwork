@@ -1,0 +1,10 @@
+{
+  "name": "web-flutter",
+  "targets": [
+    "web"
+  ],
+  "stacks": {
+    "web": "flutter"
+  },
+  "ci_os": "linux"
+}

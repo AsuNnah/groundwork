@@ -1,0 +1,9 @@
+{
+  "name": "linux-gtk",
+  "targets": [
+    "linux-desktop"
+  ],
+  "stacks": {
+    "linux-desktop": "gtk"
+  }
+}

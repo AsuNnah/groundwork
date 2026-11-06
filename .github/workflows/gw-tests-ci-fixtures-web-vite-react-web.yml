@@ -38,11 +38,14 @@ jobs:
       - name: Install dependencies
         shell: bash
         run: |
-          if [ -f pnpm-lock.yaml ]; then npm install -g pnpm && pnpm install --frozen-lockfile
-          elif [ -f yarn.lock ]; then npm install -g yarn && yarn install --frozen-lockfile
-          elif [ -f bun.lock ] || [ -f bun.lockb ]; then npm install -g bun && bun install --frozen-lockfile
-          elif [ -f package-lock.json ]; then npm ci
+          log="$RUNNER_TEMP/gw-install.log"
+          if [ -f pnpm-lock.yaml ]; then npm install -g pnpm && pnpm install --frozen-lockfile 2>&1 | tee "$log"
+          elif [ -f yarn.lock ]; then npm install -g yarn && yarn install --frozen-lockfile 2>&1 | tee "$log"
+          elif [ -f bun.lock ] || [ -f bun.lockb ]; then npm install -g bun && bun install --frozen-lockfile 2>&1 | tee "$log"
+          elif [ -f package-lock.json ]; then npm ci 2>&1 | tee "$log"
           else echo "::error::no lockfile: commit package-lock.json (or your package manager's lockfile) so CI installs the versions you tested"; exit 1; fi
+          # npm 12+ and pnpm 10+ skip dependencies' install scripts (Electron's binary download, native builds) unless the project approves them
+          if grep -qE "install scripts blocked|Ignored build scripts" "$log"; then echo "::warning::dependency install scripts were blocked: approve the ones you need (npm install-scripts approve <pkg>, or pnpm approve-builds) and commit package.json"; fi
       - run: npm run lint --if-present
       - run: npm run build --if-present
       - name: Test

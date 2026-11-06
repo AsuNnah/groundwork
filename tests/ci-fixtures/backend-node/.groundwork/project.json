@@ -1,0 +1,9 @@
+{
+  "name": "backend-node",
+  "targets": [
+    "backend"
+  ],
+  "stacks": {
+    "backend": "node"
+  }
+}
