@@ -2,7 +2,7 @@
 
 <!-- "BSD" is Groundwork's name for the backend/API specification (not the BSD licence). Sources: OpenAPI 3.2 (2025) for HTTP APIs, AsyncAPI 3 for events, RFC 9457 problem details for errors, ER modelling (Chen, 1976) for data. -->
 
-Contracts the client and server agree on. Sources of truth: `docs/contracts/openapi.yaml` (OpenAPI 3.1 or 3.2; state which), `docs/contracts/asyncapi.yaml` for events and queues, or a GraphQL/proto schema. This doc explains them.
+Contracts between the parts of the system: client and server, or in a desktop or mobile app the UI and the main process (IPC), and the app and its helper processes. No server or database? Use the same sections: IPC channels go in Endpoints, local files and stores in Data storage, helper processes in Background jobs. Sources of truth: `docs/contracts/openapi.yaml` (OpenAPI 3.1 or 3.2; state which), `docs/contracts/asyncapi.yaml` for events and queues, or a GraphQL/proto schema. This doc explains them.
 
 ## API conventions
 - Base URL and versioning: <e.g. /api/v1, breaking change → v2>
@@ -17,10 +17,11 @@ Contracts the client and server agree on. Sources of truth: `docs/contracts/open
 |---|---|
 
 ## Endpoints
-| Method | Path | Purpose | Auth / role | REQ |
-|---|---|---|---|---|
+| Interface (HTTP method + path, IPC channel, CLI command, socket) | Purpose | Caller and auth / role | REQ |
+|---|---|---|---|
 
-## Database schema
+## Data storage
+A database: the diagram and table list below. Local storage only (files, key-value stores, caches): the table in Files, logs and other formats.
 ```mermaid
 erDiagram
   USER ||--o{ ORDER : places
@@ -55,6 +56,6 @@ erDiagram
 | `type` URI | When | HTTP status |
 |---|---|---|
 
-## Background jobs and events
-| Job / event (AsyncAPI channel) | Trigger | Payload schema | Retries | What happens on failure |
+## Background jobs, helper processes and events
+| Job / process / event (AsyncAPI channel) | Trigger or who starts it | Payload or arguments | Retries / restart | What happens on failure |
 |---|---|---|---|---|

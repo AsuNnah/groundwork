@@ -1,6 +1,14 @@
 # Feedback inbox
 
-After working on a project with Groundwork, copy its `.groundwork/FEEDBACK.md` here:
+Once per machine, let every project send its feedback events here as they happen:
+
+```
+node <project>/groundwork/bin/gw.js feedback inbox <groundwork-repo>/feedback/inbox
+```
+
+Each project then appends to `inbox/<project>-<id>.jsonl` (the id tells apart two projects with the same name): one context line, then every agent note and automatic signal, each with the framework version. The files stay on this machine and git ignores them. `gw feedback inbox off` stops it.
+
+Without that, copy a project's `.groundwork/FEEDBACK.md` here after working on it:
 
 ```
 cp <project>/.groundwork/FEEDBACK.md <groundwork-repo>/feedback/inbox/<project>-<YYYYMMDD>.md

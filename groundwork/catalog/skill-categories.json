@@ -1,0 +1,57 @@
+{
+  "_doc": "Categories for the installed-skill index (gw skills index). 'words' is matched against a skill's name and description to file it, and against the task text to bring the category into play. 'triggers' bring a development category into play from the project alone: ui (a pack with screens), features, the current phase, the stage. dev:false categories come into play only when the task names them. Within the categories in play, skills are ranked by the task's own words in their descriptions.",
+  "as_of": "2026-11-06",
+  "categories": [
+    { "id": "frontend", "title": "Frontend and UI", "dev": true, "words": "\\b(front-?end|ui|ux|css|tailwind|react|next\\.?js|vue|nuxt|svelte|angular|components?|accessib\\w*|wcag|landing pages?|web pages?|websites?|responsive|animations?|gsap|scroll\\w*)\\b", "triggers": { "ui": true, "phases": ["P5", "P7", "MOCKUP"] } },
+    { "id": "design", "title": "Visual design, mockups and diagrams", "dev": true, "words": "\\b(figma|design systems?|mockups?|wireframes?|prototypes?|visual design|canvas|diagrams?|drawio|brand\\w*|typography|taste|screens?)\\b", "triggers": { "ui": true, "phases": ["P5", "MOCKUP"] } },
+    { "id": "backend", "title": "Backend and APIs", "dev": true, "words": "\\b(back-?end|apis?|rest|graphql|endpoints?|servers?|services?|microservices?|webhooks?|grpc|interfaces?)\\b", "triggers": { "features": ["api"], "phases": ["P5", "P7"] } },
+    { "id": "database", "title": "Databases and data models", "dev": true, "words": "\\b(databases?|sql|postgres\\w*|mysql|sqlite|schemas?|migrations?|supabase|orm|quer(y|ies)|index(es|ing))\\b", "triggers": { "features": ["db"] } },
+    { "id": "security", "title": "Security and privacy", "dev": true, "words": "\\b(security|secure|threats?|vulnerab\\w*|owasp|asvs|auth\\w*|secrets?|harden\\w*|pentest\\w*|cves?|privacy)\\b", "triggers": { "features": ["auth", "pii", "payments", "public"], "phases": ["P9", "SECURITY"], "stages": ["security"] } },
+    { "id": "testing", "title": "Testing and QA", "dev": true, "words": "\\b(tests?|testing|tdd|qa|e2e|playwright|coverage|devtools|assertions?)\\b", "triggers": { "phases": ["P6", "P7", "P8"] } },
+    { "id": "debugging", "title": "Debugging and incidents", "dev": true, "words": "\\b(debug\\w*|errors?|bugs?|crash\\w*|incidents?|root cause|failing|broke|broken)\\b", "triggers": { "phases": ["OPERATE"], "stages": ["bugfix", "incident"] } },
+    { "id": "ci-release", "title": "CI/CD, release and deploy", "dev": true, "words": "\\b(ci|cd|pipelines?|github actions|deploy\\w*|releases?|launch\\w*|shipping|ship)\\b", "triggers": { "phases": ["P8", "P10"] } },
+    { "id": "planning", "title": "Planning, specs and docs", "dev": true, "words": "\\b(plans?|planning|prd|specs?|specifications?|requirements?|adrs?|architecture|documentation|docs|task breakdown|interview|ideas?)\\b", "triggers": { "phases": ["P0", "P1", "P5", "P6"] } },
+    { "id": "quality", "title": "Code review and refactoring", "dev": true, "words": "\\b(reviews?|refactor\\w*|simplif\\w*|clean code|tech debt|lint\\w*|code quality|deprecat\\w*|constraints?)\\b", "triggers": { "phases": ["P9", "MAINTAIN"], "stages": ["refactor"] } },
+    { "id": "performance", "title": "Performance and observability", "dev": true, "words": "\\b(performance|optimi[sz]\\w*|latency|profil\\w*|observability|logging|metrics|tracing|monitoring)\\b", "triggers": { "phases": ["P8", "OPERATE"] } },
+    { "id": "git", "title": "Git and versioning", "dev": true, "words": "\\b(git|branch\\w*|commits?|pull requests?|prs?|versioning|changelogs?|semver)\\b", "triggers": { "phases": ["P10"] } },
+    { "id": "tooling", "title": "Agent skills, plugins and tooling", "dev": true, "words": "\\b(skills?|plugins?|hooks?|mcp|agents?|claude code|settings\\.json|context engineering|prompts?|keybindings?)\\b", "triggers": { "phases": ["P4"] } },
+    { "id": "data", "title": "Data analysis and visualisation", "dev": false, "words": "\\b(datasets?|analytics|dashboards?|charts?|visuali[sz]\\w*|statistic\\w*|notebooks?|data)\\b" },
+    { "id": "writing", "title": "Writing, papers and theses", "dev": false, "words": "\\b(papers?|latex|thes[ie]s|citations?|bibtex|journals?|typst|skripsi|cover letters?|manuscripts?|academic|prose|slop)\\b" },
+    { "id": "office", "title": "Office documents", "dev": false, "words": "\\b(docx|pptx|xlsx|pdfs?|word documents?|spreadsheets?|slides|presentations?|google workspace)\\b" },
+    { "id": "science", "title": "Science and bio research", "dev": false, "words": "\\b(bio\\w*|rna|single-cell|clinical|chembl|proteins?|genom\\w*|allotrope|nextflow|scvi)\\b" },
+    { "id": "productivity", "title": "Productivity and memory", "dev": false, "words": "\\b(memory|task management|standups?|calendars?|morning|productivity|todos?)\\b" },
+    { "id": "media", "title": "Video, images and media", "dev": false, "words": "\\b(videos?|capcut|subtitles?|images?|audio|thumbnails?)\\b" }
+  ],
+  "context": {
+    "_doc": "The deep search inside the categories in play also looks for these terms: what a skill for the project's stage and the current phase talks about. They rank skills when the task says little, and at session start they find skills with no task at all. A term matches the start of a word.",
+    "stages": {
+      "feature": ["feature", "spec", "requirement", "incremental"],
+      "bugfix": ["bug", "debug", "root cause", "regression", "failing"],
+      "migration": ["migrat", "schema", "deprecat", "expand"],
+      "refactor": ["refactor", "simplif", "clarity", "tech debt"],
+      "upgrade": ["upgrade", "dependenc", "deprecat", "breaking change"],
+      "incident": ["incident", "outage", "root cause", "postmortem", "observab"],
+      "security": ["security", "vulnerab", "harden", "threat", "audit"]
+    },
+    "phases": {
+      "P0": ["idea", "scope"],
+      "P1": ["interview", "requirement", "prd", "user research"],
+      "P2": ["stack", "architecture"],
+      "P3": ["environment", "devcontainer"],
+      "P4": ["skill", "plugin", "mcp"],
+      "P5": ["architecture", "design system", "schema", "interface", "contract"],
+      "P6": ["plan", "task breakdown", "spec"],
+      "P7": ["implement", "incremental", "test-driven", "component"],
+      "P8": ["e2e", "browser", "performance", "coverage"],
+      "P9": ["review", "quality", "security", "audit"],
+      "P10": ["release", "deploy", "launch", "changelog"],
+      "P11": ["retrospective", "lesson", "documentation"],
+      "MOCKUP": ["mockup", "prototype", "wireframe", "figma"],
+      "RESEARCH": ["research", "reference", "competitor"],
+      "MAINTAIN": ["maintenance", "dependenc", "tech debt"],
+      "OPERATE": ["incident", "monitoring", "observab", "logging"],
+      "SECURITY": ["security", "vulnerab", "harden"],
+      "UPGRADE": ["upgrade", "migrat", "deprecat"]
+    }
+  }
+}

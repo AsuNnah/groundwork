@@ -121,6 +121,8 @@ Recommendations are **automatic and context-aware**. They appear at session star
 - Install copies the skill and its LICENSE into the project and records it in a lockfile.
 - Groundwork doesn't vendor third-party skills; it points to them.
 
+**Installed skills, found again.** Claude Code lists every installed skill, and in a long list the later ones lose their descriptions, so they can't trigger on their own. `gw skills index` indexes them all (your skills, the project's, those synced from claude.ai, plugins) into categories. The task's words, the project's stage and the phase bring categories into play, and a deep search inside them ranks the skills that fit. The hooks name up to three at session start and when a message fits, each once per session, so the agent can invoke them by name. The index also lists the skills installed twice; Groundwork never installs a second copy and never deletes one.
+
 **Inspected before install.** Every skill from a GitHub repo must pass [`skill-inspector`](https://github.com/nvidia/skillspector) (NVIDIA SkillSpector) with a verdict recorded for its exact commit.
 - APPROVE installs; CAUTION needs your approval.
 - REJECT shows the reasons and lets you decide.
@@ -196,9 +198,12 @@ Rules: keep `groundwork/` dependency-free (POSIX sh, PowerShell 5.1+, Node stdli
 - [x] Ready-to-use CI workflow templates per pack: Android emulator, Windows and Linux runners, Kotlin Multiplatform (0.6.0)
 - [x] Devcontainer generation per stack (0.6.0)
 - [x] More packs and presets: game engines, browser extensions, cross-platform presets with a stack chosen by the targets (0.6.0)
-- [x] Verified macOS runs on GitHub's macOS runners: `scan.sh`, the CLI, and the macOS and iOS CI fragments (0.6.1)
-- [x] Verify the remaining CI fragments on real projects: React Native, .NET MAUI, Tauri, Zephyr, Flutter on Android (0.6.1)
-- [x] Verify the Unity fragment (0.6.1)
+- [x] Verified macOS runs on GitHub's macOS runners: `scan.sh`, the CLI, and the macOS and iOS CI fragments (0.7.0)
+- [x] Verify the remaining CI fragments on real projects: React Native, .NET MAUI, Tauri, Zephyr, Flutter on Android (0.7.0)
+- [x] Verify the Unity fragment (0.7.0)
+- [x] A team the main session leads, with what delegating costs (`gw team`) (0.7.0)
+- [x] Installed-skill index: categories, a search by task, stage and phase, duplicates (0.7.0)
+- [x] Feedback from every project streamed to the framework's inbox (0.7.0)
 - [ ] `scan.sh` on a developer's own Mac, beyond GitHub's runner image
 
 ## Acknowledgements

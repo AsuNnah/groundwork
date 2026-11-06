@@ -1,9 +1,38 @@
 # Changelog
 
-## 0.6.1 (2026-11-06)
-The remaining CI fragments run on real projects, macOS and iOS included (on GitHub's macOS runners), and `gw ci` says which runners a fragment hasn't been proven on.
+## 0.7.0 (2026-11-06)
+The main session leads a team and knows what delegating costs. The installed skills that fit the work get named even when Claude's skill list hides them. Feedback from every project reaches the framework on its own. A real run on an existing desktop app fixed requirement tracing, gates and tasks for changes to existing projects. Every CI fragment now runs on real projects, macOS and iOS included. This release includes the unreleased 0.6.1 work.
+
+### Added
+- **`gw team`: the roles the lead hands work to, and their cost.** The main session is the project manager. It plans, hands work off by its shape, integrates one task at a time, runs the gates and talks to you.
+  - The roles follow the tier, the features and the targets: code reviewer, security analyst, senior backend and frontend engineers, QA, platform and release, researcher, and a UX panel of the PRD's personas.
+  - Each role says how it runs (a hat the lead wears, or a fresh subagent with read-only tools), its model and its brief.
+  - At the large tier, `gw team` groups the tasks marked `parallel` into waves of at most 3 workers. Tasks in a wave share no files, and each one waits for the tasks it depends on.
+  - It estimates the tokens against one agent doing everything, from published measurements (sources in `catalog/team.json`). Parallel builds cost about 1.6–4.3× and a fresh review +10–30%, and multi-agent runs often fail, so the lead delegates only where it pays.
+  - `gw team log <role> <tokens>` records what a hand-off really cost, and FEEDBACK.md sums it per role.
+- **Installed skills, found again (`gw skills index`).** Claude Code lists every installed skill, but in a long list the later ones lose their descriptions, so they can't trigger on their own.
+  - The index covers every skill Claude Code loads: yours, the project's, the ones synced from claude.ai, and plugin skills (including custom paths in `plugin.json`). It files each skill into categories (`catalog/skill-categories.json`).
+  - The task's words, the project's stage and features, and the phase bring categories into play. A deep search inside them then ranks the skills that fit, using the task's own words and what skills for this stage and phase talk about.
+  - The hooks name up to 3 skills at session start, and on a message that fits. Each skill is named once per session, so the agent can invoke it by name. `gw skills --for "<task>"` lists them too.
+  - The index lists skills installed twice, with their paths. Groundwork never deletes one, and `gw skills install` refuses a second copy of a skill that is already installed elsewhere (`--force` overrides).
+  - Nothing is installed without you. Missing skills are still only recommended: fetched for review, inspected, then installed if you agree.
+- **`gw feedback inbox <dir>`:** set it once per machine. Every project then also appends its feedback events to `<dir>/<project>-<id>.jsonl` (the id tells apart two projects with the same name): one line with the project's context first, and the framework version on each event. Notes for each version arrive without a manual hunt. `off` stops it.
+- P6 tasks can carry `parallel` and `role`. P7 runs parallel workers, each in its own git worktree, only at the large tier. P9's reviewer is a fresh read-only subagent that gets a brief, reports real problems rather than style, and logs its cost.
 
 ### Fixed
+From a real run on an existing desktop app (Groundwork 0.5.0):
+- **Requirement IDs outside the PRD are traced:** a change's delta (`### Requirement: <name> (REQ-301, SEC-004)`: every ID in the heading's parentheses) and every requirements section of the SRD (SEC- IDs). Requirements under `## REMOVED` aren't expected to be built. `gw trace` says which open change it checks.
+- **One GATE 1 per change.** `gates/G1.json` keeps one approval per change. A newer open change needs its own approval, approving it keeps the others', and the pre-edit hook says how to switch back (`gw set change=<id>`). Once every change is archived, the last approval stands, so `gw phase P10 done` works after archiving. Approving GATE 1 also marks P6 done and clears its re-check. On upgrade, a GATE 1 given on or after the day the active change opened stays that change's approval. An older one, and every GATE 2, are asked again.
+- **Tasks:** `gw task add` keeps every `--req` (repeated, a comma list `--req REQ-001,SEC-002`, or `--req=REQ-001`) and refuses stray words and anything that isn't a requirement ID. `gw task req <id> <IDs>` changes a task's IDs until it is done.
+- **Tasks recorded after the work:** `gw task start` says when uncommitted source code already exists, because it will count as the task's change. Docs, tests, CI files and setup files don't trigger it. A receipt says `dirty` when the tested tree isn't the commit it names. P7 says to start a task before writing its code.
+- **Templates:** SRD threats get TH- IDs, and the security requirements get SEC- IDs in a table with an ASVS 5.0 column. The BSD and TRD fit apps without a server: IPC channels, CLI commands, sockets, local storage, helper processes, and network exposure.
+
+Also fixed:
+- The installed check (`gw skills`) misses no skill: skills synced from claude.ai and plugin skills on custom paths count as installed.
+- A trending skill with the same name as another catalogue entry is listed once.
+- The selftest no longer writes into the real `~/.groundwork` (its feedback inbox and caches).
+
+CI fragments:
 - **.NET MAUI on Linux:** a template project lists iOS and Mac Catalyst too, and restore needs every listed platform's workload (NETSDK1178). The fragment now builds the runner's platform alone (`-p:TargetFrameworks=…`).
 - **.NET MAUI for iOS and Mac Catalyst:** .NET for Apple platforms accepts exactly one Xcode major.minor (`_RecommendedXcodeVersion`, which every release sets). The fragment selects that Xcode when the runner image has it. When it doesn't, it stops and says what to do: pin a workload set in `global.json` (`sdk.workloadVersion`) or use an image with that Xcode. Today the newest workload set (10.0.403) needs Xcode 27.1, which only GitHub's `xcode-27` preview image has. The sample project pins 10.0.401.
 - **Kotlin Multiplatform iOS:** the app builds for a named simulator. The generic simulator destination also builds x86_64, which needs an `iosX64()` target that current wizard projects don't have (Compose resources failed with "provider has no value").
@@ -11,6 +40,9 @@ The remaining CI fragments run on real projects, macOS and iOS included (on GitH
 - **Unity:** the workflow stops with a clear error naming the secrets it needs (`UNITY_EMAIL`, `UNITY_PASSWORD`, and `UNITY_LICENSE` for Personal or `UNITY_SERIAL` for Pro) instead of failing inside GameCI, and it passes `UNITY_SERIAL` through.
 
 ### Changed
+- **A requirement's status is a marker.** It counts when it starts a cell, sits in parentheses, or follows a full stop or dash: `(delivered)`, `(out of scope)`, `(deferred)`. A requirement whose text says "…after they are delivered" is no longer skipped. A row marked mid-sentence ("… already delivered") may now fail GATE 1 by name: mark it `(delivered)`.
+- The installed-skill index follows symlinked skill folders, skips plugins that are disabled or installed for another project, and treats two same-named skills as one only when their descriptions say much the same.
+- `gw team` waves keep a folder and the files in it apart, treat a glob as touching everything, and leave the files of the task in progress alone.
 - `gw ci` names the runners a workflow uses that its fragment hasn't been verified on (`gw ci list`: "not yet on ubuntu-latest"; the generated file says to watch the first run there).
 - React Native on Android: Maestro runs with its usage analytics turned off.
 - Framework CI runs the selftest and the scanner + CLI smoke test on macOS too.

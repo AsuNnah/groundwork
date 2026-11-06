@@ -42,9 +42,22 @@ function fb(kind, data = {}) {
   try {
     if (!exists(GW)) return;
     fs.mkdirSync(path.dirname(FB()), { recursive: true });
-    fs.appendFileSync(FB(), JSON.stringify({ at: now(), v: VERSION, phase: state().phase || null, kind, ...data }) + '\n');
+    const ev = { at: now(), v: VERSION, phase: state().phase || null, kind, ...data };
+    fs.appendFileSync(FB(), JSON.stringify(ev) + '\n');
+    try { toInbox(ev); } catch { /* the inbox is a copy: it never stops the local report */ }
     feedbackReport();   // keep FEEDBACK.md current: users copy it whenever they like
   } catch { /* feedback must never break the tool */ }
+}
+// gw feedback inbox <dir>: every project on this machine also appends its events to <dir>/<project>-<id>.jsonl (the framework clone's
+// feedback/inbox), so processing starts there. The first line is the project's context. Local files only; nothing is sent anywhere.
+function toInbox(ev) {
+  const dir = gcfg().feedback_inbox; if (!dir || !exists(dir)) return;
+  const proj = project(), name = proj.name || path.basename(ROOT), id = crypto.createHash('sha256').update(ROOT).digest('hex').slice(0, 6);   // two projects named "app" stay apart
+  const f = path.join(dir, `${name.replace(/[^A-Za-z0-9._-]+/g, '-')}-${id}.jsonl`);
+  if (!exists(f)) { const env = readJson(P('env-report.json'));
+    fs.appendFileSync(f, JSON.stringify({ at: ev.at, v: VERSION, kind: 'context', project: name, root: ROOT, stage: proj.stage || null, tier: proj.tier || null,
+      targets: proj.targets || [], stacks: proj.stacks || {}, features: proj.features || [], host: env ? env.host : null }) + '\n'); }
+  fs.appendFileSync(f, JSON.stringify(ev) + '\n');
 }
 const fbEvents = () => { try { return fs.readFileSync(FB(), 'utf8').split('\n').filter(Boolean).map(l => JSON.parse(l)); } catch { return []; } };
 function feedbackReport() {
@@ -78,7 +91,9 @@ function feedbackReport() {
   section('Stop blocked (task not verified)', group('stop-blocked', e => e.reason));
   section('Circuit breakers (3+ failed checks)', group('circuit-breaker', e => e.task));
   section('Tasks over the diff budget', group('diff-budget', e => `${e.task}: ${e.lines} lines`));
+  section('Tasks started on uncommitted work', group('task-start-dirty', e => `${e.task}: ${e.lines} lines`));
   section('Task checks changed', group('verify-changed', e => `${e.task}: \`${e.from}\` → \`${e.to}\``));
+  section('Hand-offs (gw team log)', Object.entries(auto.filter(a => a.kind === 'delegation').reduce((m, e) => { m[e.role] = (m[e.role] || 0) + (e.tokens || 0); return m; }, {})).map(([r, t]) => [`${r}: ${t} tokens`, auto.filter(a => a.kind === 'delegation' && a.role === r).length]));
   try { const m = metrics(proj); if (m.tasks) L.push('## Delivery metrics', '', `- Tasks: ${m.tasks} · done: ${m.done} · first-pass (check passed first time): ${m.first_pass} · reopened: ${m.reopened} · rework rate: ${m.rework_rate ?? '-'}`,
     `- Failed checks: ${m.failed_checks} · median task: ${m.median_task_minutes ?? '-'} min · release runs: ${m.release_runs} (${m.release_runs_failed} failed) · reverts: ${m.reverts} · circuit breakers: ${m.circuit_breakers} · stop blocks: ${m.stop_blocks}`, ''); } catch { }
   L.push('## Phase timeline', '');
@@ -348,7 +363,7 @@ function statusText() {
     const issues = env.checks.filter(c => c.status !== 'ok' && c.severity !== 'info');
     for (const i of issues) lines.push(`  ${i.severity === 'block' ? '✗ BLOCK' : '! WARN '} ${i.name}: ${i.status}${i.found ? ' (' + i.found + ')' : ''}${i.fix ? ' → ' + i.fix : i.install ? ' → gw plan-install' : ''}`);
   }
-  const g = ['G1', 'G2'].map(x => `${x}:${exists(P('gates', x + '.json')) ? 'approved' : 'open'}`).join(' ');
+  const g = ['G1', 'G2'].map(x => `${x}:${gateApproved(x, proj) ? 'approved' : 'open'}`).join(' ');
   lines.push(`Gates: ${g} · current phase: ${n.phase || 'done'} → ${n.do}`);
   const cur = loadTasks().list.find(t => t.status === 'in_progress');
   if (cur) lines.push(`Task in progress: ${cur.id} ${cur.title || ''} · check: ${cur.verify || '(none: add one)'} · finish with gw task done ${cur.id}`);
@@ -402,9 +417,23 @@ function requiredDocs(proj = project(), all = packs()) {
   return out;
 }
 // the change being worked on: the newest folder in docs/changes/ (archive excluded)
-function activeChange(proj = project()) {
-  try { return fs.readdirSync(path.join(ROOT, proj.docs_dir || 'docs', 'changes'), { withFileTypes: true }).filter(e => e.isDirectory() && e.name !== 'archive').map(e => e.name).sort().pop() || null; } catch { return null; }
+function openChanges(proj = project()) {
+  try { return fs.readdirSync(path.join(ROOT, proj.docs_dir || 'docs', 'changes'), { withFileTypes: true }).filter(e => e.isDirectory() && !/^(archive$|[._])/i.test(e.name)).map(e => e.name).sort(); } catch { return []; }
 }
+// several open changes: project.json "change" (gw set change=<id>) picks one, else the newest dated one (YYYYMMDD-slug) wins
+function activeChange(proj = project()) { const open = openChanges(proj), dated = open.filter(n => /^\d{8}-/.test(n)); return open.includes(proj.change) ? proj.change : dated.pop() || open.pop() || null; }
+// a gate approves one plan or release. In an existing project every open change needs its own: gates/<id>.json keeps one approval per change
+const gateChanges = g => [...new Set([g && g.change, ...Object.keys((g && g.changes) || {})].filter(Boolean))];
+function gateApproved(id, proj = project()) {
+  const g = readJson(P('gates', id + '.json')), ch = BROWNFIELD.includes(proj.stage) && activeChange(proj);
+  return !!g && (!ch || gateChanges(g).includes(ch));   // no open change (a new project, or the last change archived): the approval stands
+}
+const gateOtherChange = (id, proj = project()) => {
+  const g = readJson(P('gates', id + '.json')); if (!g || gateApproved(id, proj)) return '';
+  const ch = activeChange(proj), other = gateChanges(g).filter(c => openChanges(proj).includes(c));
+  return other.length ? ` (${id} is approved for ${other.join(', ')}, not for the active change ${ch}. Still working on ${other[other.length - 1]}: gw set change=${other[other.length - 1]}. Otherwise ${ch} needs its own approval.)`
+    : ` (the active change ${ch} has no ${id} approval of its own yet)`;
+};
 function resolveDoc(doc, proj = project()) {
   if (!doc.startsWith('changes/<id>/')) return docPath(doc, proj);
   return path.posix.join(proj.docs_dir || 'docs', 'changes', activeChange(proj) || '<YYYYMMDD-slug>', doc.slice('changes/<id>/'.length));
@@ -412,9 +441,34 @@ function resolveDoc(doc, proj = project()) {
 // requirement IDs defined in the PRD (table rows "| REQ-001 |" or headings "### REQ-001"); rows saying out of scope are excluded
 const REQ_ID = /\b(?:REQ|NFR|JRN|SEC)-\d{3,}\b/g;
 const REQ_DEF = /^\s*(?:\|\s*|#{2,4}\s+)\**((?:REQ|NFR|JRN|SEC)-\d{3,})\b/;
+// a row's status starts a cell, sits in (parentheses), or follows a full stop, colon or dash: "tokens expire after they are delivered" is a requirement, not a status
+const STATUS_WORDS = { out: "out of scope|out-of-scope|deferred|not in v1|won'?t do", delivered: 'delivered|already built|already delivered|shipped' };
+function reqStatus(line, kind) {
+  const table = /^\s*\|/.test(line), re = new RegExp(`(?:${table ? '^\\W*|' : ''}[.;:(\\[—–]\\s*|\\s-\\s+)(?:${STATUS_WORDS[kind]})\\b`, 'i');   // a heading's title itself is no status
+  return (table ? line.split('|').slice(2) : [line.replace(REQ_DEF, '').replace(/^\W+/, '')]).some(c => re.test(c.replace(/[*_`]/g, '').trim()));
+}
 function prdRequirements(text) {
-  return String(text || '').split('\n').map(line => { const m = line.match(REQ_DEF); return m && { id: m[1], text: line,
-    out: /\b(out of scope|out-of-scope|deferred|not in v1|won'?t do)\b/i.test(line), delivered: /\b(delivered|already built|shipped)\b/i.test(line) }; }).filter(Boolean);
+  return String(text || '').split('\n').map(line => { const m = line.match(REQ_DEF); return m && { id: m[1], text: line, out: reqStatus(line, 'out'), delivered: reqStatus(line, 'delivered') }; }).filter(Boolean);
+}
+// a change's delta defines IDs in its headings ("### Requirement: Site icons (REQ-306)"); a REMOVED one is not built
+function deltaRequirements(text) {
+  let section = ''; const out = [];
+  for (const line of String(text || '').split('\n')) {
+    if (/^## /.test(line)) section = line;
+    if (!/^###\s+Requirement:/.test(line)) continue;
+    const tail = (line.match(/\(([^()]*)\)\s*$/) || [])[1] || '', ids = tail.match(REQ_ID) || (line.match(REQ_ID) || []).slice(0, 1);   // "(REQ-301, SEC-004)"; else the first ID
+    for (const id of ids) out.push({ id, text: line, out: /^##\s+REMOVED\b/i.test(section), delivered: false });
+  }
+  return out;
+}
+// the SRD's security requirements: SEC- IDs under its "## … Requirements" heading (its threat table uses TH- IDs)
+function srdRequirements(text) {
+  let inReq = false; const keep = [];
+  for (const line of String(text || '').split('\n')) {
+    if (/^##\s/.test(line)) inReq = /\brequirements?\b/i.test(line) || (inReq && /^##\s+\d+\.\d+/.test(line));   // "## 4.1 Auth" stays in "## 4. Requirements"
+    else if (inReq) keep.push(line);
+  }
+  return prdRequirements(keep.join('\n')).filter(d => d.id.startsWith('SEC-'));
 }
 const TEST_FILE = /(^|\/)(tests?|spec|__tests__|e2e)\/|\.(test|spec)\.[a-z0-9]+$|_test\.[a-z0-9]+$|(^|\/)test_[^/]+\.py$/i;
 const SKIP_DIRS = new Set(['node_modules', '.git', 'groundwork', '.groundwork', 'dist', 'build', 'target', 'vendor', '.venv', 'venv', '__pycache__', '.next', 'coverage', '.dart_tool', 'Pods', '.gradle']);
@@ -434,12 +488,17 @@ function trace(proj = project()) {
   // a change to an existing system answers for the IDs its change docs name; requirements already delivered need no new task
   // a delivered row needs a task only when the change's spec (delta.md / bugfix.md) names it, not for a mention in the proposal ("REQ-001 tests still pass")
   const ch = BROWNFIELD.includes(proj.stage) && activeChange(proj), chDoc = f => readRel(path.posix.join(proj.docs_dir || 'docs', 'changes', ch, f)) || '';
+  // IDs are also defined in the SRD and, for this change, in its delta: the delta's status wins, "delivered" from any source is kept
+  const srdFile = docPath('srd.md', proj), srd = srdRequirements(readRel(srdFile)), delta = ch ? deltaRequirements(chDoc('delta.md')) : [];
+  const sources = [[prdFile, defs], [srdFile, srd], [ch && path.posix.join(proj.docs_dir || 'docs', 'changes', ch, 'delta.md'), delta]].filter(([, d]) => d.length).map(([f]) => f);
+  const byId = new Map(); for (const d of [...delta, ...defs, ...srd]) { const x = byId.get(d.id); if (!x) byId.set(d.id, { ...d }); else x.delivered = x.delivered || d.delivered; }
+  defs = [...byId.values()];
   const inChange = ch ? new Set(['proposal.md', 'delta.md', 'bugfix.md'].map(chDoc).join('\n').match(REQ_ID) || []) : null;
   const inSpec = ch ? new Set([chDoc('delta.md'), chDoc('bugfix.md')].join('\n').match(REQ_ID) || []) : new Set();
   const ids = [...new Set(defs.filter(d => !d.out).map(d => d.id))], delivered = new Set(defs.filter(d => d.delivered).map(d => d.id));
   const rows = ids.map(id => ({ id, delivered: delivered.has(id), enforced: /^(REQ|SEC)-/.test(id) && (inChange ? inChange.has(id) && (!delivered.has(id) || inSpec.has(id)) : !delivered.has(id)), tasks: tasks.filter(t => (t.req || []).includes(id)).map(t => t.id), tested: new RegExp(`\\b${id}\\b`).test(tests) }));
   const known = new Set(defs.map(d => d.id)), orphans = [...new Set(tasks.flatMap(t => t.req || []))].filter(r => !known.has(r));
-  return { prd: defs.length ? prdFile : null, change: ch || null, rows, out_of_scope: defs.filter(d => d.out).map(d => d.id), orphans };
+  return { prd: sources.length ? sources.join(' + ') : null, change: ch || null, rows, out_of_scope: defs.filter(d => d.out).map(d => d.id), orphans };
 }
 // requirement quality and OpenSpec delta structure: errors fail GATE 1, warnings are advice
 function lint(proj = project()) {
@@ -484,12 +543,12 @@ function gateCheck(id) {
     const T = loadTasks();
     if (!T.exists) problems.push('missing .groundwork/tasks.json');
     for (const t of T.list) if (!t.verify) problems.push(`task ${t.id} has no "verify" command (the check that proves it works)`);
-    for (const r of trace(proj).rows) if (r.enforced && !r.tasks.length) problems.push(`${r.id} has no task: add its ID to a task's "req" (gw task add … --req ${r.id}). ` + (r.delivered ? `It is delivered, but this change's delta or bugfix names it, so the change must prove it again.` : `Already built: write "delivered" in its PRD row. Not planned: "out of scope".`));
+    for (const r of trace(proj).rows) if (r.enforced && !r.tasks.length) problems.push(`${r.id} has no task: add its ID to a task's "req" (gw task add … --req ${r.id}). ` + (r.delivered ? `It is delivered, but this change's delta or bugfix names it, so the change must prove it again.` : `Already built: mark its row "(delivered)". Not planned: "(out of scope)".`));
     for (const e of lint(proj).errors) problems.push(e);
     const env = readJson(P('env-report.json'));
     if (!env) problems.push('no env-report: run gw doctor'); else if (!env.ready) problems.push('environment has blocking checks: run gw doctor');
   } else if (id === 'G2') {
-    if (!exists(P('gates', 'G1.json'))) problems.push('G1 not approved');
+    if (!gateApproved('G1', proj)) problems.push('G1 not approved' + gateOtherChange('G1', proj));
     const st = state(), all = packs(), rs = runs();
     for (const t of proj.targets || []) {
       const need = (all[t] || {}).min_release_tier || 'S1';
@@ -519,12 +578,13 @@ function runs() {
 const git = (...a) => { const r = cp.spawnSync('git', a, { cwd: ROOT, encoding: 'utf8' }); return r.status === 0 ? r.stdout.trim() : null; };
 function recordRun({ target, tier, command, task }) {
   const id = now().replace(/[:.]/g, '-') + '-' + (task || target), started = now();
+  const dirty = !!git('status', '--porcelain', '--', '.', ':(exclude).groundwork');   // the code tested is not the commit it names
   const log = P('runs', id, 'logs', 'output.txt'); fs.mkdirSync(path.dirname(log), { recursive: true });
   const fd = fs.openSync(log, 'w'), r = cp.spawnSync(command, { shell: true, stdio: ['inherit', fd, fd], cwd: ROOT }); fs.closeSync(fd);   // one file keeps stdout/stderr order
   const out = fs.readFileSync(log, 'utf8').trimEnd().split('\n'), keep = r.status === 0 ? 12 : 60;   // a pass needs only the summary; a failure needs the error
   if (out.length > keep) console.log(`… ${out.length - keep} earlier lines in .groundwork/runs/${id}/logs/output.txt`);
   if (out.join('')) console.log(out.slice(-keep).join('\n'));
-  const receipt = { target, tier, command, exit: r.status, commit: git('rev-parse', '--short', 'HEAD'), started, ended: now(), ...(task ? { task } : {}) };
+  const receipt = { target, tier, command, exit: r.status, commit: git('rev-parse', '--short', 'HEAD'), ...(dirty ? { dirty: true } : {}), started, ended: now(), ...(task ? { task } : {}) };
   writeJson(P('runs', id, 'receipt.json'), receipt);
   if (r.status !== 0) fb('run-failed', { target, tier, command });
   return { id, receipt };
@@ -539,9 +599,12 @@ function loadTasks() {
 const taskRuns = id => runs().filter(r => r.task === id).sort((a, b) => String(a.started).localeCompare(String(b.started)));
 // only receipts from the current attempt count: a reopened task needs a new passing check
 const taskPassed = t => { const r = taskRuns(t.id).filter(x => !t.started_at || String(x.started) >= t.started_at).pop(); return !!(r && r.exit === 0); };
-function diffLines(base) {   // lines added + removed since the task started, new untracked files included
+const reqList = a => { const ids = [...new Set(a.join(',').split(/[\s,]+/).filter(Boolean))], bad = ids.filter(x => !/^(?:REQ|NFR|JRN|SEC)-\d{3,}$/.test(x));
+  if (bad.length) throw new Error(`not a requirement ID: ${bad.join(', ')} (REQ-001, NFR-001, JRN-001 or SEC-001)`); return ids; };
+const NOT_SOURCE = ['tests', 'test', 'spec', '__tests__', '.github', '.gitignore', ':(exclude,glob)**/*.md', ':(exclude,glob)**/*.test.*', ':(exclude,glob)**/*_test.*', ':(exclude,glob)**/*.spec.*'];
+function diffLines(base, also = []) {   // lines added + removed since the task started, new untracked files included
   if (!base) return 0;
-  const skip = ['groundwork', '.groundwork', '.claude'].map(d => `:(exclude)${d}`);   // framework files are not the task's change
+  const skip = ['groundwork', '.groundwork', '.claude', ...also].map(d => d.startsWith(':(') ? d : `:(exclude)${d}`);   // framework files are not the task's change
   const tracked = (git('diff', '--numstat', base, '--', '.', ...skip) || '').split('\n').filter(Boolean).reduce((a, l) => { const [x, y] = l.split('\t'); return a + (+x || 0) + (+y || 0); }, 0);
   const untracked = (git('ls-files', '--others', '--exclude-standard', '--', '.', ...skip) || '').split('\n').filter(Boolean)
     .reduce((a, f) => { try { const s = fs.statSync(path.join(ROOT, f)); return a + (s.size < 1e6 ? fs.readFileSync(path.join(ROOT, f), 'utf8').split('\n').length : 0); } catch { return a; } }, 0);
@@ -550,19 +613,30 @@ function diffLines(base) {   // lines added + removed since the task started, ne
 function taskCmd(args) {
   const [sub, id, ...rest] = args, T = loadTasks(), proj = project();
   const find = () => { const t = T.list.find(x => x.id === id); if (!t) throw new Error(`no task "${id}" in .groundwork/tasks.json (gw task list)`); return t; };
-  if (sub === 'add') {   // gw task add T01 "title" --verify "<cmd>" [--req REQ-001,REQ-002]
-    const title = rest.find((a, i) => !a.startsWith('--') && !['--verify', '--req'].includes(rest[i - 1]));
+  if (sub === 'add') {   // gw task add T01 "title" --verify "<cmd>" [--req REQ-001,REQ-002] [--req SEC-001]
+    const words = rest.filter((a, i) => !a.startsWith('--') && !['--verify', '--req'].includes(rest[i - 1])), title = words[0];
     if (!id || !title || !flag(rest, '--verify')) throw new Error('usage: gw task add <id> "<title>" --verify "<command that proves it works>" [--req REQ-001,...]');
+    if (words.length > 1) throw new Error(`unexpected ${words.slice(1).join(' ')}: quote the title, and give several IDs as --req REQ-001,REQ-002 (or repeat --req)`);
     if (T.list.some(x => x.id === id)) throw new Error(`task ${id} already exists (gw task list). Change its check with gw task verify ${id} "<cmd>", or use a new id.`);
-    T.list.push({ id, title, req: (flag(rest, '--req') || '').split(',').map(x => x.trim()).filter(Boolean), verify: flag(rest, '--verify'), status: 'todo' });
+    T.list.push({ id, title, req: reqList([...rest.filter((a, i) => rest[i - 1] === '--req'), ...rest.filter(a => a.startsWith('--req=')).map(a => a.slice(6))]), verify: flag(rest, '--verify'), status: 'todo' });
     T.save(); console.log(`Added ${id}. Next: gw task start ${id}`); return 0;
+  }
+  if (sub === 'req') {   // gw task req T01 REQ-001,SEC-002: replace the IDs a task covers
+    const t = find(), ids = reqList(rest.filter(a => a !== '--req').map(a => a.replace(/^--req=/, '')));
+    if (!ids.length) throw new Error('usage: gw task req <id> REQ-001,SEC-002');
+    if (t.status === 'done') throw new Error(`${id} is done and its check proved what it covered; reopen it first (gw task reopen ${id} "<why>")`);
+    const from = t.req || []; t.req = ids; T.save();
+    console.log(`${id} covers ${ids.join(', ')} (was ${from.join(', ') || 'none'}). Check the plan: gw trace`); return 0;
   }
   if (sub === 'start') {
     const t = find(), other = T.list.find(x => x.status === 'in_progress' && x.id !== id);
     if (other) throw new Error(`${other.id} is still in progress. One task at a time: finish it (gw task done ${other.id}) or block it (gw task block ${other.id} "<reason>") first.`);
     if (!t.verify) throw new Error(`${id} has no "verify" command. Add the command that proves it works to the task in .groundwork/tasks.json.`);
     Object.assign(t, { status: 'in_progress', started_at: now(), base: git('rev-parse', 'HEAD') }); T.save();
-    console.log(`${id} in progress: ${t.title}\nIts check: ${t.verify}\nWhen the check should pass: gw task done ${id}`); return 0;
+    console.log(`${id} in progress: ${t.title}\nIts check: ${t.verify}\nWhen the check should pass: gw task done ${id}`);
+    const dd = proj.docs_dir || 'docs', dirty = diffLines(t.base, [...(dd === '.' ? [] : [dd]), ...NOT_SOURCE]);   // the change docs written before the first task are not code
+    if (dirty) { console.log(`Note: ${dirty} changed lines are not committed yet, so they count as ${id}'s change (diff budget, review). An earlier task's code: commit it first. Code already written for ${id}: start the task before writing it next time.`); fb('task-start-dirty', { task: id, lines: dirty }); }
+    return 0;
   }
   if (sub === 'done') {
     const t = find();
@@ -596,7 +670,7 @@ function taskCmd(args) {
     fs.appendFileSync(P('decisions.jsonl'), JSON.stringify({ at: now(), kind: 'verify-changed', task: id, from, to: cmd }) + '\n'); fb('verify-changed', { task: id, from, to: cmd });
     console.log(`${id} check changed: ${from || '(none)'} → ${cmd}. Tell the user why (e.g. tests that already failed before this task).`); return 0;
   }
-  const usage = 'usage: gw task [list] | add <id> "<title>" --verify "<cmd>" [--req REQ-001] | start <id> | done <id> | verify <id> "<new check>" | block <id> "<reason>" | reopen <id> ["reason"]';
+  const usage = 'usage: gw task [list] | add <id> "<title>" --verify "<cmd>" [--req REQ-001,SEC-001] | start <id> | done <id> | verify <id> "<new check>" | req <id> REQ-001,SEC-001 | block <id> "<reason>" | reopen <id> ["reason"]';
   if (sub === 'help') { console.log(usage); return 0; }
   if (sub && sub !== 'list') throw new Error(usage);
   if (!T.exists) { console.log('No tasks yet. Add one: gw task add T01 "<title>" --verify "<command that proves it works>"'); return 0; }
@@ -623,6 +697,55 @@ function reviewCmd(args) {
   if (sub === 'help') { console.log('usage: gw review [list] | add <CRITICAL|HIGH|MEDIUM|LOW> "<finding>" --verdict <fixed|waived|deferred|open> [--reason "…"] | done --reviewer <fresh-context|human|ci> "<summary>"'); return 0; }
   const rv = reviewLog(); if (!rv.length) { console.log('No review recorded yet (phases/P9.md).'); return 0; }
   for (const x of rv) console.log(x.kind === 'review' ? `review by ${x.reviewer}: ${x.summary}` : `  ${x.severity.padEnd(8)} ${x.verdict.padEnd(8)} ${x.finding}${x.reason ? ' · ' + x.reason : ''}`);
+  return 0;
+}
+
+// ---------- team: the roles the lead hands work to, parallel waves, agent-power cost (catalog/team.json) ----------
+const teamCatalog = () => readJson(path.join(FW, 'catalog', 'team.json'), { roles: [], costs: {}, sources: {} });
+function teamPlan(proj = project(), tasks = loadTasks().list, all = packs(), T = teamCatalog()) {
+  const f = projectFeatures(proj, all), tier = proj.tier || 'small', ui = f.has('ui') || (proj.targets || []).some(t => (all[t] || {}).ui);
+  const rel = (proj.targets || []).map(t => (all[t] || {}).min_release_tier || 'S1');
+  const match = w => (!w.tiers || w.tiers.includes(tier)) && (!w.features || w.features.some(x => f.has(x))) && (!w.ui || ui) &&
+    (!w.references || (proj.references || []).length > 0) && (!w.release_tiers || rel.some(r => w.release_tiers.includes(r)));
+  const roles = T.roles.filter(r => (r.when || [{}]).some(match));
+  // P7 waves: todo tasks marked parallel, dependencies done (or in an earlier wave), no file shared within a wave, at most 3 workers
+  const done = new Set(tasks.filter(t => t.status === 'done').map(t => t.id)), waves = [];
+  const fl = t => [].concat(t.files || []).map(x => String(x).replace(/\\/g, '/').replace(/^\.\//, '').replace(/\/+$/, '')).filter(Boolean);
+  const clash = (a, b) => a === b || a.startsWith(b + '/') || b.startsWith(a + '/') || /[*?[{]/.test(a + b);   // a folder holds its files; a glob may match anything
+  const busy = tasks.filter(t => t.status === 'in_progress').flatMap(fl);
+  let left = tier === 'large' ? tasks.filter(t => t.status === 'todo' && t.parallel && fl(t).length) : [];   // parallel workers are a large-tier rule (P7)
+  while (left.length) {
+    const wave = [], files = waves.length ? [] : [...busy];
+    for (const t of left) if (wave.length < 3 && [].concat(t.depends_on || []).every(d => done.has(d)) && !fl(t).some(x => files.some(y => clash(x, y)))) { wave.push(t); files.push(...fl(t)); }
+    if (!wave.length) break;
+    for (const t of wave) done.add(t.id); left = left.filter(t => !wave.includes(t)); waves.push(wave.map(t => t.id));
+  }
+  // tokens against one agent doing everything: parallel tasks cost the build factor, each review role adds its extra
+  const todo = tasks.filter(t => t.status === 'todo').length, par = waves.filter(w => w.length > 1).flat().length, c = T.costs;
+  const build = todo ? [0, 1].map(i => (todo - par + par * c.build.factor[i]) / todo) : [1, 1];
+  const reviews = roles.filter(r => r.cost === 'review').length, total = [0, 1].map(i => +(build[i] + reviews * c.review.extra[i]).toFixed(2));
+  const used = {}; for (const e of fbEvents().filter(e => e.kind === 'delegation')) { const u = used[e.role] = used[e.role] || { runs: 0, tokens: 0 }; u.runs++; u.tokens += e.tokens || 0; }
+  return { lead: T.lead, roles, waves, parallel: par, todo, estimate: total, used };
+}
+function teamCmd(args) {
+  const T = teamCatalog();
+  if (args[0] === 'log') {   // gw team log <role> <tokens> ["what it did"]: a hand-off and what it really cost
+    const [, role, tokens, ...note] = args;
+    if (!role || ![T.lead.id, ...T.roles.map(r => r.id)].includes(role) || !/^\d+$/.test(tokens || '')) throw new Error(`usage: gw team log <${T.roles.map(r => r.id).join('|')}> <tokens> ["what it did"]`);
+    fb('delegation', { role, tokens: +tokens, note: note.join(' ') || null }); console.log(`Logged: ${role}, ${tokens} tokens.`); return 0;
+  }
+  if (args[0] === 'help') { console.log('usage: gw team [--json] | team log <role> <tokens> ["what it did"]'); return 0; }
+  const proj = project(), r = teamPlan(proj);
+  if (args.includes('--json')) { console.log(JSON.stringify(r, null, 2)); return 0; }
+  console.log(`Team for tier ${proj.tier || '?'}${projectFeatures(proj).size ? ' · features ' + [...projectFeatures(proj)].join(',') : ''}. Lead: ${r.lead.title}, ${r.lead.who}: ${r.lead.does}`);
+  const c = T.costs, pct = a => a.map(x => Math.round(x * 100)).join('–');
+  const cost = { inline: 'no extra tokens', review: `+${pct(c.review.extra)}% of the change's tokens`, research: `${c.research.factor.join('–')}× one agent researching alone`, build: `${c.build.factor.join('–')}× per task given to a parallel worker` };
+  for (const x of r.roles) console.log(`  ${x.title} (${x.phases.join(', ')}): ${x.how} · ${x.model} · tools: ${x.tools} · ${cost[x.cost]}${r.used[x.id] ? ` · used ${r.used[x.id].runs}×, ${r.used[x.id].tokens} tokens` : ''}`);
+  console.log(proj.tier !== 'large' ? 'Parallel build: only at the large tier (phases/P7.md). Here the lead builds the tasks in order.'
+    : r.waves.some(w => w.length > 1) ? `Parallel build (phases/P7.md): ${r.parallel} of ${r.todo} open tasks can go to workers, in waves ${r.waves.filter(w => w.length > 1).map(w => w.join(' ')).join(' | ')}.`
+    : 'Parallel build: no open tasks can run side by side (mark independent ones "parallel": true with their "files", phases/P6.md).');
+  console.log(`Tokens against one agent doing everything: about ${r.estimate[0]}–${r.estimate[1]}× (estimate from catalog/team.json sources; measure with gw team log).`);
+  console.log('Delegate a role only where it pays: a review or research from fresh context does; coupled coding tasks split across agents cost more and do worse. Each role\'s brief: gw team --json.');
   return 0;
 }
 
@@ -764,6 +887,12 @@ const MIGRATIONS = [
     for (const t of T.list) if (t.status === 'done' && !t.receipt && !t.legacy) { t.legacy = true; n++; }
     if (n) T.save();
   } },
+  { to: '0.7.0', run: () => {   // a GATE 1 from before 0.7.0 approved every change: keep it for the open change it was given on or after the day that change opened; GATE 2 is asked again
+    const proj = project(), ch = BROWNFIELD.includes(proj.stage) && activeChange(proj), f = P('gates', 'G1.json'), g = readJson(f);
+    if (!ch || !g || g.change || g.changes || !/^\d{8}-/.test(ch) || String(g.approved_at || '').slice(0, 10).replace(/-/g, '') < ch.slice(0, 8)) return;
+    writeJson(f, { ...g, change: ch, changes: { [ch]: { approved_at: g.approved_at, approval_quote: g.approval_quote } }, migrated: '0.7.0' });
+    fs.appendFileSync(P('decisions.jsonl'), JSON.stringify({ at: now(), kind: 'gate-migrated', gate: 'G1', change: ch }) + '\n');
+  } },
 ];
 function migrate({ quiet = false } = {}) {
   if (!exists(P('project.json'))) return null;
@@ -824,18 +953,99 @@ function changedPhases(oldM, newM, st) {
 // ---------- skill catalogue ----------
 const curatedCatalog = () => readJson(path.join(FW, 'catalog', 'skills.json'), { sources: {}, skills: [] });
 // curated (shipped) + this project's weekly trending discoveries (.groundwork/skills-discovered.json)
-const catalog = () => { const c = curatedCatalog(), d = readJson(P('skills-discovered.json'), { skills: [] }); return { ...c, skills: [...c.skills, ...(d.skills || [])] }; };
-function skillInstalled(name) {
-  const home = os.homedir();
-  const direct = [path.join(ROOT, '.claude', 'skills', name), path.join(home, '.claude', 'skills', name)];
-  if (direct.some(d => exists(path.join(d, 'SKILL.md')))) return true;
-  const plug = path.join(home, '.claude', 'plugins');   // plugin caches: look a few levels deep for skills/<name>/SKILL.md
-  const seek = (d, depth) => { if (depth < 0 || !exists(d)) return false;
-    try { for (const e of fs.readdirSync(d, { withFileTypes: true })) { if (!e.isDirectory()) continue;
-      const f = path.join(d, e.name); if (e.name === name && exists(path.join(f, 'SKILL.md'))) return true; if (seek(f, depth - 1)) return true; } } catch { }
-    return false; };
-  return seek(plug, 6);
+const catalog = () => { const c = curatedCatalog(), d = readJson(P('skills-discovered.json'), { skills: [] }), names = new Set(c.skills.map(s => s.name));
+  return { ...c, skills: [...c.skills, ...(d.skills || []).filter(s => !names.has(s.name) && names.add(s.name))] }; };   // one entry per skill name: two copies would collide on install
+const skillInstalled = name => skillIndex().some(s => s.name === name);   // in this project, the user's skills, synced skills or a plugin
+
+// ---------- installed-skill index: categories, deep search, duplicates (catalog/skill-categories.json) ----------
+// Claude Code lists every installed skill, but a long list loses the descriptions, and a skill without one can't trigger on its own.
+// The index keeps each description and its categories. The task's words, the phase and the project pick categories; the best fits inside them are named.
+const STOPWORDS = new Set(['with', 'when', 'that', 'this', 'from', 'into', 'make', 'need', 'want', 'some', 'have', 'like', 'more', 'also', 'your', 'them', 'then', 'than', 'what', 'about', 'should', 'would', 'could', 'before', 'after', 'while', 'where', 'which', 'there', 'their', 'using', 'used', 'just', 'only', 'each', 'every', 'other', 'over', 'under', 'very', 'will', 'here', 'these', 'those', 'onto', 'upon', 'the', 'and', 'for', 'you', 'can', 'are', 'not', 'but', 'all', 'any', 'how', 'its', 'use', 'our', 'one', 'new', 'get', 'yet', 'please', 'pls',
+  'build', 'add', 'create', 'fix', 'update', 'change', 'implement', 'work', 'run', 'show', 'give', 'set', 'let', 'try', 'help', 'thanks', 'src', 'lib', 'file', 'files', 'code', 'write', 'open', 'read', 'check', 'find', 'look', 'see', 'keep', 'move', 'put', 'take', 'done', 'good', 'sure', 'yes',   // words every task has
+  'to', 'of', 'in', 'on', 'at', 'is', 'it', 'be', 'do', 'my', 'me', 'we', 'an', 'as', 'by', 'if', 'or', 'so', 'up', 'no', 'ok', 'us', 'am', 'hi', 'ya', 'yg', 'di', 'ke', 'ga', 'gw', 'aj',
+  'tolong', 'buat', 'bikin', 'untuk', 'dan', 'yang', 'ini', 'itu', 'dengan', 'bisa', 'ada', 'tidak', 'jadi', 'dari', 'mau', 'apa', 'saya', 'kita', 'sudah', 'belum', 'juga', 'atau', 'pada', 'lagi', 'aja', 'saja', 'gimana']);   // Indonesian filler
+const skillCats = () => readJson(path.join(FW, 'catalog', 'skill-categories.json'), { categories: [] }), skillCategories = () => skillCats().categories;
+const isDir = f => { try { return fs.statSync(f).isDirectory(); } catch { return false; } };
+const subdirs = d => { try { return fs.readdirSync(d, { withFileTypes: true }).filter(e => e.isDirectory() || (e.isSymbolicLink() && isDir(path.join(d, e.name)))).map(e => e.name); } catch { return []; } };   // skills CLIs install by symlink
+function skillRoots(home = os.homedir()) {   // where Claude Code loads skills from, with the prefix it lists them under
+  const C = path.join(home, '.claude'), out = [['user', path.join(C, 'skills')]];
+  const plugin = (ns, dir, extra = {}) => { const m = readJson(path.join(dir, '.claude-plugin', 'plugin.json'), {}) || {};   // skills/ plus the paths plugin.json adds
+    for (const d of new Set([path.join(dir, 'skills'), ...[].concat(m.skills || []).filter(x => typeof x === 'string').map(x => path.resolve(dir, x))]))
+      out.push([ns || (typeof m.name === 'string' && m.name) || path.basename(dir).replace(/~g2$/, ''), d, extra]); };
+  for (const org of subdirs(path.join(C, 'skills', 'synced'))) out.push(['anthropic-skills', path.join(C, 'skills', 'synced', org)]);   // synced from claude.ai
+  for (const [k, v] of Object.entries((readJson(path.join(C, 'plugins', 'installed_plugins.json'), {}) || {}).plugins || {}))
+    for (const e of [].concat(v)) if (e && typeof e.installPath === 'string') plugin(k.split('@')[0], e.installPath, { plugin: k, ...(typeof e.projectPath === 'string' && e.scope !== 'user' ? { project: e.projectPath } : {}) });
+  for (const org of subdirs(path.join(C, 'plugins', 'synced'))) { const S = path.join(C, 'plugins', 'synced', org), names = subdirs(S);
+    for (const n of names) if (n.endsWith('~g2') || !names.includes(n + '~g2')) plugin(null, path.join(S, n)); }   // a newer generation of a synced plugin replaces the older
+  return out;
 }
+function skillMeta(file) {   // name and description from the SKILL.md front matter: one line, quoted, or folded over indented lines
+  const fm = (fs.readFileSync(file, 'utf8').replace(/^\uFEFF/, '').match(/^---\r?\n([\s\S]*?)\r?\n---/) || [])[1] || '';
+  const get = k => { const m = fm.match(new RegExp(`^${k}:[ \\t]*(.*(?:\\r?\\n(?:[ \\t]+.*|[ \\t]*(?=\\r?\\n[ \\t]+\\S)))*)`, 'm')); return m ? m[1].replace(/^[>|][-+]?/, '').replace(/\s+/g, ' ').trim().replace(/^(["'])(.*)\1$/, '$2') : ''; };
+  return { name: get('name'), description: get('description') };
+}
+function buildSkillIndex(roots) {
+  const cats = skillCategories().map(c => [c.id, new RegExp(c.words, 'i')]), out = [];
+  for (const [ns, base, extra = {}] of roots) for (const d of exists(path.join(base, 'SKILL.md')) ? [''] : subdirs(base)) {   // a root may be one skill itself
+    const f = path.join(base, d, 'SKILL.md'); if (!exists(f)) continue;
+    try { const m = skillMeta(f), name = m.name || d, text = name.replace(/[-_]/g, ' ') + ' ' + m.description;
+      out.push({ id: ['user', 'project'].includes(ns) ? name : `${ns}:${name}`, name, ns, description: m.description.slice(0, 400), path: path.join(base, d), hash: sha(f), categories: cats.filter(([, re]) => re.test(text)).map(([id]) => id), ...extra }); } catch { /* unreadable skill: skip */ }
+  }
+  return out;
+}
+let skillIndexMemo = null;
+function skillIndex(refresh = false) {   // the machine's skills cached in ~/.groundwork for 10 minutes (paths stay out of the project); project skills read live
+  if (skillIndexMemo && !refresh) return skillIndexMemo;
+  const f = path.join(HOME_GW, 'skills-index.json'); let idx = !refresh && readJson(f);
+  if (!idx || idx.v !== VERSION || idx.home !== os.homedir() || !Array.isArray(idx.skills) || !(Date.now() - Date.parse(idx.built_at) <= 6e5)) {   // projects carry their own groundwork/: the version is part of the key
+    idx = { v: VERSION, built_at: now(), home: os.homedir(), skills: buildSkillIndex(skillRoots()) }; try { writeJson(f, idx); } catch { /* read-only home: use it uncached */ }
+  }
+  const en = Object.assign({}, ...[path.join(os.homedir(), '.claude', 'settings.json'), path.join(ROOT, '.claude', 'settings.json'), path.join(ROOT, '.claude', 'settings.local.json')]
+    .map(x => ((readJson(x, {}) || {}).enabledPlugins) || {}));   // a disabled plugin, or one installed for another project, loads no skills here
+  const here = idx.skills.filter(x => x && (!x.plugin || en[x.plugin] !== false) && (!x.project || path.resolve(x.project) === path.resolve(ROOT)));
+  return (skillIndexMemo = [...buildSkillIndex([['project', path.join(ROOT, '.claude', 'skills')]]), ...here]);
+}
+const descWords = x => new Set(String(x.description || '').toLowerCase().split(/[^a-z0-9]+/).filter(w => w.length >= 4 && !STOPWORDS.has(w)));
+function sameSkill(a, b) {   // one skill twice: the same file, the same description, or the same name with much the same description (another version)
+  if (a.hash && a.hash === b.hash) return true;
+  const A = descWords(a), B = descWords(b), common = [...A].filter(w => B.has(w)).length, small = Math.min(A.size, B.size);
+  return (A.size >= 5 && common === A.size && common === B.size) || (a.name === b.name && small > 0 && common >= 0.3 * small);   // measured: versions 0.35-0.52, unrelated "start" skills 0.14
+}
+function skillDuplicates(skills) {
+  const seen = new Set(), groups = [];
+  for (const a of skills) { if (seen.has(a)) continue;
+    const g = skills.filter(b => b === a || (!seen.has(b) && sameSkill(a, b)));
+    if (g.length > 1) { g.forEach(x => seen.add(x)); groups.push(g); } }
+  return groups;
+}
+const reEsc = x => x.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+function matchInstalled(text, proj = project(), phase = null, { limit = 5, min = 1, ownWords = false, skills = skillIndex() } = {}) {
+  const { categories: cats, context = {} } = skillCats(), f = projectFeatures(proj), t = String(text || '').slice(0, 4000);   // a pasted log is not a task description
+  const named = new Set(cats.filter(c => t && new RegExp(c.words, 'i').test(t)).map(c => c.id));   // categories the task itself names
+  const trig = c => c.dev && c.triggers && ((c.triggers.ui && f.has('ui')) || (c.triggers.features || []).some(x => f.has(x)) || (phase && (c.triggers.phases || []).includes(phase)) || (c.triggers.stages || []).includes(proj.stage));
+  const play = new Set([...named, ...cats.filter(trig).map(c => c.id)]);
+  const toWords = x => [...new Set(String(x).toLowerCase().split(/[^a-z0-9+#]+/).filter(w => w.length >= 2 && !/^\d+$/.test(w) && !STOPWORDS.has(w)))];
+  const words = toWords(t).slice(0, 40), stack = toWords(Object.values(proj.stacks || {}).join(' ')).filter(w => !words.includes(w));
+  const ctx = [...new Set([...(context.stages || {})[proj.stage] || [], ...(context.phases || {})[phase] || []].map(x => x.toLowerCase()))].filter(x => !words.includes(x));   // the stage and the phase
+  const stem = w => { const x = w.replace(/(ations?|ings?|ments?|ible|able|ity|ies|ed|es|s)$/, ''); return x.length >= 4 ? x : w; };   // accessible → access, failing → fail
+  const RE = new Map(), re = w => RE.get(w) || RE.set(w, new RegExp(`\\b${reEsc(w.length <= 3 ? w : stem(w))}${w.length <= 3 ? 's?(?![a-z0-9])' : ''}`)).get(w);   // built once per word
+  const part = (p, w) => w.length <= 3 ? p === w || p === w + 's' : p.startsWith(stem(w));   // ci, ui, db, api: whole words
+  const out = [];
+  for (const s of skills) {   // deep search inside the categories in play: the task's own words in the skill's name and description
+    const inCat = s.categories.filter(c => play.has(c)); if (!inCat.length) continue;
+    const hay = (s.name.replace(/[-_]/g, ' ') + ' ' + s.description).toLowerCase(), hits = words.filter(w => re(w).test(hay)), cHits = ctx.filter(w => re(w).test(hay));
+    if (!hits.length && (ownWords || !cHits.length)) continue;   // the project's stack alone is no reason; a message hint needs the message's own words
+    const nameParts = s.name.split(/[-_]/), own = 2 * hits.length + 2 * nameParts.filter(p => words.some(w => part(p, w))).length;   // the task's own words weigh twice the context
+    const score = own + Math.min(2, cHits.length) + (nameParts.some(p => ctx.some(w => part(p, w))) ? 1 : 0) + (inCat.some(c => named.has(c)) ? 1 : 0) + (stack.some(w => re(w).test(hay)) ? 1 : 0);   // "debug" fits debugging-and-error-recovery
+    if (score >= min && (!ownWords || own >= min)) out.push({ s, id: s.id, name: s.name, description: s.description, categories: inCat, score, words: [...hits, ...cHits].slice(0, 3) });   // a hint: the message alone must reach it
+  }
+  const kept = [];   // one copy of a skill listed twice
+  for (const r of out.sort((a, b) => b.score - a.score || a.id.localeCompare(b.id))) if (kept.length < limit && !kept.some(k => sameSkill(k.s, r.s))) kept.push(r);
+  return kept.map(({ s, ...r }) => r);
+}
+const tilde = f => f.startsWith(os.homedir()) ? '~' + f.slice(os.homedir().length) : f;
+const dupMsg = (s, twin) => `${s.name} is already installed as ${twin.id} (${tilde(twin.path)}). A second copy lists it twice and pushes other skills' descriptions out of Claude's skill list. Use that one, or remove it first; --force installs anyway.`;
+const installedText = (m, header) => m.length ? header + '\n' + m.map(r => `  • ${r.id} [${r.categories.join(', ')}]: ${r.description.slice(0, 150)}${r.description.length > 150 ? '…' : ''}`).join('\n') : '';
 function suggestSkills(proj, phase, all = false) {
   const targets = proj.targets || [], stacks = Object.values(proj.stacks || {});
   const stagePlaybook = { upgrade: 'UPGRADE', refactor: 'MAINTAIN', incident: 'OPERATE', security: 'SECURITY', feature: 'CHANGE', bugfix: 'CHANGE', migration: 'CHANGE' }[proj.stage];
@@ -886,8 +1096,7 @@ function recommendSkills(proj, phase, text = '', { limit = 5, includeInstalled =
     if (ctx && phase && s.phases.includes(phase)) { score += 2; reasons.push(`used in ${phase} ${PHASE_NAMES[phase] || ''}`.trim()); }
     if (ctx && playbook && s.phases.includes(playbook)) { score += 2; reasons.push(`stage "${proj.stage}" uses the ${playbook} playbook`); }
     if (s.trending && s.text && words) {   // trending entries have no curated keywords: match task words against their description
-      const STOP = new Set(['with', 'when', 'that', 'this', 'from', 'into', 'make', 'need', 'want', 'some', 'have', 'like', 'more', 'also', 'your', 'them', 'then', 'than', 'what', 'about', 'should', 'would', 'could', 'before', 'after', 'while', 'where', 'which', 'there', 'their', 'using', 'used', 'just', 'only', 'each', 'every', 'other', 'over', 'under', 'very', 'will', 'here', 'these', 'those', 'into', 'onto', 'upon']);
-      const hit = [...new Set(words.split(/[^a-z0-9]+/).filter(w => w.length >= 4 && !STOP.has(w)))].filter(w => new RegExp(`\\b${w}`).test(s.text)).slice(0, 2);
+      const hit = [...new Set(words.split(/[^a-z0-9]+/).filter(w => w.length >= 4 && !STOPWORDS.has(w)))].filter(w => new RegExp(`\\b${w}`).test(s.text)).slice(0, 2);
       if (hit.length && !kw.length) { score += 2 * hit.length; reasons.push(`task mentions "${hit.join('", "')}"`); }
     }
     if (s.trending && score) reasons.push(`trending #${s.trending.rank} on skills.sh this week (${s.trending.installs} installs), not reviewed`);
@@ -1048,7 +1257,7 @@ async function refreshTrending({ quiet = false, force = false } = {}) {
   const picked = [], skipped = { lookalike: [], nofit: 0, nodesc: 0, unpinned: 0 };
   const cands = [];
   for (const t of tr.skills) {
-    if (!/^[\w.-]+\/[\w.-]+$/.test(t.source) || curatedNames.has(t.skillId) || declined.has(`trending/${t.source}/${t.skillId}`)) continue;
+    if (!/^[\w.-]+\/[\w.-]+$/.test(t.source) || curatedNames.has(t.skillId) || cands.some(c => c.skillId === t.skillId) || declined.has(`trending/${t.source}/${t.skillId}`)) continue;   // same name from two sources: the higher-ranked one
     if (isLookalike(t.source)) { skipped.lookalike.push(`${t.source}/${t.skillId}`); continue; }
     if (!classifySkill(t.skillId).dev && t.rank > 300) continue;           // deep in the list and not obviously dev: skip the fetch
     cands.push(t);
@@ -1312,36 +1521,45 @@ function referenceIntent(text) {
   return REF_PATTERNS.some(r => r.test(t)) || /\b(learn|study|analy[sz]e|research)\s+[A-Z][\w.-]+/.test(raw);   // "learn Splitwise": a proper name
 }
 const mockupIntent = text => /\b(mock-?ups?|wireframes?|prototypes?|figma|ui\s*\/\s*ux|desain (ui|aplikasi|tampilan)|tampilan(nya)? (aplikasi|app|layar)|lihat tampilan|visual(isasi)? (aplikasi|app)|see (how it|what it) looks?|how (will|would) (it|the app) look)\b/i.test(String(text || ''));
+const INSTALLED_HINT = 'Groundwork: installed skills that fit this work (the skill list may not show their descriptions; invoke one by name if it helps):';
 function hook(sub) {
   const p = project(); if (!exists(P('project.json'))) return 0;   // not initialised: stay silent
   if (sub === 'session-start') {
     try { migrate(); } catch (e) { console.log('Groundwork: migration failed: ' + e.message); }
     maybeRefreshInBackground();   // weekly, silent, detached
-    if (!skillInstalled(INSPECTOR)) console.log(`Groundwork: the ${INSPECTOR} skill is not installed on this machine. Groundwork uses it to vet every skill before install. Suggest installing it first: ${INSPECTOR_INSTALL}`);
+    try { if (!skillInstalled(INSPECTOR)) console.log(`Groundwork: the ${INSPECTOR} skill is not installed on this machine. Groundwork uses it to vet every skill before install. Suggest installing it first: ${INSPECTOR_INSTALL}`); } catch { }
     const integ = integrity();
     if (integ.stale.length || integ.missing.length) console.log(`Groundwork: framework folder has ${integ.stale.length} leftover and ${integ.missing.length} missing file(s) vs its manifest (copied over an old version?). Run: gw verify --clean`);
     const h = readJson(P('host-profile.json'));
     if (hostChanged(h)) { try { doctor(scan(), p); fb('host-rescan', { reason: h ? 'host changed or scan stale' : 'first scan' }); console.log('Groundwork: host changed or scan older than 7 days, re-scanned.'); } catch (e) { console.log('Groundwork: re-scan failed: ' + e.message); } }
     console.log(statusText());
     try { const t = recText(recommendSkills(p, nextStep().phase, currentTaskText(), { limit: 3 }).filter(r => r.id !== INSPECTOR_ID), 'Groundwork skill suggestions for the current phase/task:'); if (t) console.log(t); } catch { }   // inspector already has its own banner
+    try { skillIndex(true); const ph = nextStep().phase, fit = matchInstalled(currentTaskText(), p, ph, { limit: 3, min: 2 });
+      if (fit.length) { console.log(installedText(fit, INSTALLED_HINT.replace('this work', `this ${p.stage ? 'stage (' + p.stage + '), ' : ''}phase (${ph}) and task`)));
+        writeJson(P('cache', 'skill-hints.json'), { session: null, ids: fit.map(r => r.id) }); } } catch { }   // the first message of the session adopts these
     return 0;
   }
   if (sub === 'prompt') {   // UserPromptSubmit: stdout becomes context for the agent
     let input = {}; try { input = JSON.parse(fs.readFileSync(0, 'utf8') || '{}'); } catch { }
     if (referenceIntent(input.prompt)) console.log('Groundwork: this message may point at a reference app or site to learn from. If it does, follow groundwork/phases/RESEARCH.md: ' +
       'make the goal clear first (ask if it is vague), record it with gw research "<name>" "<goal>", recommend the depth the goal needs, and escalate to the next method if the goal is not met. If it does not, ignore this note.');
+    try {   // installed skills that fit this message, each named once per session
+      const f = P('cache', 'skill-hints.json'), sid = input.session_id || '', seen = readJson(f, {}) || {}, ids = seen.session === sid || seen.session === null ? seen.ids || [] : [];
+      const fit = matchInstalled(input.prompt, p, nextStep().phase, { limit: 3, min: 4, ownWords: true }).filter(r => !ids.includes(r.id));
+      if (fit.length) { console.log(installedText(fit, INSTALLED_HINT)); writeJson(f, { session: sid, ids: [...ids, ...fit.map(r => r.id)] }); }
+    } catch { }
     if (mockupIntent(input.prompt)) console.log('Groundwork: this message asks to see the design. Follow groundwork/phases/MOCKUP.md: offer Figma (if connected) or an HTML clickable prototype, cover every screen state, and record the user\'s approval in docs/dbd.md.');
     return 0;
   }
   if (sub === 'pre-edit') {
     // incidents and security fixes are emergencies: their playbooks (OPERATE/SECURITY) replace GATE 1
-    if (p.profile === 'minimal' || !['standard', 'large'].includes(p.tier) || ['incident', 'security'].includes(p.stage) || exists(P('gates', 'G1.json'))) return 0;
+    if (p.profile === 'minimal' || !['standard', 'large'].includes(p.tier) || ['incident', 'security'].includes(p.stage) || gateApproved('G1', p)) return 0;
     let input = {}; try { input = JSON.parse(fs.readFileSync(0, 'utf8') || '{}'); } catch { }
     const f = path.relative(ROOT, (input.tool_input || {}).file_path || (input.tool_input || {}).notebook_path || '').split(path.sep).join('/');
     const allowed = /^(docs\/|\.groundwork\/|groundwork\/|\.claude\/|tests?\/|spec\/|__tests__\/)|(\.md|\.test\.[a-z]+|_test\.[a-z]+|\.spec\.[a-z]+)$|^(CLAUDE|AGENTS|README|CONSTRAINTS)/i;
     const docDirs = [p.docs_dir, ...Object.values(p.docs || {}).map(d => path.posix.dirname(d))].filter(d => d && d !== '.');
     if (!f || f.startsWith('..') || allowed.test(f) || docDirs.some(d => f.startsWith(d.replace(/\/?$/, '/')))) return 0;
-    process.stderr.write(`Groundwork: GATE 1 (plan approval) is not approved yet for this ${p.tier} project, so source edits are blocked.\n` +
+    process.stderr.write(`Groundwork: GATE 1 (plan approval) is not approved yet for this ${p.tier} project${gateOtherChange('G1', p)}, so source edits are blocked.\n` +
       `Allowed now: docs/, tests, .groundwork/. Next: finish groundwork/phases/P6.md, then gw gate G1 --approve "<user's words>".\n`);
     fb('edit-blocked', { file: f });
     return 2;
@@ -1382,14 +1600,14 @@ const HELP = 'Groundwork CLI\n  init [--profile minimal|standard|strict] [--no-h
         '  doctor [--fresh] [--json]   scan host if needed, check tools for the chosen targets\n  plan-install   list install/fix commands for this machine (never runs them)\n' +
         '  status | next   show phase, blockers, next step\n  set k=v ...   e.g. set tier=standard stage=greenfield targets=web,android stacks.android=flutter · set preset=flutter [targets=android,web]\n' +
         '  phase <id> <status> ["note"]   record phase progress\n  run <target> <tier> -- <cmd>   run tests and write a receipt\n  gate <G1|G2> [--approve "..."]   check / approve a gate\n' +
-        '  task [list] | add <id> "<title>" --verify "<cmd>" [--req REQ-001] | start | done | block <id> "<reason>" | reopen   tasks; done only when the check passes\n' +
+        '  task [list] | add <id> "<title>" --verify "<cmd>" [--req REQ-001,SEC-001] | start | done | verify | req | block <id> "<reason>" | reopen   tasks; done only when the check passes\n' +
         '  docs   documents this tier and features need · trace   REQ → task → test · lint   requirement quality · metrics [--json]   delivery outcomes\n' +
-        '  review add <SEV> "<finding>" --verdict <fixed|waived|deferred|open> | review done --reviewer <fresh-context|human|ci> "<summary>"\n  ci [list] | ci print <target> | ci write [target...] [--os linux,windows,macos] [--force]   GitHub Actions workflow per target from its pack (S3)\n  devcontainer [--print] [--force]   .devcontainer/devcontainer.json for the target stacks (S1)\n  reuse [<git-url> [name]]   shallow-clone an open-source repo to read or reuse, with its license and credit row (phases/REUSE.md)\n  scan   print raw host profile\n  note <category> "text"   silent framework feedback (agent)\n  feedback   write .groundwork/FEEDBACK.md\n  skills [--for \"task\"] [--all] | skills fetch|install [--global]|decline <id> | skills verdict <id> <APPROVE|CAUTION|REJECT> \"reason\"   context-aware skill recommendations\n  skills refresh [--force] | skills trending on|off | skills refresh-day <mon..sun|off>   weekly trending discovery\n  maintain   upgrade/audit/dead-code/rollback/observability commands for this project\n  eol   runtime end-of-life check (endoflife.date)\n  version | verify [--clean] | upgrade <new-groundwork-folder> [--force] | migrate';
+        '  review add <SEV> "<finding>" --verdict <fixed|waived|deferred|open> | review done --reviewer <fresh-context|human|ci> "<summary>"\n  team [--json] | team log <role> <tokens> ["what it did"]   roles the lead hands work to, parallel waves, token cost against one agent\n  ci [list] | ci print <target> | ci write [target...] [--os linux,windows,macos] [--force]   GitHub Actions workflow per target from its pack (S3)\n  devcontainer [--print] [--force]   .devcontainer/devcontainer.json for the target stacks (S1)\n  reuse [<git-url> [name]]   shallow-clone an open-source repo to read or reuse, with its license and credit row (phases/REUSE.md)\n  scan   print raw host profile\n  note <category> "text"   silent framework feedback (agent)\n  feedback   write .groundwork/FEEDBACK.md · feedback inbox [<dir>|off]   also send the events of every project on this machine to a folder\n  skills [--for \"task\"] [--all] | skills index [--refresh] [--json] | skills fetch|install [--global]|decline <id> | skills verdict <id> <APPROVE|CAUTION|REJECT> \"reason\"   context-aware skill recommendations\n  skills refresh [--force] | skills trending on|off | skills refresh-day <mon..sun|off>   weekly trending discovery\n  maintain   upgrade/audit/dead-code/rollback/observability commands for this project\n  eol   runtime end-of-life check (endoflife.date)\n  version | verify [--clean] | upgrade <new-groundwork-folder> [--force] | migrate';
 function main(argv) {
   const [cmd, ...args] = argv;
-  if (['task', 'review'].includes(cmd) && args.some(a => ['--help', '-h'].includes(a) || a === 'help' && a === args[0])) args.splice(0, args.length, 'help');   // gw task add --help too
+  if (['task', 'review', 'team'].includes(cmd) && args.some(a => ['--help', '-h'].includes(a) || a === 'help' && a === args[0])) args.splice(0, args.length, 'help');   // gw task add --help too
   const own = args.includes('--') ? args.slice(0, args.indexOf('--')) : args;   // gw run host S0 -- tool --help is a real run
-  if (cmd && !['task', 'review'].includes(cmd) && own.some(a => ['--help', '-h'].includes(a))) {
+  if (cmd && !['task', 'review', 'team'].includes(cmd) && own.some(a => ['--help', '-h'].includes(a))) {
     const lines = HELP.split('\n').filter(l => new RegExp(`^  ${cmd.replace(/[^\w-]/g, '')}\\b|[|·] ${cmd.replace(/[^\w-]/g, '')}\\b`).test(l)); console.log(lines.length ? lines.join('\n') : HELP); return 0; }
   if (!['upgrade', 'migrate', 'hook', 'help', undefined].includes(cmd)) migrate();
   switch (cmd) {
@@ -1458,8 +1676,8 @@ function main(argv) {
     case 'phase': {   // gw phase P1 done|skipped|in_progress|blocked ["note"]
       const [id, status, note] = args;
       if (!PHASES.some(p => p[0] === id) || !['done', 'skipped', 'in_progress', 'blocked'].includes(status)) throw new Error('usage: gw phase <H0..P11> <done|skipped|in_progress|blocked> ["note"]');
-      if (id === 'P6' && status === 'done' && !exists(P('gates', 'G1.json'))) throw new Error('P6 needs GATE 1: gw gate G1 --approve "..."');
-      if (id === 'P10' && status === 'done' && !exists(P('gates', 'G2.json'))) throw new Error('P10 needs GATE 2: gw gate G2 --approve "..."');
+      if (id === 'P6' && status === 'done' && !gateApproved('G1')) throw new Error('P6 needs GATE 1: gw gate G1 --approve "..."' + gateOtherChange('G1'));
+      if (id === 'P10' && status === 'done' && !gateApproved('G2')) throw new Error('P10 needs GATE 2: gw gate G2 --approve "..."' + gateOtherChange('G2'));
       const st = state(); st.phases[id] = { status, at: now(), ...(note ? { note } : {}) };
       if (st.recheck) { st.recheck = st.recheck.filter(x => x !== id); if (!st.recheck.length) delete st.recheck; }
       writeJson(P('state.json'), st);
@@ -1492,6 +1710,7 @@ function main(argv) {
     }
     case 'task': return taskCmd(args);
     case 'review': return reviewCmd(args);
+    case 'team': return teamCmd(args);
     case 'docs': {    // the documents this tier and these features need (the doc budget)
       const proj = project(), need = requiredDocs(proj);
       if (!proj.tier) { console.log('Tier not set yet (phases/P0.md decides it): gw set tier=<trivial|small|standard|large>'); return 0; }
@@ -1504,11 +1723,13 @@ function main(argv) {
     }
     case 'trace': {   // REQ → task → test
       const r = trace();
-      if (!r.prd) { console.log(`No requirement IDs found in ${docPath('prd.md')}.`); return 0; }
+      const open = openChanges(project());
+      if (open.length > 1 && r.change) console.log(`Open changes: ${open.join(', ')}. Checking ${r.change}; switch with gw set change=<id>, and archive a released change (phases/CHANGE.md step 5).`);
+      if (!r.prd) { console.log(`No requirement IDs found in ${docPath('prd.md')}, ${docPath('srd.md')}${r.change ? ' or the change\'s delta.md' : ''}. Give each one an ID: a row "| REQ-001 | … |", or in a delta "### Requirement: <name> (REQ-001)".`); return 0; }
       console.log(`Traceability for ${r.prd}${r.change ? ' · change ' + r.change + ' (only the IDs it names are checked)' : ''} (REQ/SEC need a task and a test; NFR/JRN are shown only):`);
       for (const x of r.rows) console.log(`  ${x.id.padEnd(9)} tasks: ${(x.tasks.join(',') || '-').padEnd(12)} test: ${x.tested ? 'yes' : x.enforced ? 'NO' : '-'}${x.delivered ? '  (delivered)' : !x.enforced && /^(REQ|SEC)-/.test(x.id) ? '  (not in this change)' : ''}`);
       if (r.out_of_scope.length) console.log('  out of scope: ' + r.out_of_scope.join(', '));
-      if (r.orphans.length) console.log('  tasks name IDs not in the PRD: ' + r.orphans.join(', '));
+      if (r.orphans.length) console.log('  tasks name IDs no document defines: ' + r.orphans.join(', '));
       return r.rows.some(x => x.enforced && (!x.tasks.length || !x.tested)) ? 1 : 0;
     }
     case 'lint': {    // requirement quality + delta structure
@@ -1530,9 +1751,15 @@ function main(argv) {
       const id = args[0], approval = flag(args, '--approve'), problems = gateCheck(id);
       if (problems.length) { for (const pr of problems) fb('gate-failed', { gate: id, problem: pr }); console.log(`${id} NOT ready:\n- ` + problems.join('\n- ')); return 1; }
       if (!approval) { console.log(`${id} checks pass. Ask the user for approval, then: gw gate ${id} --approve "<their words>"`); return 0; }
-      writeJson(P('gates', id + '.json'), { gate: id, approved_at: now(), approval_quote: approval, checks: 'pass' });
-      fs.appendFileSync(P('decisions.jsonl'), JSON.stringify({ at: now(), kind: 'gate', gate: id, approval }) + '\n');
-      console.log(`${id} approved and recorded.`); return 0;
+      const proj = project(), ch = BROWNFIELD.includes(proj.stage) && activeChange(proj), prev = readJson(P('gates', id + '.json')) || {}, rec = { approved_at: now(), approval_quote: approval };
+      const changes = { ...(prev.changes || {}) }; if (prev.change && !changes[prev.change]) changes[prev.change] = { approved_at: prev.approved_at, approval_quote: prev.approval_quote };
+      if (ch) changes[ch] = rec;   // one approval per change: approving B keeps A's
+      writeJson(P('gates', id + '.json'), { gate: id, ...rec, checks: 'pass', ...(ch ? { change: ch } : {}), ...(Object.keys(changes).length ? { changes } : {}) });
+      fs.appendFileSync(P('decisions.jsonl'), JSON.stringify({ at: now(), kind: 'gate', gate: id, approval, ...(ch ? { change: ch } : {}) }) + '\n');
+      if (id === 'G1') { const st = state(); st.phases.P6 = { status: 'done', at: now(), note: 'GATE 1 approved' + (ch ? ' for ' + ch : '') };   // approval ends P6
+        if (st.recheck) { st.recheck = st.recheck.filter(x => x !== 'P6'); if (!st.recheck.length) delete st.recheck; }
+        writeJson(P('state.json'), st); st.phase = nextStep().phase; writeJson(P('state.json'), st); }
+      console.log(`${id} approved and recorded${id === 'G1' ? '; P6 done. Next: ' + (nextStep().phase || 'done') : ''}.`); return 0;
     }
     case 'hook': return hook(args[0]);
     case 'reuse': return reuseCmd(args);
@@ -1558,13 +1785,26 @@ function main(argv) {
       if (!NOTE_KINDS.includes(category) || !text) throw new Error('usage: gw note <' + NOTE_KINDS.join('|') + '> "text"');
       fb('note', { category, text }); fbRefresh(); return 0;   // prints nothing on purpose
     }
-    case 'feedback': { console.log(feedbackReport()); return 0; }
+    case 'feedback': {   // gw feedback [inbox [<dir>|off]]
+      if (args[0] !== 'inbox') { console.log(feedbackReport()); return 0; }
+      const d = args[1], cur = gcfg().feedback_inbox;
+      if (!d) { console.log(cur ? `Feedback inbox: ${cur}` : 'No feedback inbox. Set one for this machine: gw feedback inbox <your Groundwork clone>/feedback/inbox'); return 0; }
+      if (d === 'off') { setGcfg('feedback_inbox', undefined); console.log('Feedback inbox off.'); return 0; }
+      const abs = path.resolve(d); if (!fs.statSync(abs, { throwIfNoEntry: false })?.isDirectory()) throw new Error(`no folder ${abs}`);
+      setGcfg('feedback_inbox', abs); console.log(`Every Groundwork project on this machine now also appends its feedback events to ${abs}/<project>-<id>.jsonl (local files only).`); return 0;
+    }
     case 'skills': {  // gw skills [--all] | fetch <id> | install <id> [--force]
       const sub = args[0], cat = catalog();
       if (sub === 'fetch' || sub === 'install') {
         const s = cat.skills.find(x => x.id === args[1]);
         if (!s) throw new Error('unknown skill id; see gw skills --all');
+        const dest = path.join(args.includes('--global') || (s.role === 'inspector' && !args.includes('--project')) ? os.homedir() : ROOT, '.claude', 'skills', s.name);
+        const mine = x => x.name === s.name && ['user', 'project', 'anthropic-skills'].includes(x.ns);   // your own copy, under the same name
+        let twin = sub === 'install' && skillIndex(true).find(x => mine(x) && path.resolve(x.path) !== path.resolve(dest));
+        if (twin && !args.includes('--force')) throw new Error(dupMsg(s, twin));
         const { skillDir, src, dir } = fetchSkill(s);
+        if (sub === 'install' && !args.includes('--force')) { const fm = path.join(skillDir, 'SKILL.md'), got = exists(fm) ? { name: s.name, ...skillMeta(fm), hash: sha(fm) } : null;   // the same skill from a plugin
+          twin = got && skillIndex().find(x => path.resolve(x.path) !== path.resolve(dest) && sameSkill(x, got)); if (twin) throw new Error(dupMsg(s, twin)); }
         const files = s.path ? walk(skillDir) : ['SKILL.md'], scripts = files.filter(f => /\.(sh|bash|ps1|js|mjs|cjs|ts|py|rb|exe|bat|cmd)$/i.test(f));
         if (sub === 'fetch') {
           console.log(`Fetched ${s.id} @ ${src.ref.slice(0, 12)} (${src.license}) to ${path.relative(ROOT, skillDir)}\nFiles: ${files.join(', ')}` +
@@ -1586,7 +1826,6 @@ function main(argv) {
         if (gate.skipped) fb('inspection-skipped', { id: s.id, reason: gate.msg });
         const lic = src.license_file ? path.join(dir, src.license_file) : (fs.readdirSync(dir).filter(f => /^LICEN[CS]E/i.test(f)).map(f => path.join(dir, f))[0] || null);
         if (!lic && !args.includes('--force')) throw new Error(`${s.id} has no LICENSE in its repo, so you may not have the right to copy it. Read the repo terms; install anyway with --force.`);
-        const dest = path.join(args.includes('--global') || (s.role === 'inspector' && !args.includes('--project')) ? os.homedir() : ROOT, '.claude', 'skills', s.name);
         if (exists(dest) && !args.includes('--force')) throw new Error(`${path.relative(ROOT, dest)} already exists (use --force to replace)`);
         fs.rmSync(dest, { recursive: true, force: true });
         fs.cpSync(skillDir, dest, { recursive: true });
@@ -1594,8 +1833,20 @@ function main(argv) {
         const lock = readJson(P('skills.lock.json'), {});   // global installs are recorded too, so the project knows what it relied on
         lock[s.name] = { id: s.id, repo: src.repo, ref: src.ref, path: s.path, license: src.license, installed_at: now(),
           inspection: gate.bootstrap ? { bootstrap: gate.msg } : gate.skipped ? { skipped: gate.msg } : gate.overridden ? { verdict: 'REJECT', override: gate.msg, report: review.report || null, at: review.at } : { verdict: review.verdict, reviewer: review.reviewer, scanner: review.scanner, report: review.report || null, at: review.at }, files: Object.fromEntries(walk(dest).map(f => [f, sha(path.join(dest, f))])) };
-        writeJson(P('skills.lock.json'), lock);
+        writeJson(P('skills.lock.json'), lock); skillIndex(true);
         console.log(`Installed ${s.id} → ${path.relative(ROOT, dest)} (${gate.msg}${lic ? ', with LICENSE' : ''}). Recorded in .groundwork/skills.lock.json. Add it to docs/skill-requirements.md.`);
+        return 0;
+      }
+      if (sub === 'index') {   // gw skills index [--refresh] [--json]: every installed skill, its categories, and the ones listed twice
+        const all = skillIndex(args.includes('--refresh')), dups = skillDuplicates(all);
+        if (args.includes('--json')) { console.log(JSON.stringify({ skills: all, duplicates: dups.map(g => g.map(x => x.id)) }, null, 2)); return 0; }
+        const count = k => Object.entries(all.reduce((m, x) => { for (const c of [].concat(k(x))) m[c] = (m[c] || 0) + 1; return m; }, {})).sort((a, b) => b[1] - a[1]).map(([c, v]) => `${c} ${v}`).join(' · ');
+        const dev = new Set(skillCategories().filter(c => c.dev).map(c => c.id)), other = all.filter(x => x.categories.length && !x.categories.some(c => dev.has(c)));
+        console.log(`${all.length} installed skills (Claude Code lists them all; in a long list the later ones lose their descriptions and can't trigger on their own).\nBy source: ${count(x => x.ns)}\nBy category: ${count(x => x.categories.length ? x.categories : 'uncategorised')}`);
+        if (other.length) console.log(`${other.length} are outside development work (${[...new Set(other.flatMap(x => x.categories))].join(', ')}). Turning off plugins you don't use here (/plugin) gives the rest their descriptions back.`);
+        console.log(dups.length ? `\nListed twice (${dups.length}): keep one copy and remove the others yourself; Groundwork never deletes skills.` : '\nNo skill is listed twice.');
+        for (const g of dups) console.log(`  ${g[0].name}: ${g.map(x => `${x.id} (${tilde(x.path)})`).join(' = ')}${g.every(x => x.hash === g[0].hash) ? ', identical files' : ', different versions'}`);
+        console.log('\nThe hooks name the installed skills that fit each task. Ask yourself: gw skills --for "<task>"');
         return 0;
       }
       if (sub === 'verdict') {   // gw skills verdict <id> <APPROVE|CAUTION|REJECT> "reason" [--report path] [--scanner skillspector|none]
@@ -1635,14 +1886,16 @@ function main(argv) {
         console.log(`Skill recommendations for phase ${phase}${project().stage ? ' · stage ' + project().stage : ''}${text ? ' · task: "' + text.trim().slice(0, 80) + '"' : ''}`);
         if (!missing.length) console.log('  No missing skills recommended for this context.');
         for (const r of missing) console.log(`  ${r.trending ? '★' : '+'} ${r.id.padEnd(44)} ${r.why}\n      why now: ${r.reasons.join('; ')}${r.note ? '\n      note: ' + r.note : ''}`);
-        if (have.length) console.log(`  Already installed and relevant: ${have.map(r => r.name).join(', ')}`);
+        const fits = matchInstalled(text, project(), phase, { limit: Number(flag(args, '--limit')) || 5 }), more = have.filter(r => !fits.some(f => f.name === r.name));
+        if (more.length) console.log(`  Already installed and relevant: ${more.map(r => r.name).join(', ')}`);
+        if (fits.length) console.log(installedText(fits, '\nInstalled skills that fit (use them by name: a long skill list can hide their descriptions):'));
         if (missing.length) console.log('\nFetch for review: gw skills fetch <id> · install: gw skills install <id> · not wanted: gw skills decline <id> · full list: gw skills --all');
         return 0;
       }
       const proj = project(), phase = nextStep().phase, list = suggestSkills(proj, phase, true);
       console.log(`Skills for ${args.includes('--all') ? 'all phases' : 'phase ' + phase}${proj.stage ? ' · stage ' + proj.stage : ''} · targets ${(proj.targets || []).join(',') || 'any'} (${list.length}):`);
       for (const s of list) console.log(`  ${skillInstalled(s.name) ? '✓ installed ' : '  available '} ${s.id.padEnd(46)} [${s.phases.join(',')}] ${s.why}`);
-      console.log('\nInstalled-check looks for the same skill name in .claude/skills, ~/.claude/skills and plugin caches; a same-named skill from another source counts as installed.');
+      console.log('\nInstalled means a skill of that name in this project, your skills, skills synced from claude.ai or an installed plugin (gw skills index lists them).');
       console.log('Fetch for review: gw skills fetch <id>   ·   install into this project: gw skills install <id>');
       return 0;
     }
@@ -1688,7 +1941,7 @@ function main(argv) {
   }
 }
 
-module.exports = { requiredDocs, prdRequirements, FEATURES, TEST_FILE, figmaCheck, figmaConfigured, mockupIntent, referenceIntent, docPath, changedPhases, chosenMethod, projectCaps, installGate, parseTrending, classifySkill, fitsProject, isLookalike, curatedCatalog, recommendSkills, suggestSkills, maintainInfo, catalog, buildManifest, integrity, changelogSince, capabilities, devMethod, feasibility, kvmCheck, dockerCheck, toolCheck, vcmp, installCommand, licenseClass, detectLicense, ciFragment, ciPlan, ciRender, devcontainerPlan, presets, presetsFor, packs };
+module.exports = { skillRoots, buildSkillIndex, skillDuplicates, sameSkill, matchInstalled, skillMeta, openChanges, activeChange, requiredDocs, prdRequirements, deltaRequirements, srdRequirements, teamPlan, FEATURES, TEST_FILE, figmaCheck, figmaConfigured, mockupIntent, referenceIntent, docPath, changedPhases, chosenMethod, projectCaps, installGate, parseTrending, classifySkill, fitsProject, isLookalike, curatedCatalog, recommendSkills, suggestSkills, maintainInfo, catalog, buildManifest, integrity, changelogSince, capabilities, devMethod, feasibility, kvmCheck, dockerCheck, toolCheck, vcmp, installCommand, licenseClass, detectLicense, ciFragment, ciPlan, ciRender, devcontainerPlan, presets, presetsFor, packs };
 if (require.main === module) {
   try { const r = main(process.argv.slice(2)); if (r && r.then) r.then(c => { process.exitCode = c; }, e => { fb('error', { cmd: process.argv[2] || '', message: e.message }); console.error('gw: ' + e.message); process.exitCode = 1; }); else process.exitCode = r; } catch (e) { fb('error', { cmd: process.argv[2] || '', message: e.message }); console.error('gw: ' + e.message); process.exitCode = 1; }
 }

@@ -14,13 +14,20 @@
 <boundaries (internet ↔ server, client ↔ API, admin ↔ console…) and who might attack each: anonymous internet, malicious user, compromised device, insider>
 
 ## 3. Threat model (STRIDE per entry point, plus LINDDUN privacy threats when personal data is in scope; one table per review round)
+Threats get TH- IDs. The requirements that answer them get SEC- IDs in section 4.
 ### 3.1 <component or review round, date>
-| ID | Entry point | Threat | Severity | Mitigation | Task / status |
+| ID | Entry point | Threat | Severity | Mitigation (SEC- IDs) | Task / status |
 |---|---|---|---|---|---|
-| SEC-001 | | | | | T.. |
+| TH-001 | | | | SEC-001 | T.. |
 
 ## 4. Requirements
-Cite ASVS 5.0 requirement IDs where they apply (v4 numbers changed).
+Each security requirement gets a SEC- ID and a testable SHALL statement. `gw trace` reads this table, like the PRD's: a SEC- ID needs a task and a test that names it, unless its Status cell says `delivered` or `out of scope`. Cite ASVS 5.0 requirement IDs where they apply (v4 numbers changed).
+
+| ID | Requirement | ASVS 5.0 | Status |
+|---|---|---|---|
+| SEC-001 | The system SHALL … | | |
+
+Areas to cover:
 - Authentication:
 - Authorisation (who can do what):
 - Input validation at trust boundaries:

@@ -4,6 +4,7 @@ const assert = require('assert');
 // every temp project (here and in the gw processes it starts) goes under one folder, removed at exit; runs used to leave them all behind
 const TMP = require('fs').mkdtempSync(require('path').join(require('os').tmpdir(), 'gw-selftest-'));
 for (const k of ['TMPDIR', 'TEMP', 'TMP']) process.env[k] = TMP;
+process.env.GW_HOME = require('path').join(TMP, 'gw-home');   // this module and every gw it starts: never the real ~/.groundwork (its feedback inbox, its caches)
 process.on('exit', () => { try { require('fs').rmSync(TMP, { recursive: true, force: true }); } catch { /* a file still open on Windows: leave it */ } });
 const gw = require('../bin/gw.js');
 
@@ -222,7 +223,7 @@ t('figma detection: plugin config, UI targets only', () => {
   const c = gw.figmaCheck({ targets: ['web'] }); assert.ok(c && /MANUAL ACTION/.test(c.fix), 'UI project gets a check that says what is manual');
 });
 // ---------- 0.5.0: tasks, Stop hook, trace, docs, lint, review, migration (CLI in a temp git project) ----------
-const proj = (files = {}) => {
+const proj = (files = {}, extraEnv = {}) => {
   const fs = require('fs'), os = require('os'), path = require('path'), cp = require('child_process');
   const d = fs.mkdtempSync(path.join(os.tmpdir(), 'gw-proj-'));
   const put = (f, c) => { fs.mkdirSync(path.dirname(path.join(d, f)), { recursive: true }); fs.writeFileSync(path.join(d, f), typeof c === 'string' ? c : JSON.stringify(c, null, 2)); };
@@ -230,7 +231,7 @@ const proj = (files = {}) => {
   put('.groundwork/state.json', { phase: 'P7', phases: {}, waivers: [] });
   for (const [f, c] of Object.entries(files)) put(f, c);
   const pk = Object.keys(process.env).find(k => k.toUpperCase() === 'PATH') || 'PATH';   // Windows spells it Path
-  const env = { ...process.env, [pk]: path.dirname(process.execPath) + path.delimiter + (process.env[pk] || ''), GW_PROJECT_DIR: d, GW_HOME: path.join(d, '.home') };   // task checks call "node": the one running this test, even when it isn't on PATH
+  const env = { ...process.env, [pk]: path.dirname(process.execPath) + path.delimiter + (process.env[pk] || ''), GW_PROJECT_DIR: d, GW_HOME: path.join(d, '.home'), ...extraEnv };   // task checks call "node": the one running this test, even when it isn't on PATH
   cp.spawnSync('git', ['init', '-q'], { cwd: d }); cp.spawnSync('git', ['-c', 'user.email=t@t.t', '-c', 'user.name=t', 'commit', '-q', '--allow-empty', '-m', 'base'], { cwd: d });
   const gwc = (args, input) => { const r = cp.spawnSync(process.execPath, [path.join(__dirname, '..', 'bin', 'gw.js'), ...args], { cwd: d, env, input: input || '', encoding: 'utf8' }); return { code: r.status, out: r.stdout + r.stderr }; };
   const read = f => JSON.parse(fs.readFileSync(path.join(d, f), 'utf8'));
@@ -332,6 +333,185 @@ t('brownfield change: change-folder docs, trace scoped to the change, delivered 
   g = p.gw(['gate', 'G1']); assert.equal(g.code, 0, 'a delivered REQ named only in the proposal needs no task: ' + g.out);
   p.put('docs/changes/20261105-csv/delta.md', '## ADDED Requirements\n### Requirement: CSV\nThe system SHALL export REQ-003.\n#### Scenario: ok\n- WHEN GET\n- THEN CSV\n## MODIFIED Requirements\n### Requirement: list (REQ-001)\nThe system SHALL list notes sorted.\n#### Scenario: s\n- WHEN GET\n- THEN sorted\n');
   assert.match(p.gw(['gate', 'G1']).out, /REQ-001 has no task.*delta or bugfix names it/, 'a delivered REQ the delta modifies needs a task');
+});
+// from the 0.5.0 run on an existing desktop app (run D)
+t('change IDs come from the delta and the SRD requirements; REMOVED is not built; a gate approves one change', () => {
+  const path = require('path');
+  const srd = '## 3. Threat model\n| ID | Entry | Threat |\n|---|---|---|\n| TH-001 | ipc | spoof |\n| SEC-900 | old template | threat row |\n' +
+    '## 4. Requirements\n| SEC-001 | Tokens SHALL be encrypted. | delivered |\n| SEC-002 | The toolbar SHALL run sandboxed. | |\n## 5. Verification\n| SEC-003 | a test, not a definition | |\n';
+  const p = proj({ 'docs/prd.md': '# PRD\nNo IDs here.\n', 'docs/srd.md': srd, '.groundwork/env-report.json': { ready: true } });
+  p.put('.groundwork/project.json', { ...p.read('.groundwork/project.json'), stage: 'feature', features: ['pii'] });
+  const scen = '#### Scenario: s\n- WHEN x\n- THEN y\n', A = 'docs/changes/20261106-a-history/';
+  p.put(A + 'proposal.md', 'Adds the history panel.');
+  p.put(A + 'delta.md', `## ADDED Requirements\n### Requirement: History panel (REQ-301)\nThe system SHALL show history.\n${scen}### Requirement: Toolbar sandboxed (SEC-002)\nThe toolbar SHALL run sandboxed.\n${scen}` +
+    '## REMOVED Requirements\n### Requirement: Old list (REQ-200)\n- **Reason:** replaced\n');
+  const tr = p.gw(['trace']).out;
+  assert.match(tr, /REQ-301 +tasks: - +test: NO/); assert.match(tr, /SEC-002 +tasks: - +test: NO/); assert.match(tr, /out of scope: REQ-200/);
+  assert.match(tr, /SEC-001 .*\(delivered\)/, 'SRD requirement'); assert.doesNotMatch(tr, /SEC-900|SEC-003/, 'threat and test tables define nothing');
+  let g = p.gw(['gate', 'G1']); assert.match(g.out, /REQ-301 has no task/); assert.doesNotMatch(g.out, /REQ-200/);
+  assert.equal(p.gw(['task', 'add', 'T01', 'history', '--verify', 'node -e "0"', '--req', 'REQ-301', '--req', 'SEC-002']).code, 0);
+  g = p.gw(['gate', 'G1']); assert.equal(g.code, 0, g.out);
+  assert.match(p.gw(['gate', 'G1', '--approve', 'yes, build it']).out, /P6 done/);
+  assert.equal(p.read('.groundwork/gates/G1.json').change, '20261106-a-history'); assert.equal(p.read('.groundwork/state.json').phases.P6.status, 'done');
+  const edit = () => p.gw(['hook', 'pre-edit'], JSON.stringify({ tool_input: { file_path: path.join(p.d, 'src/a.js') } }));
+  assert.equal(edit().code, 0, 'approved for the active change');
+  p.put('docs/changes/20261106-b-bugs/proposal.md', 'Fixes bugs.');
+  const b = edit(); assert.equal(b.code, 2, 'a newer change needs its own plan approval');
+  assert.match(b.out, /approved for 20261106-a-history, not for the active change 20261106-b-bugs\. Still working on 20261106-a-history: gw set change=20261106-a-history/);
+  p.put('docs/changes/_template/proposal.md', 'x'); p.put('docs/changes/Archive/old/proposal.md', 'x');
+  assert.match(p.gw(['trace']).out, /Open changes: 20261106-a-history, 20261106-b-bugs\. /, 'templates and archives are not changes');
+  p.gw(['set', 'change=20261106-a-history']); assert.equal(edit().code, 0, 'gw set change= picks the change');
+  p.put('docs/changes/20261106-b-bugs/delta.md', `## ADDED Requirements\n### Requirement: Fix (REQ-401)\nThe system SHALL not crash.\n${scen}`);
+  assert.equal(p.gw(['task', 'add', 'T02', 'fix', '--verify', 'node -e "0"', '--req', 'REQ-401']).code, 0);
+  p.put('.groundwork/state.json', { ...p.read('.groundwork/state.json'), recheck: ['P6'] });
+  p.gw(['set', 'change=20261106-b-bugs']); g = p.gw(['gate', 'G1', '--approve', 'yes, fix them']); assert.equal(g.code, 0, g.out);
+  assert.deepEqual(Object.keys(p.read('.groundwork/gates/G1.json').changes).sort(), ['20261106-a-history', '20261106-b-bugs'], 'approving B keeps A');
+  assert.equal(p.read('.groundwork/state.json').recheck, undefined, 'the approval also clears the P6 re-check');
+  p.gw(['set', 'change=20261106-a-history']); assert.equal(edit().code, 0, 'back on A: its approval stands');
+  const fs = require('fs'); fs.mkdirSync(path.join(p.d, 'docs/changes/archive'), { recursive: true });
+  for (const c of ['20261106-a-history', '20261106-b-bugs']) fs.renameSync(path.join(p.d, 'docs/changes', c), path.join(p.d, 'docs/changes/archive', c));
+  assert.equal(edit().code, 0, 'every change archived: the approval stands'); const ph = p.gw(['phase', 'P6', 'done']); assert.equal(ph.code, 0, ph.out);
+});
+t('0.7.0 migration: a GATE 1 given on or after its change opened stays that change\'s; an older one and GATE 2 are asked again', () => {
+  const path = require('path'), edit = p => p.gw(['hook', 'pre-edit'], JSON.stringify({ tool_input: { file_path: path.join(p.d, 'src/a.js') } }));
+  const mk = at => { const p = proj({ 'docs/changes/20261106-x/proposal.md': 'x', '.groundwork/gates/G1.json': { gate: 'G1', approved_at: at, approval_quote: 'ok' }, '.groundwork/gates/G2.json': { gate: 'G2', approved_at: at, approval_quote: 'ship' } });
+    p.put('.groundwork/project.json', { ...p.read('.groundwork/project.json'), stage: 'feature', framework_version: '0.6.0' }); p.gw(['status']); return p; };
+  const a = mk('2026-11-06T10:00:00Z'); assert.equal(a.read('.groundwork/gates/G1.json').change, '20261106-x'); assert.equal(edit(a).code, 0);
+  assert.equal(a.read('.groundwork/gates/G2.json').change, undefined, 'a release approval is never carried over');
+  const b = mk('2026-11-01T10:00:00Z'); assert.equal(b.read('.groundwork/gates/G1.json').change, undefined, 'approved before the change existed');
+  const e = edit(b); assert.equal(e.code, 2); assert.match(e.out, /the active change 20261106-x has no G1 approval of its own yet/);
+});
+t('requirement parsing: a status is a marker, not a word of the text; delta headings name their IDs; every SRD requirements section counts', () => {
+  const st = l => { const r = gw.prdRequirements(l)[0]; return [r.delivered, r.out]; };
+  assert.deepEqual(st('| SEC-002 | Tokens SHALL expire 15 minutes after they are delivered | V3.5 | |'), [false, false]);
+  assert.deepEqual(st('| REQ-001 | list | must | WHEN GET, the system SHALL list. delivered |'), [true, false]);
+  assert.deepEqual(st('| REQ-009 | Export (delivered in 1.2) | must | |'), [true, false]);
+  assert.deepEqual(st('| REQ-020 | Dark mode | could | out of scope for v1 |'), [false, true]);
+  assert.deepEqual(st('### REQ-006: Delivered orders list'), [false, false]); assert.deepEqual(st('### REQ-007 Export CSV — delivered'), [true, false]);
+  assert.deepEqual(gw.deltaRequirements('## ADDED Requirements\n### Requirement: Sync (REQ-301, SEC-004)\n### Requirement: Replaces the REQ-100 flow (REQ-305)\n### Requirement: Plain REQ-306 heading\n').map(d => d.id), ['REQ-301', 'SEC-004', 'REQ-305', 'REQ-306']);
+  const srd = '## 2. Compliance requirements\nGDPR.\n## 3. Threats\n| TH-001 | x | SEC-009 |\n## 4. Security requirements\n| SEC-001 | a | |\n## 4.1 Auth\n| SEC-002 | b | |\n## 5. Verification\n| SEC-003 | t | |\n';
+  assert.deepEqual(gw.srdRequirements(srd).map(d => d.id), ['SEC-001', 'SEC-002']);
+});
+t('task req: repeated --req, task req, refused once done; a task started on uncommitted code says so; receipts mark it', () => {
+  const p = proj(), fs = require('fs'), path = require('path');
+  let r = p.gw(['task', 'add', 'T01', 'x', '--verify', 'node -e "0"', '--req', 'REQ-001', '--req', 'SEC-001,REQ-002']); assert.equal(r.code, 0, r.out);
+  assert.deepEqual(p.read('.groundwork/tasks.json')[0].req, ['REQ-001', 'SEC-001', 'REQ-002']);
+  r = p.gw(['task', 'add', 'T02', 'two', 'words', '--verify', 'x']); assert.equal(r.code, 1); assert.match(r.out, /quote the title/);
+  assert.equal(p.gw(['task', 'req', 'T01', 'REQ-003', 'SEC-002']).code, 0); assert.deepEqual(p.read('.groundwork/tasks.json')[0].req, ['REQ-003', 'SEC-002']);
+  p.put('docs/notes.md', 'the change docs are written before the first task');
+  assert.doesNotMatch(p.gw(['task', 'start', 'T01']).out, /not committed/, 'docs are not code');
+  assert.equal(p.gw(['task', 'done', 'T01']).code, 0);
+  const t1 = p.read('.groundwork/tasks.json')[0]; assert.equal(p.read(`.groundwork/runs/${t1.receipt}/receipt.json`).dirty, true, 'tested code is not the named commit');
+  assert.match(p.gw(['task', 'req', 'T01', 'REQ-009']).out, /reopen it first/);
+  p.gw(['task', 'add', 'T02', 'y', '--verify', 'node -e "0"', '--req=REQ-004']); assert.deepEqual(p.read('.groundwork/tasks.json')[1].req, ['REQ-004']);
+  r = p.gw(['task', 'req', 'T02', '--req', 'REQ-005']); assert.equal(r.code, 0, r.out); assert.deepEqual(p.read('.groundwork/tasks.json')[1].req, ['REQ-005']);
+  assert.match(p.gw(['task', 'req', 'T02', 'login']).out, /not a requirement ID: login/);
+  p.put('README.md', 'setup'); p.put('tests/b.test.js', 'test first'); p.put('.gitignore', 'node_modules/'); p.put('.github/workflows/ci.yml', 'on: push');
+  assert.doesNotMatch(p.gw(['task', 'start', 'T02']).out, /not committed/, 'setup, tests and CI files are not the task\'s code');
+  assert.equal(p.gw(['task', 'done', 'T02']).code, 0);
+  p.gw(['task', 'add', 'T03', 'z', '--verify', 'node -e "0"']); p.put('src/a.js', 'one\ntwo');
+  assert.match(p.gw(['task', 'start', 'T03']).out, /2 changed lines are not committed/);
+  assert.match(fs.readFileSync(path.join(p.d, '.groundwork/feedback/events.jsonl'), 'utf8'), /"kind":"task-start-dirty","task":"T03"/);
+});
+t('feedback inbox: the events of every project also go to one folder, after a context line', () => {
+  const p = proj(), fs = require('fs'), path = require('path'), inbox = fs.mkdtempSync(path.join(require('os').tmpdir(), 'gw-inbox-'));
+  assert.equal(p.gw(['feedback', 'inbox', inbox]).code, 0);
+  p.gw(['note', 'friction', 'the req flag kept one ID']);
+  const name = fs.readdirSync(inbox).find(f => f.endsWith('.jsonl')); assert.match(name, /^p-[0-9a-f]{6}\.jsonl$/, 'two projects named p stay apart');
+  const lines = fs.readFileSync(path.join(inbox, name), 'utf8').trim().split('\n').map(l => JSON.parse(l));
+  assert.equal(lines[0].kind, 'context'); assert.equal(lines[0].project, 'p'); assert.equal(lines[1].text, 'the req flag kept one ID'); assert.ok(lines[1].v);
+  assert.equal(p.gw(['feedback', 'inbox', 'off']).code, 0); p.gw(['note', 'worked', 'x']);
+  assert.equal(fs.readFileSync(path.join(inbox, name), 'utf8').trim().split('\n').length, 2, 'off: nothing more is written');
+  assert.equal(p.gw(['feedback', 'inbox', path.join(inbox, 'missing')]).code, 1);
+});
+t('team: roles follow tier, features and targets; parallel waves keep files apart, 3 at most; cost estimate; hand-offs are logged', () => {
+  const all = { web: { ui: true, min_release_tier: 'S1' }, android: { ui: true, min_release_tier: 'S2' }, backend: { min_release_tier: 'S1' } };
+  const ids = proj => gw.teamPlan(proj, [], all).roles.map(r => r.id);
+  assert.deepEqual(ids({ tier: 'small', targets: ['backend'] }), ['backend'], 'small: the lead does the rest');
+  assert.deepEqual(ids({ tier: 'standard', targets: ['web', 'android'], features: ['pii'] }), ['reviewer', 'security', 'frontend', 'qa', 'platform', 'ux']);
+  assert.ok(ids({ tier: 'large', targets: ['backend'], references: ['an app'] }).includes('researcher'));
+  const tk = (id, o) => ({ id, status: 'todo', parallel: true, ...o });
+  const tasks = [tk('T1', { files: ['a.js'] }), tk('T2', { files: ['b.js'] }), tk('T3', { files: ['a.js'] }), tk('T4', { files: ['c.js'], depends_on: ['T1'] }),
+    { id: 'T5', status: 'todo', files: ['d.js'] }, tk('T6', { files: ['e.js'], depends_on: ['T5'] })];
+  const r = gw.teamPlan({ tier: 'large', targets: [] }, tasks, all);
+  assert.deepEqual(r.waves, [['T1', 'T2'], ['T3', 'T4']], 'T3 shares a.js with T1; T4 waits for T1; T6 waits for a task built in sequence');
+  assert.equal(r.parallel, 4); assert.ok(r.estimate[0] > 1 && r.estimate[1] > r.estimate[0]);
+  const five = gw.teamPlan({ tier: 'large', targets: [] }, ['A', 'B', 'C', 'D', 'E'].map(x => tk(x, { files: [x] })), all);
+  assert.deepEqual(five.waves.map(w => w.length), [3, 2], 'at most 3 workers');
+  assert.deepEqual(gw.teamPlan({ tier: 'standard', targets: [] }, [{ id: 'T1', status: 'todo' }], all).estimate, [1.1, 1.3], 'no parallel task: one review on top of the build');
+  const ov = gw.teamPlan({ tier: 'large', targets: [] }, [tk('A', { files: ['src/api/'] }), tk('B', { files: ['./src/api/user.js'] }), tk('C', { files: ['src/*.css'] }),
+    tk('D', { files: 'docs/x.md', depends_on: 'A' }), { id: 'E', status: 'in_progress', files: ['lib/e.js'] }, tk('F', { files: ['lib/e.js'] })], all);
+  assert.deepEqual(ov.waves, [['A'], ['B', 'D', 'F'], ['C']], 'a folder holds its files, a glob may touch anything, the task in progress holds its files, a string is one entry');
+  const p = proj();
+  assert.equal(p.gw(['team', 'log', 'reviewer', '1200', 'found 2 HIGH']).code, 0); assert.equal(p.gw(['team', 'log', 'nobody', '5']).code, 1);
+  assert.match(p.gw(['team']).out, /Code reviewer \(P9\).*used 1×, 1200 tokens/);
+  assert.match(require('fs').readFileSync(require('path').join(p.d, '.groundwork/FEEDBACK.md'), 'utf8'), /Hand-offs[\s\S]*1× reviewer: 1200 tokens/);
+});
+t('skill index: every source Claude Code loads, categories, deep search, duplicates, install guard, one hint per session', () => {
+  const fs = require('fs'), path = require('path'), os = require('os');
+  const home = fs.mkdtempSync(path.join(os.tmpdir(), 'gw-home-')), C = path.join(home, '.claude');
+  const skill = (dir, name, desc) => { fs.mkdirSync(dir, { recursive: true }); fs.writeFileSync(path.join(dir, 'SKILL.md'), `---\nname: ${name}\ndescription: ${desc}\n---\nbody\n`); };
+  const DEBUG = 'Systematic debugging when tests fail or an error appears.';
+  skill(path.join(C, 'skills', 'my-debug'), 'my-debug', DEBUG);
+  skill(path.join(C, 'skills', 'paper-x'), 'paper-x', '"LaTeX paper helper for journals."');
+  skill(path.join(C, 'skills', 'synced', 'org1', 'paper-x'), 'paper-x', 'Another LaTeX paper version for journal submissions.');
+  fs.writeFileSync(path.join(C, 'skills', 'synced', 'org1', 'manifest.json'), '{}');
+  const ip = path.join(C, 'plugins', 'cache', 'market', 'toolkit', '1.0.0');
+  fs.mkdirSync(path.join(ip, '.claude-plugin'), { recursive: true }); fs.writeFileSync(path.join(ip, '.claude-plugin', 'plugin.json'), JSON.stringify({ name: 'toolkit', skills: './' }));
+  skill(path.join(ip, 'api-helper'), 'api-helper', '>-\n  Design REST APIs\n  and their endpoints.');   // folded description, skills at the plugin root
+  skill(path.join(ip, 'skills', 'start'), 'start', 'Start a work session with your todos and memory.');
+  fs.writeFileSync(path.join(C, 'plugins', 'installed_plugins.json'), JSON.stringify({ version: 2, plugins: { 'toolkit@market': [{ scope: 'user', installPath: ip }] } }));
+  for (const [g, d] of [['bio', 'Old start.'], ['bio~g2', 'Start a bio research project with single-cell RNA data.']]) {
+    const dir = path.join(C, 'plugins', 'synced', 'org2', g); fs.mkdirSync(path.join(dir, '.claude-plugin'), { recursive: true });
+    fs.writeFileSync(path.join(dir, '.claude-plugin', 'plugin.json'), JSON.stringify({ name: 'bio' })); skill(path.join(dir, 'skills', 'start'), 'start', d); }
+  const projSkills = fs.mkdtempSync(path.join(os.tmpdir(), 'gw-pskills-')); skill(path.join(projSkills, 'my-debug'), 'my-debug', DEBUG);
+  fs.mkdirSync(path.join(C, 'skills', 'bom-skill')); fs.writeFileSync(path.join(C, 'skills', 'bom-skill', 'SKILL.md'), '\uFEFF---\nname: bom-skill\ndescription: |\n  Caching of query results.\n\n  Lower latency.\n---\n');
+  const real = fs.mkdtempSync(path.join(os.tmpdir(), 'gw-real-')); skill(path.join(real, 'linked-skill'), 'linked-skill', 'Profiling slow code paths for performance.');
+  fs.symlinkSync(path.join(real, 'linked-skill'), path.join(C, 'skills', 'linked-skill'), 'junction');   // skills CLIs install by symlink
+  const roots = gw.skillRoots(home);
+  assert.deepEqual([...new Set(roots.map(r => r[0]))], ['user', 'anthropic-skills', 'toolkit', 'bio']);
+  assert.ok(roots.every(r => !/[\\/]bio[\\/]/.test(r[1])), 'the older generation of a synced plugin is not loaded');
+  const idx = gw.buildSkillIndex([...roots, ['project', projSkills]]), by = id => idx.find(x => x.id === id);
+  assert.deepEqual(idx.map(x => x.id).sort(), ['anthropic-skills:paper-x', 'bio:start', 'bom-skill', 'linked-skill', 'my-debug', 'my-debug', 'paper-x', 'toolkit:api-helper', 'toolkit:start'].sort());
+  assert.equal(idx.find(x => x.id === 'bom-skill').description, 'Caching of query results. Lower latency.', 'a BOM, and a block with a blank line');
+  assert.equal(by('toolkit:api-helper').description, 'Design REST APIs and their endpoints.'); assert.equal(by('paper-x').description, 'LaTeX paper helper for journals.');
+  assert.equal(by('bio:start').description.slice(0, 11), 'Start a bio');
+  assert.ok(by('my-debug').categories.includes('debugging') && by('toolkit:api-helper').categories.includes('backend') && by('bio:start').categories.includes('science'));
+  const dups = gw.skillDuplicates(idx).map(g => g.map(x => x.id).sort().join(' = ')).sort();
+  assert.deepEqual(dups, ['anthropic-skills:paper-x = paper-x', 'my-debug = my-debug'], 'toolkit:start and bio:start are different skills');
+  assert.ok(!gw.sameSkill(by('toolkit:start'), by('bio:start')) && gw.sameSkill(by('paper-x'), by('anthropic-skills:paper-x')));
+  const P0 = { stage: 'new', tier: 'standard', targets: [], stacks: {}, features: [] }, m = (q, o = {}) => gw.matchInstalled(q, P0, null, { skills: idx, ...o }).map(x => x.id);
+  assert.equal(m('the tests are failing with an error, debug it')[0], 'my-debug');
+  assert.equal(m('my-debug').length, 1, 'a duplicated skill is named once');
+  assert.deepEqual(m('design the REST endpoint'), ['toolkit:api-helper']);
+  assert.deepEqual(m('ok thanks'), []);
+  assert.deepEqual(m('start the project'), [], 'a non-development category needs the task to name it');
+  assert.deepEqual(m('single-cell RNA start'), ['bio:start']);
+  assert.deepEqual(m('start: todos, memory, single-cell RNA').sort(), ['bio:start', 'toolkit:start'], 'two skills with one name are both named');
+  assert.deepEqual(gw.matchInstalled('', { ...P0, stacks: { web: 'react' } }, 'P7', { skills: idx }), [], "the project's stack alone is no reason");
+  assert.deepEqual(gw.matchInstalled('', { ...P0, stage: 'bugfix' }, 'P7', { skills: idx }).map(x => x.id), ['my-debug'], 'no task: the stage context finds the skill in the category it brings into play');
+  assert.deepEqual(gw.matchInstalled('ok thanks', { ...P0, stage: 'bugfix' }, 'P7', { skills: idx, ownWords: true }), [], 'a message hint needs the words of the message');
+  assert.equal(gw.matchInstalled('design the endpoint', { ...P0, stage: 'bugfix' }, 'P7', { skills: idx })[0].id, 'toolkit:api-helper');
+  const cat = require('../catalog/skills.json').skills;
+  for (const k of ['id', 'name']) assert.equal(new Set(cat.map(x => x[k])).size, cat.length, `catalog skill ${k}s are unique`);
+  const twinName = cat.find(x => x.role !== 'inspector').name; skill(path.join(C, 'skills', twinName), twinName, 'A copy installed by hand.');
+  const p = proj({}, { HOME: home, USERPROFILE: home });
+  const ix = p.gw(['skills', 'index', '--refresh']);
+  assert.match(ix.out, /Listed twice \(1\)[\s\S]*paper-x: paper-x .* = anthropic-skills:paper-x .*different versions/); assert.match(ix.out, /By source: user 5 · toolkit 2 · anthropic-skills 1 · bio 1/);
+  const ins = p.gw(['skills', 'install', cat.find(x => x.name === twinName).id]);
+  assert.equal(ins.code, 1); assert.match(ins.out, new RegExp(`${twinName} is already installed as ${twinName} \\(~`));
+  const hint = q => p.gw(['hook', 'prompt'], JSON.stringify({ session_id: 's1', prompt: q })).out;
+  assert.match(hint('the tests are failing with an error, debug it'), /installed skills that fit[\s\S]*• my-debug \[testing, debugging\]: Systematic/);
+  assert.doesNotMatch(hint('the tests are failing with an error, debug it'), /my-debug/, 'named once per session');
+  assert.doesNotMatch(hint('ok thanks'), /installed skills/);
+  p.gw(['skills', 'trending', 'off']); p.put('.groundwork/tasks.json', [{ id: 'T1', title: 'debug the failing tests error', status: 'in_progress', verify: 'x', req: [] }]);
+  assert.match(p.gw(['hook', 'session-start']).out, /• my-debug/);
+  assert.doesNotMatch(p.gw(['hook', 'prompt'], JSON.stringify({ session_id: 's2', prompt: 'the tests are failing with an error, debug it' })).out, /my-debug/, 'named at session start: not again');
+  fs.writeFileSync(path.join(home, '.claude', 'settings.json'), JSON.stringify({ enabledPlugins: { 'toolkit@market': false } }));
+  const ids = JSON.parse(p.gw(['skills', 'index', '--refresh', '--json']).out).skills.map(x => x.id);
+  assert.ok(ids.includes('bio:start') && !ids.some(x => x.startsWith('toolkit:')), 'a disabled plugin loads no skills');
+  fs.writeFileSync(path.join(p.d, '.home', 'skills-index.json'), JSON.stringify({ v: require('fs').readFileSync(path.join(__dirname, '..', 'VERSION'), 'utf8').trim(), built_at: new Date().toISOString(), home, skills: {} }));
+  assert.equal(p.gw(['skills', 'index']).code, 0, 'a broken cache is rebuilt');
 });
 t('task verify changes a check visibly; --help prints usage', () => {
   const p = proj();
