@@ -27,5 +27,8 @@ Score each item: **priority = (impact × frequency) / cost**, each on a 1–5 sc
 ## Dead code and unused dependencies
 Run the pack's `maintain.<stack>.deadcode` command (`gw maintain`). Delete a finding only when the tests pass and nothing references it dynamically (reflection, DI, public API, plugins, config).
 
+## Drift between docs and code (converge)
+When the code and the current-truth docs (PRD, FSD, BSD, approved mockup) disagree, show the user each difference and let them choose: the docs change to describe the code, or new tasks are appended to bring the code back to the docs. Record the choice in the plan. Never rewrite finished tasks or silently "fix" either side. `gw trace` shows REQs that lost their task or test.
+
 ## Size and gates
 Treat refactors as `CHANGE` work: refactoring a single module is `small`; cross-module work, or anything touching auth or data, is `standard` and goes through GATE 1 as usual. Mark items `done` in the registry with the commit.

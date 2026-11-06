@@ -270,6 +270,9 @@
         "*"
       ],
       "why": "fresh subagent per task (large tier)",
+      "tiers": [
+        "large"
+      ],
       "keywords": [
         "large feature",
         "many tasks",

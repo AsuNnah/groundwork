@@ -171,7 +171,7 @@ gw version | verify [--clean] | upgrade <new-groundwork-folder>
 ## Development
 
 ```bash
-node groundwork/test/selftest.js   # decision rules, catalogue, packs, manifest
+node groundwork/bin/selftest.js   # decision rules, catalogue, packs, manifest
 node scripts/release.js            # after changing groundwork/: refresh MANIFEST.json (bump VERSION + CHANGELOG for releases)
 sh -n groundwork/scan/scan.sh      # scanner syntax
 ```

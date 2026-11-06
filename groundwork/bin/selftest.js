@@ -1,4 +1,4 @@
-// node groundwork/test/selftest.js : checks decision rules against synthetic hosts.
+// node groundwork/bin/selftest.js : checks decision rules against synthetic hosts.
 'use strict';
 const assert = require('assert');
 const gw = require('../bin/gw.js');
@@ -213,5 +213,180 @@ t('figma detection: plugin config, UI targets only', () => {
   assert.ok(gw.figmaConfigured(home), 'Figma plugin found');
   assert.strictEqual(gw.figmaCheck({ targets: ['backend'] }), null, 'no screens, no Figma check');
   const c = gw.figmaCheck({ targets: ['web'] }); assert.ok(c && /MANUAL ACTION/.test(c.fix), 'UI project gets a check that says what is manual');
+});
+// ---------- 0.5.0: tasks, Stop hook, trace, docs, lint, review, migration (CLI in a temp git project) ----------
+const proj = (files = {}) => {
+  const fs = require('fs'), os = require('os'), path = require('path'), cp = require('child_process');
+  const d = fs.mkdtempSync(path.join(os.tmpdir(), 'gw-proj-'));
+  const put = (f, c) => { fs.mkdirSync(path.dirname(path.join(d, f)), { recursive: true }); fs.writeFileSync(path.join(d, f), typeof c === 'string' ? c : JSON.stringify(c, null, 2)); };
+  put('.groundwork/project.json', { name: 'p', tier: 'standard', targets: [], stacks: {}, profile: 'standard', framework_version: require('fs').readFileSync(path.join(__dirname, '..', 'VERSION'), 'utf8').trim() });
+  put('.groundwork/state.json', { phase: 'P7', phases: {}, waivers: [] });
+  for (const [f, c] of Object.entries(files)) put(f, c);
+  const env = { ...process.env, GW_PROJECT_DIR: d, GW_HOME: path.join(d, '.home') };
+  cp.spawnSync('git', ['init', '-q'], { cwd: d }); cp.spawnSync('git', ['-c', 'user.email=t@t.t', '-c', 'user.name=t', 'commit', '-q', '--allow-empty', '-m', 'base'], { cwd: d });
+  const gwc = (args, input) => { const r = cp.spawnSync(process.execPath, [path.join(__dirname, '..', 'bin', 'gw.js'), ...args], { cwd: d, env, input: input || '', encoding: 'utf8' }); return { code: r.status, out: r.stdout + r.stderr }; };
+  const read = f => JSON.parse(fs.readFileSync(path.join(d, f), 'utf8'));
+  return { d, gw: gwc, read, put };
+};
+t('task done only when its check passes; WIP 1; circuit breaker at 3', () => {
+  const p = proj();
+  assert.equal(p.gw(['task', 'add', 'T01', 'fix', '--verify', 'node -e "process.exit(1)"']).code, 0);
+  assert.equal(p.gw(['task', 'add', 'T02', 'other', '--verify', 'node -e "0"']).code, 0);
+  assert.equal(p.gw(['task', 'start', 'T01']).code, 0);
+  assert.equal(p.gw(['task', 'start', 'T02']).code, 1, 'second task refused while T01 is in progress');
+  for (let i = 1; i <= 3; i++) { const r = p.gw(['task', 'done', 'T01']); assert.equal(r.code, 1); if (i === 3) assert.match(r.out, /Circuit breaker/); }
+  assert.equal(p.read('.groundwork/tasks.json')[0].status, 'in_progress', 'failed check never marks done');
+  assert.equal(p.gw(['task', 'block', 'T01', 'needs a decision']).code, 0);
+  assert.equal(p.gw(['task', 'done', 'T02']).code, 0);
+  const t2 = p.read('.groundwork/tasks.json')[1]; assert.equal(t2.status, 'done'); assert.ok(t2.receipt);
+  assert.equal(p.read(`.groundwork/runs/${t2.receipt}/receipt.json`).task, 'T02');
+  const m = JSON.parse(p.gw(['metrics', '--json']).out);
+  assert.equal(m.done, 1); assert.equal(m.failed_checks, 3); assert.equal(m.circuit_breakers, 1);
+});
+t('Stop hook: blocks an unverified task once per change, never when already continued', () => {
+  const p = proj();
+  p.gw(['task', 'add', 'T01', 'fix', '--verify', 'node -e "0"']); p.gw(['task', 'start', 'T01']);
+  const r = p.gw(['hook', 'stop'], '{}'); assert.equal(r.code, 2); assert.match(r.out, /gw task done T01/);
+  assert.equal(p.gw(['hook', 'stop'], '{"stop_hook_active":true}').code, 0, 'no loop');
+  assert.equal(p.gw(['hook', 'stop'], '{}').code, 0, 'nothing changed since the last block');
+  p.gw(['task', 'done', 'T01']);
+  assert.equal(p.gw(['hook', 'stop'], '{}').code, 0, 'verified: turn may end');
+  const q = proj({ '.groundwork/tasks.json': [{ id: 'T09', title: 'x', verify: 'true', status: 'done' }] });
+  assert.equal(q.gw(['hook', 'stop'], '{}').code, 2, 'done by hand without a receipt is caught');
+  q.put('.groundwork/project.json', { ...q.read('.groundwork/project.json'), stop_hook: 'off' });
+  assert.equal(q.gw(['hook', 'stop'], '{}').code, 0, 'stop_hook=off');
+});
+t('reopened task needs a new passing check', () => {
+  const p = proj();
+  p.gw(['task', 'add', 'T01', 'fix', '--verify', 'node -e "0"']); p.gw(['task', 'start', 'T01']); p.gw(['task', 'done', 'T01']);
+  p.gw(['task', 'reopen', 'T01', 'bug came back']); p.gw(['task', 'start', 'T01']);
+  assert.equal(p.gw(['hook', 'stop'], '{}').code, 2, 'old receipt does not count');
+  assert.equal(JSON.parse(p.gw(['metrics', '--json']).out).reopened, 1);
+});
+t('doc budget follows tier and features', () => {
+  const docs = (tier, features, targets = []) => gw.requiredDocs({ tier, features, targets }, {}).map(d => d.doc);
+  assert.deepEqual(docs('trivial', []), []);
+  assert.deepEqual(docs('small', []), ['plan.md']);
+  const std = docs('standard', []); assert.ok(std.includes('prd.md') && std.includes('test-strategy.md') && !std.includes('srd.md') && !std.includes('bsd.md'));
+  assert.ok(docs('standard', ['auth']).includes('srd.md')); assert.ok(docs('standard', ['db']).includes('bsd.md'));
+  assert.ok(docs('large', [], ['web']).includes('platform/web.md'));
+  assert.ok(gw.requiredDocs({ tier: 'small', targets: ['web'] }, { web: { ui: true } }).some(d => d.doc === 'dbd.md'), 'UI pack adds the DBD');
+});
+t('PRD requirement parsing and out-of-scope rows', () => {
+  const r = gw.prdRequirements('| ID | x |\n|---|---|\n| REQ-001 | a | must | WHEN x, the system SHALL y |\n| REQ-002 | b | out of scope |\n### SEC-001 Tokens\n- not REQ-009 in prose');
+  assert.deepEqual(r.map(x => x.id), ['REQ-001', 'REQ-002', 'SEC-001']); assert.ok(r[1].out && !r[0].out);
+  assert.ok(gw.TEST_FILE.test('test/a.js') && gw.TEST_FILE.test('src/a.test.ts') && gw.TEST_FILE.test('pkg/a_test.go') && !gw.TEST_FILE.test('src/latest.js'));
+});
+t('trace and gates: REQ needs a task (G1) and a naming test (G2); lint errors fail G1', () => {
+  const prd = '| ID | R | P | AC |\n|---|---|---|---|\n| REQ-001 | csv | must | WHEN GET /notes.csv, the system SHALL return CSV |\n| REQ-002 | pdf | could | deferred |\n';
+  const p = proj({ 'docs/prd.md': prd, 'docs/plan.md': 'x', 'docs/test-strategy.md': 'x', 'docs/intent.md': 'x', 'docs/fsd.md': 'x', 'docs/trd.md': 'x',
+    '.groundwork/env-report.json': { ready: true }, '.groundwork/tasks.json': [{ id: 'T01', title: 'csv', verify: 'node -e "0"', status: 'todo' }] });
+  let g = p.gw(['gate', 'G1']); assert.equal(g.code, 1); assert.match(g.out, /REQ-001 has no task/); assert.doesNotMatch(g.out, /REQ-002/);
+  p.put('.groundwork/tasks.json', [{ id: 'T01', title: 'csv', req: ['REQ-001'], verify: 'node -e "0"', status: 'todo' }]);
+  assert.equal(p.gw(['gate', 'G1']).code, 0, p.gw(['gate', 'G1']).out);
+  p.put('docs/changes/x/delta.md', '## ADDED Requirements\n### Requirement: Export\nIt exports.\n');
+  g = p.gw(['gate', 'G1']); assert.equal(g.code, 1); assert.match(g.out, /no SHALL\/MUST/); assert.match(g.out, /no #### Scenario/);
+  p.put('docs/changes/x/delta.md', '## ADDED Requirements\n### Requirement: Export\nThe system SHALL export.\n#### Scenario: ok\n- WHEN asked\n- THEN it exports\n');
+  p.put('.groundwork/gates/G1.json', { gate: 'G1' });
+  p.gw(['task', 'done', 'T01']);
+  g = p.gw(['gate', 'G2']); assert.match(g.out, /REQ-001 has no test/); assert.match(g.out, /no code review recorded/);
+  p.put('test/notes.test.js', "test('REQ-001 exports csv', () => {})");
+  p.gw(['review', 'add', 'HIGH', 'csv injection', '--verdict', 'open']);
+  p.gw(['review', 'done', '--reviewer', 'fresh-context', 'one HIGH']);
+  g = p.gw(['gate', 'G2']); assert.doesNotMatch(g.out, /REQ-001/); assert.match(g.out, /HIGH review finding still open/);
+  p.gw(['review', 'add', 'HIGH', 'csv injection', '--verdict', 'fixed']);
+  assert.equal(p.gw(['review', 'done', '--reviewer', 'me', 'x']).code, 1, 'self-review is not a reviewer type');
+});
+t('0.5.0 migration: done tasks become legacy, the Stop hook is added', () => {
+  const p = proj({ '.claude/settings.json': { hooks: { SessionStart: [{ hooks: [{ type: 'command', command: 'node "$CLAUDE_PROJECT_DIR/groundwork/bin/gw.js" hook session-start' }] }] } },
+    '.groundwork/tasks.json': { tasks: [{ id: 'T01', status: 'done' }, { id: 'T02', status: 'todo' }] } });
+  p.put('.groundwork/project.json', { ...p.read('.groundwork/project.json'), framework_version: '0.4.0' });
+  p.gw(['status']);
+  const tk = p.read('.groundwork/tasks.json').tasks; assert.equal(tk[0].legacy, true); assert.ok(!tk[1].legacy);
+  assert.ok(JSON.stringify(p.read('.claude/settings.json').hooks.Stop).includes('hook stop'));
+  assert.equal(p.gw(['hook', 'stop'], '{}').code, 0, 'legacy done task does not block');
+});
+// from the real runs (0.5.0): brownfield changes, a red baseline, --help
+t('brownfield change: change-folder docs, trace scoped to the change, delivered rows', () => {
+  const d = gw.requiredDocs({ tier: 'standard', stage: 'feature', features: ['api', 'public'], targets: ['backend'] }, {}).map(x => x.doc);
+  assert.deepEqual(d, ['changes/<id>/proposal.md', 'changes/<id>/delta.md', 'srd.md'], 'no new PRD/FSD/TRD set for a change');
+  assert.deepEqual(gw.requiredDocs({ tier: 'small', stage: 'bugfix', targets: [] }, {}).map(x => x.doc), ['changes/<id>/bugfix.md']);
+  const prd = '| ID | R | P | AC |\n|---|---|---|---|\n| REQ-001 | list | must | WHEN GET /notes, the system SHALL list |\n| REQ-002 | add | must | delivered |\n| REQ-003 | csv | must | WHEN GET /notes.csv, the system SHALL return CSV |\n';
+  const p = proj({ 'docs/prd.md': prd, 'docs/srd.md': 'x', '.groundwork/env-report.json': { ready: true }, '.groundwork/tasks.json': [{ id: 'T01', title: 'csv', req: ['REQ-003'], verify: 'node -e "0"', status: 'todo' }] });
+  p.put('.groundwork/project.json', { ...p.read('.groundwork/project.json'), stage: 'feature', features: ['api', 'public'] });
+  let g = p.gw(['gate', 'G1']); assert.match(g.out, /missing docs\/changes\/<YYYYMMDD-slug>\/proposal\.md/);
+  assert.match(g.out, /REQ-001 has no task/, 'no change folder yet: all non-delivered REQs count'); assert.doesNotMatch(g.out, /REQ-002/, 'delivered row needs no task');
+  p.put('docs/changes/20261105-csv/proposal.md', 'Adds REQ-003.'); p.put('docs/changes/20261105-csv/delta.md', '## ADDED Requirements\n### Requirement: CSV\nThe system SHALL export REQ-003.\n#### Scenario: ok\n- WHEN GET\n- THEN CSV\n');
+  g = p.gw(['gate', 'G1']); assert.equal(g.code, 0, g.out);
+  assert.match(p.gw(['trace']).out, /REQ-001.*not in this change/);
+  p.put('docs/prd.md', prd.replace('| REQ-001 | list | must | WHEN GET /notes, the system SHALL list |', '| REQ-001 | list | must | WHEN GET /notes, the system SHALL list. delivered |'));
+  p.put('docs/changes/20261105-csv/proposal.md', 'Adds REQ-003. Proven by the REQ-003 test; the REQ-001 and REQ-002 tests still pass.');
+  g = p.gw(['gate', 'G1']); assert.equal(g.code, 0, 'a delivered REQ named only in the proposal needs no task: ' + g.out);
+  p.put('docs/changes/20261105-csv/delta.md', '## ADDED Requirements\n### Requirement: CSV\nThe system SHALL export REQ-003.\n#### Scenario: ok\n- WHEN GET\n- THEN CSV\n## MODIFIED Requirements\n### Requirement: list (REQ-001)\nThe system SHALL list notes sorted.\n#### Scenario: s\n- WHEN GET\n- THEN sorted\n');
+  assert.match(p.gw(['gate', 'G1']).out, /REQ-001 has no task.*delta or bugfix names it/, 'a delivered REQ the delta modifies needs a task');
+});
+t('task verify changes a check visibly; --help prints usage', () => {
+  const p = proj();
+  p.gw(['task', 'add', 'T01', 'x', '--verify', 'npm test']);
+  assert.equal(p.gw(['task', 'verify', 'T01', 'node --test test/a.test.js']).code, 0);
+  assert.equal(p.read('.groundwork/tasks.json')[0].verify, 'node --test test/a.test.js');
+  assert.match(require('fs').readFileSync(require('path').join(p.d, '.groundwork/decisions.jsonl'), 'utf8'), /verify-changed/);
+  for (const a of [['task', '--help'], ['task', 'add', '--help'], ['review', '--help'], ['--help']]) assert.equal(p.gw(a).code, 0, a.join(' '));
+  const bad = p.gw(['set', 'targets=api']); assert.equal(bad.code, 1); assert.match(bad.out, /Known targets: .*backend/);
+});
+t('gw run: no S1 receipt for a host command; host target for projects without targets; brownfield skips P1/P5', () => {
+  const p = proj();
+  p.put('.groundwork/project.json', { ...p.read('.groundwork/project.json'), targets: ['backend'], stage: 'feature' });
+  const r = p.gw(['run', 'backend', 'S1', '--', 'npm', 'test']); assert.equal(r.code, 1); assert.match(r.out, /S1 means a container/);
+  assert.match(p.gw(['run', 'api', 'S0', '--', 'true']).out, /Known targets: .*backend/);
+  const q = proj(); assert.equal(q.gw(['run', 'host', 'S0', '--', 'node', '-e', '0']).code, 0, 'no targets: host S0 works');
+  assert.equal(q.gw(['run', 'host', 'S1', '--', 'docker', 'ps']).code, 1, 'host is S0 only');
+  p.put('.groundwork/host-profile.json', { scanned_at: new Date().toISOString() });
+  p.put('.groundwork/state.json', { phase: 'P1', phases: { H0: { status: 'done', at: 'x' }, P0: { status: 'done', at: 'x' } }, waivers: [] });
+  assert.equal(JSON.parse(p.gw(['next']).out).phase, 'P2', 'a change skips P1 (the change folder replaces it)');
+  assert.match(JSON.parse(p.gw(['next']).out).do, /only if the change adds a target, stack or dependency/, 'a change reads P2 only when the stack changes');
+});
+t('reuse: license classes, shallow clone with credit row, G2 checks docs/credits.md', () => {
+  const fs = require('fs'), os = require('os'), path = require('path'), cp = require('child_process'), url = require('url');
+  for (const [id, cls] of [['MIT', 'permissive'], ['Apache-2.0', 'permissive'], ['LGPL-3.0', 'weak'], ['MPL-2.0', 'weak'], ['GPL-3.0-only', 'strong'], ['AGPL-3.0', 'strong'],
+    ['MIT OR GPL-3.0', 'permissive'], ['', 'none'], ['BUSL-1.1', 'restricted'], ['Artistic-2.0', 'unknown']]) assert.equal(gw.licenseClass(id), cls, id);
+  const src = fs.mkdtempSync(path.join(os.tmpdir(), 'gw-src-'));
+  fs.writeFileSync(path.join(src, 'LICENSE'), 'MIT License\n\nCopyright (c) 2024 x\n\nPermission is hereby granted, free of charge, to any person obtaining a copy\n');
+  fs.writeFileSync(path.join(src, 'slug.js'), 'module.exports = s => s;\n');
+  for (const a of [['init', '-q'], ['add', '-A'], ['-c', 'user.email=t@t.t', '-c', 'user.name=t', 'commit', '-qm', 'x']]) cp.spawnSync('git', a, { cwd: src });
+  assert.equal(gw.detectLicense(src).id, 'MIT');
+  const p = proj({ 'package.json': { name: 'p', license: 'MIT' } });
+  const r = p.gw(['reuse', url.pathToFileURL(src).href, 'slug']);
+  assert.equal(r.code, 0, r.out); assert.match(r.out, /License: MIT/); assert.match(r.out, /\| slug \| file:/);
+  assert.ok(fs.existsSync(path.join(p.d, '.groundwork/reuse/slug/slug.js')), 'cloned');
+  assert.match(fs.readFileSync(path.join(p.d, '.gitignore'), 'utf8'), /\.groundwork\/reuse\//, 'clone is git-ignored');
+  assert.equal(p.gw(['reuse', '--upload-pack=touch x']).code, 1, 'an option is not a URL');
+  p.put('docs/credits.md', '| Project | Source | Version / commit | License | What |\n|---|---|---|---|---|\n| a | https://x/a | 1 | MIT | src/a.js |\n| b | https://x/b | 1 | GPL-3.0 | src/b.js |\n' +
+    '| c |  | 1 |  | src/c.js |\n| e | https://x/e | 1 | none | permission: author, issue #4 |\n<!--\n| d | https://x/d | 1 | none | example |\n-->\n');
+  const g2 = p.gw(['gate', 'G2']).out;
+  assert.match(g2, /"b" is GPL-3.0 but this project is MIT/); assert.match(g2, /"c" has no source/); assert.match(g2, /"c" has no license/);
+  assert.ok(!/"a"|"d"|"e"/.test(g2), 'permissive, commented-out and permitted rows pass');
+});
+t('every command answers --help with exit 0; a run keeps the --help after --', () => {
+  const p = proj();
+  for (const c of ['run', 'trace', 'gate', 'reuse', 'phase']) { const r = p.gw([c, '--help']); assert.equal(r.code, 0, c + ': ' + r.out); assert.match(r.out, new RegExp(c)); }
+  assert.equal(p.gw(['no-such-command']).code, 1);
+  assert.match(p.gw(['run', 'host', 'S0', '--', 'echo', 'real-run', '--help']).out, /real-run --help/);
+});
+t('every phase file a doc names exists', () => {
+  const fs = require('fs'), path = require('path'), dir = path.join(__dirname, '..');
+  const docs = [...fs.readdirSync(path.join(dir, 'phases')).map(f => path.join('phases', f)), 'GROUNDWORK.md'];
+  for (const d of docs) for (const m of fs.readFileSync(path.join(dir, d), 'utf8').matchAll(/phases\/([A-Z0-9]+)\.md/g))
+    assert.ok(fs.existsSync(path.join(dir, 'phases', m[1] + '.md')), `${d} names missing phases/${m[1]}.md`);
+  for (const id of fs.readFileSync(path.join(dir, 'GROUNDWORK.md'), 'utf8').match(/Playbooks in `phases\/`:(.*)/)[1].match(/`([A-Z]+)`/g).map(x => x.slice(1, -1)))
+    assert.ok(fs.existsSync(path.join(dir, 'phases', id + '.md')), 'playbook ' + id);
+});
+t('no framework file looks like a project test to a test runner', () => {
+  const fs = require('fs'), path = require('path'), root = path.join(__dirname, '..'), hits = [];
+  const walk = d => { for (const e of fs.readdirSync(d, { withFileTypes: true })) { const f = path.join(d, e.name), rel = path.relative(root, f).split(path.sep).join('/');
+    if (e.isDirectory()) { if (/^(tests?|__tests__|spec)$/.test(e.name)) hits.push(rel + '/'); walk(f); }
+    else if (/\.[cm]?[jt]sx?$/.test(e.name) && /^test[-.]|[-_.]test\.|[-_.]spec\.|^test\.[cm]?js$/.test(e.name)) hits.push(rel); } };
+  walk(root);   // node --test, jest, vitest and mocha would run these inside the user's suite
+  assert.deepEqual(hits, []);
 });
 console.log(`\n${n} checks passed`);

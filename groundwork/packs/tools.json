@@ -230,5 +230,20 @@
       "uv": "uv tool install \"scrapling[fetchers,ai]==0.5.1\" && scrapling install   # second step downloads browsers",
       "any": "install uv first, then: uv tool install \"scrapling[fetchers,ai]==0.5.1\" && scrapling install"
     }
+  },
+  "semgrep": {
+    "name": "Semgrep CE (static analysis: bugs and insecure patterns, many languages)",
+    "install": {
+      "uv": "uv tool install semgrep==1.181.1",
+      "brew": "brew install semgrep",
+      "any": "install uv first, then: uv tool install semgrep==1.181.1"
+    }
+  },
+  "jscpd": {
+    "name": "jscpd (copy-paste / duplication detector, 150+ languages; runs through npx, no install)",
+    "install": {
+      "npm": "npx --yes jscpd@5.4.2 --version   # nothing to install: P8 runs it through npx",
+      "any": "install Node.js first; then npx --yes jscpd@5.4.2"
+    }
   }
 }

@@ -75,6 +75,12 @@ function feedbackReport() {
   section('Phases skipped / blocked', group('phase-skipped', e => `${e.id} skipped: ${e.note || '(no reason)'}`).concat(group('phase-blocked', e => `${e.id} blocked: ${e.note || '(no reason)'}`)));
   section('Host changes / re-scans', group('host-rescan', e => e.reason || 'rescan'));
   section('Unknown targets requested', group('unknown-target', e => e.target));
+  section('Stop blocked (task not verified)', group('stop-blocked', e => e.reason));
+  section('Circuit breakers (3+ failed checks)', group('circuit-breaker', e => e.task));
+  section('Tasks over the diff budget', group('diff-budget', e => `${e.task}: ${e.lines} lines`));
+  section('Task checks changed', group('verify-changed', e => `${e.task}: \`${e.from}\` → \`${e.to}\``));
+  try { const m = metrics(proj); if (m.tasks) L.push('## Delivery metrics', '', `- Tasks: ${m.tasks} · done: ${m.done} · first-pass (check passed first time): ${m.first_pass} · reopened: ${m.reopened} · rework rate: ${m.rework_rate ?? '-'}`,
+    `- Failed checks: ${m.failed_checks} · median task: ${m.median_task_minutes ?? '-'} min · release runs: ${m.release_runs} (${m.release_runs_failed} failed) · reverts: ${m.reverts} · circuit breakers: ${m.circuit_breakers} · stop blocks: ${m.stop_blocks}`, ''); } catch { }
   L.push('## Phase timeline', '');
   for (const [id, name] of PHASES) { const x = st.phases[id]; if (x) L.push(`- ${id} ${name}: ${x.status} ${x.at.slice(0, 16)}${x.note ? ' · ' + x.note : ''}`); }
   const out = P('FEEDBACK.md'); fs.writeFileSync(out, L.join('\n') + '\n'); return out;
@@ -277,7 +283,7 @@ function doctor(h, proj) {
   const all = packs();
   for (const target of proj.targets || []) {
     const pk = all[target];
-    if (!pk) { fb('unknown-target', { target }); checks.push({ id: 'pack:' + target, name: 'Pack ' + target, status: 'missing', severity: 'block', fix: 'no pack for this target: add groundwork/packs/' + target + '.json' }); continue; }
+    if (!pk) { fb('unknown-target', { target }); checks.push({ id: 'pack:' + target, name: 'Pack ' + target, status: 'missing', severity: 'block', fix: `no pack named "${target}". Known targets: ${Object.keys(all).join(', ')} (e.g. an HTTP API is "backend"). Or add groundwork/packs/${target}.json` }); continue; }
     const stack = (proj.stacks || {})[target];
     const specs = [...(pk.tools || []), ...((pk.stack_tools || {})[stack] || [])];
     for (const s of specs) {
@@ -313,10 +319,15 @@ function nextStep() {
   const proj = project(), st = state();
   if (!exists(P('host-profile.json'))) return { phase: 'H0', do: 'node groundwork/bin/gw.js doctor   # scan this machine first' };
   const tier = proj.tier;
-  const plan = TIER_PHASES[tier] || TIER_PHASES.standard;
+  const plan = (TIER_PHASES[tier] || TIER_PHASES.standard).filter(id => !(BROWNFIELD.includes(proj.stage) && ['P1', 'P5'].includes(id)));   // CHANGE.md's change folder replaces discovery and design docs
+  const light = ['trivial', 'small'].includes(tier) && !(proj.targets || []).length;   // the CLI says the whole step, so no phase file to read
   for (const id of plan) {
     const s = (st.phases[id] || {}).status;
-    if (s !== 'done' && s !== 'skipped') return { phase: id, do: `read groundwork/phases/${id}.md` + (tier ? '' : '  (size tier not set yet: P0 decides it)') };
+    if (s === 'done' || s === 'skipped') continue;
+    if (tier === 'trivial' && id === 'P7') return { phase: id, do: 'one task: gw task add T01 "<the fix>" --verify "<test command>", gw task start T01, make the fix, gw task done T01, then gw phase P7 done' };
+    if (light && id === 'P8') return { phase: id, do: 'no targets, so the task receipts are the verification: gw phase P8 done' };
+    if (BROWNFIELD.includes(proj.stage) && ['P2', 'P3', 'P4'].includes(id)) return { phase: id, do: `read groundwork/phases/${id}.md only if the change adds a target, stack or dependency; otherwise gw phase ${id} skipped "${{ P2: 'existing stack', P3: 'environment unchanged', P4: 'no new tools or skills' }[id]}"` };
+    return { phase: id, do: `read groundwork/phases/${id}.md` + (tier ? '' : '  (size tier not set yet: P0 decides it)') };
   }
   return { phase: null, do: 'all phases done for tier ' + tier };
 }
@@ -331,6 +342,8 @@ function statusText() {
   }
   const g = ['G1', 'G2'].map(x => `${x}:${exists(P('gates', x + '.json')) ? 'approved' : 'open'}`).join(' ');
   lines.push(`Gates: ${g} · current phase: ${n.phase || 'done'} → ${n.do}`);
+  const cur = loadTasks().list.find(t => t.status === 'in_progress');
+  if (cur) lines.push(`Task in progress: ${cur.id} ${cur.title || ''} · check: ${cur.verify || '(none: add one)'} · finish with gw task done ${cur.id}`);
   if (st.recheck && st.recheck.length) lines.push(`Re-check after the framework upgrade (their instructions changed): ${st.recheck.join(', ')}`);
   return lines.join('\n');
 }
@@ -338,6 +351,7 @@ function statusText() {
 // ---------- gates & runs ----------
 const MARKER = /\[NEEDS CLARIFICATION/;
 const DOC_KEYS = { 'prd.md': 'prd', 'plan.md': 'plan', 'test-strategy.md': 'test_strategy' };
+const readRel = f => { try { return fs.readFileSync(path.join(ROOT, f), 'utf8'); } catch { return null; } };
 // where a project doc lives: docs.<key> override > docs_dir > docs/; file names match case-insensitively (PRD.md)
 function docPath(name, proj = project()) {
   const o = (proj.docs || {})[DOC_KEYS[name] || name.replace(/\.md$/, '')];
@@ -346,23 +360,147 @@ function docPath(name, proj = project()) {
   try { const hit = fs.readdirSync(path.join(ROOT, dir)).find(f => f.toLowerCase() === name); if (hit) return path.posix.join(dir, hit); } catch { }
   return path.posix.join(dir, name);
 }
+// documents the tier and the project's features need: GATE 1 checks exactly these, P5 writes only these (doc budget)
+const FEATURES = ['ui', 'api', 'db', 'auth', 'pii', 'payments', 'public'];
+function projectFeatures(proj = project(), all = packs()) {
+  const f = new Set(proj.features || []);
+  if ((proj.targets || []).some(t => (all[t] || {}).ui)) f.add('ui');
+  if ((proj.targets || []).includes('backend')) f.add('api');
+  return f;
+}
+const BROWNFIELD = ['feature', 'bugfix', 'migration', 'refactor'];   // changes to an existing system: phases/CHANGE.md
+function requiredDocs(proj = project(), all = packs()) {
+  const tier = proj.tier, f = projectFeatures(proj, all), out = [], add = (doc, why) => out.push({ doc, why });
+  if (!tier || tier === 'trivial') return out;
+  if (BROWNFIELD.includes(proj.stage)) {   // the current-truth docs already exist: write the change, not a new doc set
+    if (proj.stage === 'bugfix') add('changes/<id>/bugfix.md', 'current vs expected behaviour, repro, root cause');
+    else { add('changes/<id>/proposal.md', 'why, what changes, out of scope, affected REQ IDs'); add('changes/<id>/delta.md', 'requirements ADDED / MODIFIED / REMOVED'); }
+    if ((proj.features || []).includes('ui')) add('dbd.md', 'changes screens: mockup of the changed screens');
+    if (tier === 'large' || ['auth', 'pii', 'payments', 'public'].some(x => f.has(x))) add('srd.md', tier === 'large' ? 'large tier' : 'touches auth, personal data, payments or a public API');
+    return out;
+  }
+  if (tier === 'small') {
+    add('plan.md', 'small: a short plan with the tasks and their checks');
+    if (f.has('ui')) add('dbd.md', 'has screens: the approved mockup is recorded here');
+    return out;
+  }
+  add('intent.md', 'the confirmed intent, before the PRD'); add('prd.md', 'requirements with IDs');
+  add('fsd.md', 'features and acceptance criteria'); add('trd.md', 'architecture and technical decisions');
+  if (f.has('ui')) add('dbd.md', 'has screens');
+  if (f.has('api') || f.has('db')) add('bsd.md', 'has an API or a database');
+  if (tier === 'large' || ['auth', 'pii', 'payments', 'public'].some(x => f.has(x))) add('srd.md', tier === 'large' ? 'large tier' : 'touches auth, personal data, payments or a public API');
+  if (tier === 'large') { add('afd.md', 'large: flows across modules'); for (const t of proj.targets || []) add(`platform/${t}.md`, `large: platform notes for ${t}`); }
+  add('plan.md', 'milestones, risks, complexity tracking'); add('test-strategy.md', 'which tests run at which sandbox tier');
+  return out;
+}
+// the change being worked on: the newest folder in docs/changes/ (archive excluded)
+function activeChange(proj = project()) {
+  try { return fs.readdirSync(path.join(ROOT, proj.docs_dir || 'docs', 'changes'), { withFileTypes: true }).filter(e => e.isDirectory() && e.name !== 'archive').map(e => e.name).sort().pop() || null; } catch { return null; }
+}
+function resolveDoc(doc, proj = project()) {
+  if (!doc.startsWith('changes/<id>/')) return docPath(doc, proj);
+  return path.posix.join(proj.docs_dir || 'docs', 'changes', activeChange(proj) || '<YYYYMMDD-slug>', doc.slice('changes/<id>/'.length));
+}
+// requirement IDs defined in the PRD (table rows "| REQ-001 |" or headings "### REQ-001"); rows saying out of scope are excluded
+const REQ_ID = /\b(?:REQ|NFR|JRN|SEC)-\d{3,}\b/g;
+const REQ_DEF = /^\s*(?:\|\s*|#{2,4}\s+)\**((?:REQ|NFR|JRN|SEC)-\d{3,})\b/;
+function prdRequirements(text) {
+  return String(text || '').split('\n').map(line => { const m = line.match(REQ_DEF); return m && { id: m[1], text: line,
+    out: /\b(out of scope|out-of-scope|deferred|not in v1|won'?t do)\b/i.test(line), delivered: /\b(delivered|already built|shipped)\b/i.test(line) }; }).filter(Boolean);
+}
+const TEST_FILE = /(^|\/)(tests?|spec|__tests__|e2e)\/|\.(test|spec)\.[a-z0-9]+$|_test\.[a-z0-9]+$|(^|\/)test_[^/]+\.py$/i;
+const SKIP_DIRS = new Set(['node_modules', '.git', 'groundwork', '.groundwork', 'dist', 'build', 'target', 'vendor', '.venv', 'venv', '__pycache__', '.next', 'coverage', '.dart_tool', 'Pods', '.gradle']);
+function testFiles(dir = ROOT, out = [], depth = 0) {
+  if (depth > 8 || out.length > 5000) return out;   // shortcut: very large repos are only partly scanned; set docs/tests paths if this misses tests
+  let ents; try { ents = fs.readdirSync(dir, { withFileTypes: true }); } catch { return out; }
+  for (const e of ents) { const f = path.join(dir, e.name);
+    if (e.isDirectory()) { if (!SKIP_DIRS.has(e.name)) testFiles(f, out, depth + 1); }
+    else if (TEST_FILE.test(path.relative(ROOT, f).split(path.sep).join('/'))) out.push(f); }
+  return out;
+}
+// REQ → tasks → tests (V-model pairing). Only REQ- and SEC- IDs must have a task and a test; NFR/JRN are reported.
+function trace(proj = project()) {
+  let prdFile = docPath('prd.md', proj), defs = prdRequirements(readRel(prdFile));
+  if (!defs.length) { const pf = docPath('plan.md', proj), d = prdRequirements(readRel(pf)); if (d.length) { prdFile = pf; defs = d; } }   // small tier: REQs live in the plan
+  const tasks = loadTasks().list, tests = testFiles().map(f => { try { return fs.readFileSync(f, 'utf8'); } catch { return ''; } }).join('\n');
+  // a change to an existing system answers for the IDs its change docs name; requirements already delivered need no new task
+  // a delivered row needs a task only when the change's spec (delta.md / bugfix.md) names it, not for a mention in the proposal ("REQ-001 tests still pass")
+  const ch = BROWNFIELD.includes(proj.stage) && activeChange(proj), chDoc = f => readRel(path.posix.join(proj.docs_dir || 'docs', 'changes', ch, f)) || '';
+  const inChange = ch ? new Set(['proposal.md', 'delta.md', 'bugfix.md'].map(chDoc).join('\n').match(REQ_ID) || []) : null;
+  const inSpec = ch ? new Set([chDoc('delta.md'), chDoc('bugfix.md')].join('\n').match(REQ_ID) || []) : new Set();
+  const ids = [...new Set(defs.filter(d => !d.out).map(d => d.id))], delivered = new Set(defs.filter(d => d.delivered).map(d => d.id));
+  const rows = ids.map(id => ({ id, delivered: delivered.has(id), enforced: /^(REQ|SEC)-/.test(id) && (inChange ? inChange.has(id) && (!delivered.has(id) || inSpec.has(id)) : !delivered.has(id)), tasks: tasks.filter(t => (t.req || []).includes(id)).map(t => t.id), tested: new RegExp(`\\b${id}\\b`).test(tests) }));
+  const known = new Set(defs.map(d => d.id)), orphans = [...new Set(tasks.flatMap(t => t.req || []))].filter(r => !known.has(r));
+  return { prd: defs.length ? prdFile : null, change: ch || null, rows, out_of_scope: defs.filter(d => d.out).map(d => d.id), orphans };
+}
+// requirement quality and OpenSpec delta structure: errors fail GATE 1, warnings are advice
+function lint(proj = project()) {
+  const errors = [], warnings = [], prdFile = docPath('prd.md', proj), seen = new Set();
+  for (const d of prdRequirements(readRel(prdFile))) {
+    if (seen.has(d.id)) errors.push(`${prdFile}: ${d.id} is defined more than once`); seen.add(d.id);
+    const len = d.text.replace(/\|/g, ' ').trim().length;
+    if (len > 500) warnings.push(`${prdFile}: ${d.id} is ${len} characters; split it (one need per requirement)`);
+    if (/^(REQ|SEC)-/.test(d.id) && !d.out && !/\bshall\b|\bmust\b|\b(when|given|if|while)\b[\s\S]*\bthen\b/i.test(d.text))
+      warnings.push(`${prdFile}: ${d.id} has no testable acceptance criterion (EARS "WHEN … the system SHALL …" or Given/When/Then)`);
+  }
+  const cdir = path.posix.join(proj.docs_dir || 'docs', 'changes');
+  let changes = []; try { changes = fs.readdirSync(path.join(ROOT, cdir)).filter(d => d !== 'archive'); } catch { }
+  for (const c of changes) {
+    const rel = path.posix.join(cdir, c, 'delta.md'), t = readRel(rel); if (t == null) continue;
+    let section = null, req = null;
+    const close = () => { if (!req) return;
+      if (['ADDED', 'MODIFIED'].includes(section)) {
+        if (!/\b(SHALL|MUST)\b/.test(req.body)) errors.push(`${rel}: "${req.name}" (${section}) has no SHALL/MUST statement`);
+        if (!req.scenarios.length) errors.push(`${rel}: "${req.name}" (${section}) has no #### Scenario`);
+        for (const s of req.scenarios) if (!/\bWHEN\b/.test(s.body) || !/\bTHEN\b/.test(s.body)) warnings.push(`${rel}: scenario "${s.name}" needs a WHEN and a THEN step`);
+      }
+      if (section === 'REMOVED' && !/reason/i.test(req.body)) warnings.push(`${rel}: removed "${req.name}" has no Reason`);
+      req = null; };
+    for (const line of t.split('\n')) {
+      let m;
+      if ((m = line.match(/^## (\w+)/))) { close(); section = /^(ADDED|MODIFIED|REMOVED|RENAMED)$/i.test(m[1]) ? m[1].toUpperCase() : null; }
+      else if ((m = line.match(/^### Requirement:\s*(.*)/))) { close(); req = { name: m[1].trim(), body: '', scenarios: [] }; }
+      else if ((m = line.match(/^#### Scenario:\s*(.*)/)) && req) req.scenarios.push({ name: m[1].trim(), body: '' });
+      else if (req) { req.body += line + '\n'; if (req.scenarios.length) req.scenarios[req.scenarios.length - 1].body += line + '\n'; }
+    }
+    close();
+  }
+  return { errors, warnings };
+}
 function gateCheck(id) {
-  const proj = project(), problems = [], read = f => { try { return fs.readFileSync(path.join(ROOT, f), 'utf8'); } catch { return null; } };
+  const proj = project(), problems = [];
   if (id === 'G1') {
-    const need = (proj.tier === 'small' ? ['plan.md'] : ['prd.md', 'plan.md', 'test-strategy.md']).map(n => docPath(n, proj));
-    for (const f of need) { const t = read(f); if (t == null) problems.push(`missing ${f}`); else if (MARKER.test(t)) problems.push(`${f} still has [NEEDS CLARIFICATION] markers`); }
-    if (!exists(P('tasks.json'))) problems.push('missing .groundwork/tasks.json');
+    const need = requiredDocs(proj).map(d => resolveDoc(d.doc, proj));
+    if (!need.length) need.push(docPath('plan.md', proj));
+    for (const f of need) { const t = readRel(f); if (t == null) problems.push(`missing ${f}`); else if (MARKER.test(t)) problems.push(`${f} still has [NEEDS CLARIFICATION] markers`); }
+    const T = loadTasks();
+    if (!T.exists) problems.push('missing .groundwork/tasks.json');
+    for (const t of T.list) if (!t.verify) problems.push(`task ${t.id} has no "verify" command (the check that proves it works)`);
+    for (const r of trace(proj).rows) if (r.enforced && !r.tasks.length) problems.push(`${r.id} has no task: add its ID to a task's "req" (gw task add … --req ${r.id}). ` + (r.delivered ? `It is delivered, but this change's delta or bugfix names it, so the change must prove it again.` : `Already built: write "delivered" in its PRD row. Not planned: "out of scope".`));
+    for (const e of lint(proj).errors) problems.push(e);
     const env = readJson(P('env-report.json'));
     if (!env) problems.push('no env-report: run gw doctor'); else if (!env.ready) problems.push('environment has blocking checks: run gw doctor');
   } else if (id === 'G2') {
     if (!exists(P('gates', 'G1.json'))) problems.push('G1 not approved');
-    const st = state(), all = packs();
+    const st = state(), all = packs(), rs = runs();
     for (const t of proj.targets || []) {
       const need = (all[t] || {}).min_release_tier || 'S1';
-      const ok = runs().some(r => r.target === t && r.exit === 0 && r.tier >= need);
+      const ok = rs.some(r => r.target === t && r.exit === 0 && r.tier >= need);
       const waived = (st.waivers || []).some(w => w.target === t);
       if (!ok && !waived) problems.push(`no passing ${need}+ run for ${t} (gw run ${t} ${need} -- <cmd>, or waive in state.json with a reason)`);
     }
+    for (const t of loadTasks().list) {
+      if (['todo', 'in_progress'].includes(t.status)) problems.push(`task ${t.id} is ${t.status} (finish it with gw task done ${t.id}, or gw task block ${t.id} "<reason>")`);
+      if (t.status === 'done' && !t.legacy && !taskPassed(t)) problems.push(`task ${t.id} is marked done without a passing check: gw task done ${t.id}`);
+    }
+    for (const r of trace(proj).rows) if (r.enforced && !r.tested && !(st.waivers || []).some(w => w.req === r.id)) problems.push(`${r.id} has no test that names it (put the ID in a test name or comment, or waive: {"req":"${r.id}","reason":"…"} in state.json)`);
+    if (['standard', 'large'].includes(proj.tier)) {
+      const rv = reviewLog();
+      if (!rv.some(x => x.kind === 'review')) problems.push('no code review recorded: run a fresh-context review (phases/P9.md), then gw review done --reviewer fresh-context "<summary>"');
+      for (const x of rv.filter(x => x.kind === 'finding' && ['CRITICAL', 'HIGH'].includes(x.severity)))
+        if (x.verdict === 'open' || (x.verdict === 'waived' && !x.reason)) problems.push(`${x.severity} review finding ${x.verdict === 'open' ? 'still open' : 'waived without a reason'}: ${x.finding}`);
+    }
+    problems.push(...credits(proj).problems);   // reused open-source code needs a source and a license that allows it
   } else problems.push('unknown gate ' + id);
   return problems;
 }
@@ -370,10 +508,210 @@ function runs() {
   const d = P('runs'); if (!exists(d)) return [];
   return fs.readdirSync(d).map(r => readJson(path.join(d, r, 'receipt.json'))).filter(Boolean);
 }
+const git = (...a) => { const r = cp.spawnSync('git', a, { cwd: ROOT, encoding: 'utf8' }); return r.status === 0 ? r.stdout.trim() : null; };
+function recordRun({ target, tier, command, task }) {
+  const id = now().replace(/[:.]/g, '-') + '-' + (task || target), started = now();
+  const log = P('runs', id, 'logs', 'output.txt'); fs.mkdirSync(path.dirname(log), { recursive: true });
+  const fd = fs.openSync(log, 'w'), r = cp.spawnSync(command, { shell: true, stdio: ['inherit', fd, fd], cwd: ROOT }); fs.closeSync(fd);   // one file keeps stdout/stderr order
+  const out = fs.readFileSync(log, 'utf8').trimEnd().split('\n'), keep = r.status === 0 ? 12 : 60;   // a pass needs only the summary; a failure needs the error
+  if (out.length > keep) console.log(`… ${out.length - keep} earlier lines in .groundwork/runs/${id}/logs/output.txt`);
+  if (out.join('')) console.log(out.slice(-keep).join('\n'));
+  const receipt = { target, tier, command, exit: r.status, commit: git('rev-parse', '--short', 'HEAD'), started, ended: now(), ...(task ? { task } : {}) };
+  writeJson(P('runs', id, 'receipt.json'), receipt);
+  if (r.status !== 0) fb('run-failed', { target, tier, command });
+  return { id, receipt };
+}
+
+// ---------- tasks: done only when the task's check passes (A1); one in progress at a time (A6) ----------
+function loadTasks() {
+  const raw = readJson(P('tasks.json'), null), list = Array.isArray(raw) ? raw : ((raw && raw.tasks) || []);
+  const save = () => { const f = P('tasks.json'), tmp = f + '.tmp'; writeJson(tmp, Array.isArray(raw) || !raw ? list : { ...raw, tasks: list }); fs.renameSync(tmp, f); };
+  return { list, save, exists: !!raw };
+}
+const taskRuns = id => runs().filter(r => r.task === id).sort((a, b) => String(a.started).localeCompare(String(b.started)));
+// only receipts from the current attempt count: a reopened task needs a new passing check
+const taskPassed = t => { const r = taskRuns(t.id).filter(x => !t.started_at || String(x.started) >= t.started_at).pop(); return !!(r && r.exit === 0); };
+function diffLines(base) {   // lines added + removed since the task started, new untracked files included
+  if (!base) return 0;
+  const skip = ['groundwork', '.groundwork', '.claude'].map(d => `:(exclude)${d}`);   // framework files are not the task's change
+  const tracked = (git('diff', '--numstat', base, '--', '.', ...skip) || '').split('\n').filter(Boolean).reduce((a, l) => { const [x, y] = l.split('\t'); return a + (+x || 0) + (+y || 0); }, 0);
+  const untracked = (git('ls-files', '--others', '--exclude-standard', '--', '.', ...skip) || '').split('\n').filter(Boolean)
+    .reduce((a, f) => { try { const s = fs.statSync(path.join(ROOT, f)); return a + (s.size < 1e6 ? fs.readFileSync(path.join(ROOT, f), 'utf8').split('\n').length : 0); } catch { return a; } }, 0);
+  return tracked + untracked;
+}
+function taskCmd(args) {
+  const [sub, id, ...rest] = args, T = loadTasks(), proj = project();
+  const find = () => { const t = T.list.find(x => x.id === id); if (!t) throw new Error(`no task "${id}" in .groundwork/tasks.json (gw task list)`); return t; };
+  if (sub === 'add') {   // gw task add T01 "title" --verify "<cmd>" [--req REQ-001,REQ-002]
+    const title = rest.find((a, i) => !a.startsWith('--') && !['--verify', '--req'].includes(rest[i - 1]));
+    if (!id || !title || !flag(rest, '--verify')) throw new Error('usage: gw task add <id> "<title>" --verify "<command that proves it works>" [--req REQ-001,...]');
+    if (T.list.some(x => x.id === id)) throw new Error(`task ${id} already exists (gw task list). Change its check with gw task verify ${id} "<cmd>", or use a new id.`);
+    T.list.push({ id, title, req: (flag(rest, '--req') || '').split(',').map(x => x.trim()).filter(Boolean), verify: flag(rest, '--verify'), status: 'todo' });
+    T.save(); console.log(`Added ${id}. Next: gw task start ${id}`); return 0;
+  }
+  if (sub === 'start') {
+    const t = find(), other = T.list.find(x => x.status === 'in_progress' && x.id !== id);
+    if (other) throw new Error(`${other.id} is still in progress. One task at a time: finish it (gw task done ${other.id}) or block it (gw task block ${other.id} "<reason>") first.`);
+    if (!t.verify) throw new Error(`${id} has no "verify" command. Add the command that proves it works to the task in .groundwork/tasks.json.`);
+    Object.assign(t, { status: 'in_progress', started_at: now(), base: git('rev-parse', 'HEAD') }); T.save();
+    console.log(`${id} in progress: ${t.title}\nIts check: ${t.verify}\nWhen the check should pass: gw task done ${id}`); return 0;
+  }
+  if (sub === 'done') {
+    const t = find();
+    if (!t.verify) throw new Error(`${id} has no "verify" command, so it can't be checked. Add one to the task in .groundwork/tasks.json.`);
+    const tier = /^S[0-3]$/.test(t.tier || '') ? t.tier : 'S0', target = t.target || (proj.targets || [])[0] || 'host';
+    console.log(`Running the check for ${id}: ${t.verify}`);
+    const { id: rid, receipt } = recordRun({ target, tier, command: t.verify, task: id });
+    if (receipt.exit === 0) {
+      const lines = diffLines(t.base), budget = +proj.diff_budget || 400;
+      Object.assign(t, { status: 'done', done_at: now(), receipt: rid }); delete t.blocked_reason; T.save();
+      console.log(`${id} done: its check passed (receipt .groundwork/runs/${rid}).\nIn your report, say what this check ran (${t.verify}) and its real pass/fail counts. If the full test suite has failures that were there before this task, name them as pre-existing: no output from a filtered command is not a pass.`);
+      if (lines > budget) { console.log(`Note: ${id} changed ${lines} lines (budget ${budget}). Split work like this into smaller tasks next time: small diffs are easier to verify.`); fb('diff-budget', { task: id, lines, budget }); }
+      return 0;
+    }
+    t.failed_checks = (t.failed_checks || 0) + 1; if (t.status !== 'done') t.status = 'in_progress'; T.save();
+    const limit = +proj.attempt_limit || 3;
+    console.log(`${id} is NOT done: its check failed (exit ${receipt.exit}, failed check ${t.failed_checks} of ${limit}). Fix the cause; don't weaken the check.` +
+      (t.failed_checks === 1 ? `\nIf the failing tests are not this task's and already failed before it (baseline), scope the check to this task's tests: gw task verify ${id} "<cmd>", and tell the user which tests fail.` : ''));
+    if (t.failed_checks >= limit) { console.log(`Circuit breaker: ${t.failed_checks} failed checks on ${id}. Stop changing code. Tell the user what fails and why, and reshape the task with them (smaller scope, another approach, or gw task block ${id} "<reason>").`); fb('circuit-breaker', { task: id, failed: t.failed_checks }); }
+    return 1;
+  }
+  if (sub === 'block') { const t = find(), why = rest.join(' ').trim(); if (!why) throw new Error('usage: gw task block <id> "<what blocks it>"');
+    Object.assign(t, { status: 'blocked', blocked_reason: why, blocked_at: now() }); T.save(); fb('task-blocked', { task: id, reason: why });
+    console.log(`${id} blocked: ${why}. Tell the user what is needed to unblock it.`); return 0; }
+  if (sub === 'reopen') { const t = find(); Object.assign(t, { status: 'todo', reopened: (t.reopened || 0) + 1, failed_checks: 0, started_at: now() }); delete t.done_at; delete t.receipt; delete t.legacy; T.save();
+    fb('task-reopened', { task: id, reason: rest.join(' ') || null }); console.log(`${id} reopened.`); return 0; }
+  if (sub === 'verify') {   // change a task's check: a visible decision, never a silent edit
+    const t = find(), cmd = rest.join(' ').trim(); if (!cmd) throw new Error('usage: gw task verify <id> "<new check command>"');
+    if (t.status === 'done') throw new Error(`${id} is done; reopen it first (gw task reopen ${id} "<why>")`);
+    const from = t.verify || null; t.verify = cmd; T.save();
+    fs.appendFileSync(P('decisions.jsonl'), JSON.stringify({ at: now(), kind: 'verify-changed', task: id, from, to: cmd }) + '\n'); fb('verify-changed', { task: id, from, to: cmd });
+    console.log(`${id} check changed: ${from || '(none)'} → ${cmd}. Tell the user why (e.g. tests that already failed before this task).`); return 0;
+  }
+  const usage = 'usage: gw task [list] | add <id> "<title>" --verify "<cmd>" [--req REQ-001] | start <id> | done <id> | verify <id> "<new check>" | block <id> "<reason>" | reopen <id> ["reason"]';
+  if (sub === 'help') { console.log(usage); return 0; }
+  if (sub && sub !== 'list') throw new Error(usage);
+  if (!T.exists) { console.log('No tasks yet. Add one: gw task add T01 "<title>" --verify "<command that proves it works>"'); return 0; }
+  for (const t of T.list) console.log(`${String(t.id).padEnd(6)} ${String(t.status).padEnd(12)} ${t.title || ''}${t.failed_checks ? ` · ${t.failed_checks} failed check(s)` : ''}${t.blocked_reason ? ' · ' + t.blocked_reason : ''}`);
+  return 0;
+}
+
+// ---------- review findings (P9) ----------
+const reviewLog = () => { try { return fs.readFileSync(P('reviews.jsonl'), 'utf8').split('\n').filter(Boolean).map(l => JSON.parse(l)); } catch { return []; } };
+function reviewCmd(args) {
+  const [sub, ...rest] = args, text = rest.filter((a, i) => !a.startsWith('--') && !['--reviewer', '--verdict', '--reason'].includes(rest[i - 1]));
+  const log = x => { fs.mkdirSync(GW, { recursive: true }); fs.appendFileSync(P('reviews.jsonl'), JSON.stringify({ at: now(), ...x }) + '\n'); };
+  if (sub === 'add') {   // gw review add HIGH "<finding>" --verdict fixed|waived|deferred|open [--reason "..."]
+    const [severity, finding] = text, verdict = flag(rest, '--verdict') || 'open';
+    if (!['CRITICAL', 'HIGH', 'MEDIUM', 'LOW'].includes(severity) || !finding || !['fixed', 'waived', 'deferred', 'open'].includes(verdict))
+      throw new Error('usage: gw review add <CRITICAL|HIGH|MEDIUM|LOW> "<finding>" --verdict <fixed|waived|deferred|open> [--reason "…"]');
+    log({ kind: 'finding', severity, finding, verdict, reason: flag(rest, '--reason') || null }); console.log(`Recorded ${severity} finding (${verdict}).`); return 0;
+  }
+  if (sub === 'done') {  // gw review done --reviewer fresh-context "<summary>"
+    const reviewer = flag(rest, '--reviewer');
+    if (!['fresh-context', 'human', 'ci'].includes(reviewer) || !text[0]) throw new Error('usage: gw review done --reviewer <fresh-context|human|ci> "<summary>"  (a self-review does not count)');
+    log({ kind: 'review', reviewer, summary: text[0] }); console.log('Review recorded.'); return 0;
+  }
+  if (sub === 'help') { console.log('usage: gw review [list] | add <CRITICAL|HIGH|MEDIUM|LOW> "<finding>" --verdict <fixed|waived|deferred|open> [--reason "…"] | done --reviewer <fresh-context|human|ci> "<summary>"'); return 0; }
+  const rv = reviewLog(); if (!rv.length) { console.log('No review recorded yet (phases/P9.md).'); return 0; }
+  for (const x of rv) console.log(x.kind === 'review' ? `review by ${x.reviewer}: ${x.summary}` : `  ${x.severity.padEnd(8)} ${x.verdict.padEnd(8)} ${x.finding}${x.reason ? ' · ' + x.reason : ''}`);
+  return 0;
+}
+
+// ---------- reusing open-source code (phases/REUSE.md): license check, credits ----------
+const LICENSE_TEXT = [   // first match wins: restricted add-ons and AGPL/LGPL before GPL, BSD-3 before BSD-2
+  ['Commons-Clause', /Commons Clause/i], ['SSPL-1.0', /Server Side Public License/i], ['BUSL-1.1', /Business Source License/i], ['Elastic-2.0', /Elastic License/i],
+  ['AGPL-3.0', /GNU AFFERO GENERAL PUBLIC LICENSE/i], ['LGPL-3.0', /GNU LESSER GENERAL PUBLIC LICENSE\s+Version 3/i], ['LGPL-2.1', /GNU (LESSER|LIBRARY) GENERAL PUBLIC LICENSE/i],
+  ['GPL-3.0', /GNU GENERAL PUBLIC LICENSE\s+Version 3/i], ['GPL-2.0', /GNU GENERAL PUBLIC LICENSE/i], ['MPL-2.0', /Mozilla Public License,? (Version |v\.? ?)2\.0/i], ['EPL-2.0', /Eclipse Public License/i],
+  ['Apache-2.0', /Apache License,?\s+Version 2\.0/i], ['MIT', /Permission is hereby granted, free of charge/i], ['ISC', /Permission to use, copy, modify, and\/or distribute this software for any purpose/i],
+  ['BSD-3-Clause', /Redistribution and use in source and binary forms[\s\S]*Neither the name/i], ['BSD-2-Clause', /Redistribution and use in source and binary forms/i],
+  ['Unlicense', /free and unencumbered software released into the public domain/i], ['CC0-1.0', /CC0 1\.0 Universal/i], ['Zlib', /provided 'as-is'[\s\S]*plainly marked/i],
+];
+function licenseClass(id = '') {
+  const s = String(id).trim(), rank = ['permissive', 'weak', 'strong', 'unknown', 'restricted', 'none'];
+  if (/\s+OR\s+/i.test(s)) return s.split(/\s+OR\s+/i).map(licenseClass).sort((a, b) => rank.indexOf(a) - rank.indexOf(b))[0];   // dual license: you pick the freer one
+  if (!s || /^(none|unlicensed|proprietary|all rights reserved|see license)/i.test(s)) return 'none';
+  if (/SSPL|BUSL|Business Source|Elastic|Commons.Clause|PolyForm|non-?commercial/i.test(s)) return 'restricted';
+  if (/\bA?GPL|GNU (Affero )?General Public/i.test(s)) return 'strong';
+  if (/LGPL|MPL|EPL|CDDL|Lesser General Public/i.test(s)) return 'weak';
+  if (/MIT|ISC|BSD|Apache|Unlicense|CC0|Zlib|BSL-1\.0|PSF|Python-2|WTFPL/i.test(s)) return 'permissive';
+  return 'unknown';
+}
+const REUSE_ADVICE = {
+  permissive: 'reuse allowed: keep its copyright and license notice with the code you copy',
+  weak: 'reuse allowed as a separate library or files; changes to those files stay under that license. Prefer it as a dependency to copying it into your code',
+  strong: 'the whole program would have to be under a compatible GPL license (AGPL: also when it is only used over a network). Ask the user first, unless this project already is',
+  restricted: 'source-available, not open source: do not copy its code (reading it to learn is fine)',
+  none: 'no license means all rights reserved: do not copy its code (reading it to learn is fine)',
+  unknown: 'license not recognised: read it and tell the user what it allows before copying anything',
+};
+function detectLicense(dir) {
+  let files = []; try { files = fs.readdirSync(dir).filter(f => /^(licen[sc]e|copying|unlicense)([.-]|$)/i.test(f)); } catch { }
+  for (const f of files) { const t = fs.readFileSync(path.join(dir, f), 'utf8').slice(0, 40000), hit = LICENSE_TEXT.find(([, re]) => re.test(t)); if (hit) return { id: hit[0], file: f }; }
+  const pj = readJson(path.join(dir, 'package.json')); if (pj && typeof pj.license === 'string') return { id: pj.license, file: 'package.json' };
+  for (const [f, re] of [['Cargo.toml', /^license\s*=\s*"([^"]+)"/m], ['pyproject.toml', /^license\s*=\s*(?:\{\s*text\s*=\s*)?"([^"]+)"/m]]) {
+    let t = null; try { t = fs.readFileSync(path.join(dir, f), 'utf8'); } catch { } const m = t && t.match(re); if (m) return { id: m[1], file: f }; }
+  return { id: files.length ? 'unknown' : 'none', file: files[0] || null };
+}
+const projectLicense = (proj = project()) => proj.license || (readJson(path.join(ROOT, 'package.json')) || {}).license || (d => d.file ? d.id : null)(detectLicense(ROOT));
+function credits(proj = project()) {   // rows of docs/credits.md and what GATE 2 objects to
+  const f = docPath('credits.md', proj), t = readRel(f), rows = [], problems = [];
+  if (t == null) return { file: f, rows, problems };
+  for (const line of t.replace(/<!--[\s\S]*?-->/g, '').split('\n')) {
+    if (!/^\s*\|/.test(line) || /^\s*\|\s*:?-{3}/.test(line)) continue;
+    const [name, source, version, license, used] = line.split('|').slice(1, -1).map(x => x.trim());
+    if (name && !/^project$/i.test(name)) rows.push({ name, source, version, license, used });
+  }
+  const own = projectLicense(proj);
+  for (const r of rows) {
+    const cls = licenseClass(r.license), noted = /\b(permission|checked):/i.test(r.used || '');
+    if (!r.source || !/[/:.]/.test(r.source)) problems.push(`${f}: "${r.name}" has no source link`);
+    if (!r.license) problems.push(`${f}: "${r.name}" has no license`);
+    else if (['none', 'restricted', 'unknown'].includes(cls) && !noted) problems.push(`${f}: "${r.name}" is ${r.license}: ${REUSE_ADVICE[cls]}. Remove that code, or after the user agreed write "permission: <who granted it, where>" or "checked: <what it allows>" in its row`);
+    else if (cls === 'strong' && licenseClass(own || '') !== 'strong' && !noted) problems.push(`${f}: "${r.name}" is ${r.license} but this project is ${own || 'not GPL-licensed'}: ${REUSE_ADVICE.strong} (then gw set license=<SPDX id>)`);
+  }
+  return { file: f, rows, problems };
+}
+function reuseCmd([url, nameArg]) {   // gw reuse <git-url> [name]: shallow clone to read or reuse, with its license
+  const dir = P('reuse');
+  if (!url) {
+    const have = exists(dir) ? fs.readdirSync(dir) : [], c = credits();
+    for (const n of have) { const l = detectLicense(path.join(dir, n)); console.log(`${n.padEnd(24)} ${l.id} (${licenseClass(l.id)})`); }
+    console.log(`${have.length ? '' : 'No repos cloned yet (gw reuse <git-url>). '}Credited in ${c.file}: ${c.rows.length}${c.problems.length ? '\n  ' + c.problems.join('\n  ') : ''}`); return 0;
+  }
+  if (url.startsWith('-')) throw new Error('usage: gw reuse <git-url> [name]');
+  let name = (nameArg || url.replace(/[/\\]+$/, '').replace(/\.git$/, '').split(/[/\\:]/).pop() || 'repo').replace(/[^\w.-]/g, '-');
+  if (/^\.*$/.test(name)) name = 'repo';
+  const dest = path.join(dir, name), rel = `.groundwork/reuse/${name}`;
+  if (!exists(dest)) { fs.mkdirSync(dir, { recursive: true }); wireGitignore();
+    const r = cp.spawnSync('git', ['clone', '--depth', '1', '--quiet', '--', url, dest], { encoding: 'utf8' });
+    if (r.status !== 0) throw new Error('git clone failed: ' + (r.stderr || r.error || '').toString().trim()); }
+  const commit = (cp.spawnSync('git', ['-C', dest, 'rev-parse', '--short', 'HEAD'], { encoding: 'utf8' }).stdout || '').trim() || '?';
+  const lic = detectLicense(dest), cls = licenseClass(lic.id); fb('reuse-clone', { license: lic.id, class: cls });
+  console.log(`Cloned to ${rel} (commit ${commit}; git-ignored, not part of the project).\nLicense: ${lic.id}${lic.file ? ' (' + lic.file + ')' : ''}: ${REUSE_ADVICE[cls]}${/Apache/i.test(lic.id) ? ', plus its NOTICE file, and mark your changes' : ''}.` +
+    `\nUntrusted until reviewed: read it, but don't run its scripts, builds or installs before review (phases/P4.md). Copy only what the task needs.` +
+    (['permissive', 'weak', 'strong'].includes(cls) ? `\nFor code you use from it, add a row to ${docPath('credits.md')} (templates/credits.md):\n| ${name} | ${url} | ${commit} | ${lic.id} | <what you used, and where it is now> |` : ''));
+  return 0;
+}
+
+// ---------- delivery metrics (DORA-style outcomes instead of perceived speed) ----------
+function metrics(proj = project()) {
+  const all = runs(), ev = fbEvents();
+  const per = loadTasks().list.map(t => { const r = all.filter(x => x.task === t.id);
+    return { id: t.id, status: t.status, checks: r.length, failed: r.filter(x => x.exit !== 0).length, reopened: t.reopened || 0,
+      minutes: t.started_at && t.done_at ? Math.round((Date.parse(t.done_at) - Date.parse(t.started_at)) / 6e4) : null }; });
+  const done = per.filter(t => t.status === 'done'), mins = done.map(t => t.minutes).filter(x => x != null).sort((a, b) => a - b);
+  const reopened = per.reduce((a, t) => a + t.reopened, 0);
+  const reverts = (git('log', '--oneline', '-i', '--grep=^revert', ...(proj.created_at ? ['--since=' + proj.created_at] : [])) || '').split('\n').filter(Boolean).length;
+  return { tasks: per.length, done: done.length, first_pass: done.filter(t => t.failed === 0).length, reopened, rework_rate: done.length ? +(reopened / done.length).toFixed(2) : null,
+    failed_checks: per.reduce((a, t) => a + t.failed, 0), median_task_minutes: mins.length ? mins[Math.floor(mins.length / 2)] : null,
+    release_runs: all.filter(r => !r.task).length, release_runs_failed: all.filter(r => !r.task && r.exit !== 0).length, reverts,
+    circuit_breakers: ev.filter(e => e.kind === 'circuit-breaker').length, stop_blocks: ev.filter(e => e.kind === 'stop-blocked').length, per };
+}
 
 // ---------- wiring (shared by init and migrate) ----------
 function wireGitignore() {
-  const gi = path.join(ROOT, '.gitignore'), giLines = ['.groundwork/host-profile.json', '.groundwork/env-report.json', '.groundwork/runs/*/logs/', '.groundwork/feedback/', '.groundwork/FEEDBACK.md', '.groundwork/backups/', '.groundwork/cache/'];
+  const gi = path.join(ROOT, '.gitignore'), giLines = ['.groundwork/host-profile.json', '.groundwork/env-report.json', '.groundwork/runs/*/logs/', '.groundwork/feedback/', '.groundwork/FEEDBACK.md', '.groundwork/backups/', '.groundwork/cache/', '.groundwork/reuse/'];
   const giText = exists(gi) ? fs.readFileSync(gi, 'utf8') : '';
   const add = giLines.filter(l => !giText.includes(l));
   if (add.length) fs.appendFileSync(gi, (giText && !giText.endsWith('\n') ? '\n' : '') + '# groundwork (machine-specific / personal)\n' + add.join('\n') + '\n');
@@ -413,6 +751,11 @@ function integrity(dir = FW) {
 // state migrations: each runs once when a project moves past its `to` version
 const MIGRATIONS = [
   { to: '0.3.0', run: () => { /* 0.3.0 only adds fields/files; nothing to rewrite */ } },
+  { to: '0.5.0', run: () => {   // tasks finished before checks were recorded stay done; G2 does not ask them for receipts
+    const T = loadTasks(); let n = 0;
+    for (const t of T.list) if (t.status === 'done' && !t.receipt && !t.legacy) { t.legacy = true; n++; }
+    if (n) T.save();
+  } },
 ];
 function migrate({ quiet = false } = {}) {
   if (!exists(P('project.json'))) return null;
@@ -456,6 +799,11 @@ function upgrade(src, args) {
   fs.cpSync(src, FW, { recursive: true, force: true });
   console.log(`Replaced groundwork/ ${oldV} → ${newV}. Backup of the old folder: ${path.relative(ROOT, backup)}`);
   if (integ.modified.length) console.log('Local edits found in the old folder (kept only in the backup; move them to .groundwork/packs/, .groundwork/tools.json or CLAUDE.md):\n  ' + integ.modified.join('\n  '));
+  if (vcmp(newV, oldV) < 0 && exists(P('project.json'))) {   // rollback: the older CLI must accept the state, and re-upgrading re-runs newer migrations (they are idempotent)
+    const p = project(); p.framework_version = newV; writeJson(P('project.json'), p);
+    fs.appendFileSync(P('decisions.jsonl'), JSON.stringify({ at: now(), kind: 'framework-rollback', from: oldV, to: newV }) + '\n');
+    console.log(`Rolled back to ${newV}. Project state is kept: newer fields stay and are ignored; newer hooks do nothing under ${newV}. Back to ${oldV}: gw upgrade ${path.relative(ROOT, backup)}`);
+  }
   const r = cp.spawnSync(process.execPath, [path.join(FW, 'bin', 'gw.js'), 'migrate'], { stdio: 'inherit', cwd: ROOT, env: { ...process.env, GW_PROJECT_DIR: ROOT } });
   return r.status || 0;
 }
@@ -522,11 +870,13 @@ function recommendSkills(proj, phase, text = '', { limit = 5, includeInstalled =
     const tHit = s.targets.includes('*') ? null : s.targets.filter(t => targets.includes(t));
     const sHit = s.stacks.includes('*') ? null : s.stacks.filter(x => stackVals.includes(x));
     if ((tHit && !tHit.length) || (sHit && !sHit.length)) continue;     // wrong platform/stack: never suggest
+    if (s.tiers && proj.tier && !s.tiers.includes(proj.tier)) continue;   // e.g. a subagent per task only pays off at large
     const reasons = []; let score = 0;
     const kw = (s.keywords || []).filter(k => words && new RegExp(`(^|[^a-z])${k.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}${k.length <= 4 ? '(?![a-z])' : ''}`).test(words));   // short keywords (ci, pr, ui) must be whole words
     if (kw.length) { score += 3 * kw.length; reasons.push(`task mentions "${kw.slice(0, 2).join('", "')}"`); }
-    if (phase && s.phases.includes(phase)) { score += 2; reasons.push(`used in ${phase} ${PHASE_NAMES[phase] || ''}`.trim()); }
-    if (playbook && s.phases.includes(playbook)) { score += 2; reasons.push(`stage "${proj.stage}" uses the ${playbook} playbook`); }
+    const ctx = proj.tier !== 'trivial';   // a one-line fix gets a skill only when the task names its topic
+    if (ctx && phase && s.phases.includes(phase)) { score += 2; reasons.push(`used in ${phase} ${PHASE_NAMES[phase] || ''}`.trim()); }
+    if (ctx && playbook && s.phases.includes(playbook)) { score += 2; reasons.push(`stage "${proj.stage}" uses the ${playbook} playbook`); }
     if (s.trending && s.text && words) {   // trending entries have no curated keywords: match task words against their description
       const STOP = new Set(['with', 'when', 'that', 'this', 'from', 'into', 'make', 'need', 'want', 'some', 'have', 'like', 'more', 'also', 'your', 'them', 'then', 'than', 'what', 'about', 'should', 'would', 'could', 'before', 'after', 'while', 'where', 'which', 'there', 'their', 'using', 'used', 'just', 'only', 'each', 'every', 'other', 'over', 'under', 'very', 'will', 'here', 'these', 'those', 'into', 'onto', 'upon']);
       const hit = [...new Set(words.split(/[^a-z0-9]+/).filter(w => w.length >= 4 && !STOP.has(w)))].filter(w => new RegExp(`\\b${w}`).test(s.text)).slice(0, 2);
@@ -790,6 +1140,7 @@ function wireHooks() {
   addHook('SessionStart', null, 'session-start');
   addHook('PreToolUse', 'Edit|Write|MultiEdit|NotebookEdit', 'pre-edit');
   addHook('UserPromptSubmit', null, 'prompt');   // spots "learn X" / "app like X" and points the agent at RESEARCH.md
+  addHook('Stop', null, 'stop');                 // a task in progress must pass its check before the agent reports done
   writeJson(sf, s);
 }
 function init(args) {
@@ -860,6 +1211,23 @@ function hook(sub) {
     fb('edit-blocked', { file: f });
     return 2;
   }
+  if (sub === 'stop') {   // Stop: exit 2 sends stderr back to the agent and it keeps working
+    let input = {}; try { input = JSON.parse(fs.readFileSync(0, 'utf8') || '{}'); } catch { }
+    if (input.stop_hook_active || p.profile === 'minimal' || p.stop_hook === 'off') return 0;   // already continued once: never loop
+    const msgs = [];
+    for (const t of loadTasks().list) {
+      if (t.status === 'in_progress' && !taskPassed(t)) msgs.push(`${t.id} (${t.title || ''}) is in progress and its check has not passed. Run gw task done ${t.id} (it runs: ${t.verify || 'no check set'}). If you can't finish it, run gw task block ${t.id} "<what blocks it>" and tell the user.`);
+      if (t.status === 'done' && !t.legacy && !taskPassed(t)) msgs.push(`${t.id} is marked done but no passing check is recorded. Run gw task done ${t.id} to verify it.`);
+    }
+    if (!msgs.length) return 0;
+    // block once per change: if nothing changed since the last block (e.g. waiting for the user), let the turn end
+    const fp = crypto.createHash('sha256').update([git('status', '--porcelain'), git('diff', 'HEAD'), readRel('.groundwork/tasks.json')].join('\0')).digest('hex').slice(0, 16);
+    const st = state(); if (st.stop_fp === fp) return 0;
+    st.stop_fp = fp; writeJson(P('state.json'), st);
+    fb('stop-blocked', { reason: msgs.length + ' unverified task(s)' });
+    process.stderr.write('Groundwork: not finished yet.\n- ' + msgs.join('\n- ') + '\nDo not report the work as done until its check passes. If the user asked you to stop here or not to run checks, end the turn by saying plainly which task is not verified.\n');
+    return 2;
+  }
   return 0;
 }
 
@@ -875,8 +1243,19 @@ function printDoctor(r) {
   for (const [t, f] of Object.entries(r.targets)) console.log(`  ${t.padEnd(14)} ${f.develop_locally.padEnd(18)} ${String(f.best_local_tier || '-').padEnd(4)} need ${f.release_tier}${f.release_tier_local ? '' : '  → ' + (f.otherwise || 'not available')}`);
   console.log(`\nReady: ${r.ready ? 'yes' : 'NO, fix the BLOCK items first'}`);
 }
+const HELP = 'Groundwork CLI\n  init [--profile minimal|standard|strict] [--no-hooks]   set up this project (state, CLAUDE.md import, hooks) and scan the host\n' +
+        '  doctor [--fresh] [--json]   scan host if needed, check tools for the chosen targets\n  plan-install   list install/fix commands for this machine (never runs them)\n' +
+        '  status | next   show phase, blockers, next step\n  set k=v ...   e.g. set tier=standard stage=greenfield targets=web,android stacks.android=flutter\n' +
+        '  phase <id> <status> ["note"]   record phase progress\n  run <target> <tier> -- <cmd>   run tests and write a receipt\n  gate <G1|G2> [--approve "..."]   check / approve a gate\n' +
+        '  task [list] | add <id> "<title>" --verify "<cmd>" [--req REQ-001] | start | done | block <id> "<reason>" | reopen   tasks; done only when the check passes\n' +
+        '  docs   documents this tier and features need · trace   REQ → task → test · lint   requirement quality · metrics [--json]   delivery outcomes\n' +
+        '  review add <SEV> "<finding>" --verdict <fixed|waived|deferred|open> | review done --reviewer <fresh-context|human|ci> "<summary>"\n  reuse [<git-url> [name]]   shallow-clone an open-source repo to read or reuse, with its license and credit row (phases/REUSE.md)\n  scan   print raw host profile\n  note <category> "text"   silent framework feedback (agent)\n  feedback   write .groundwork/FEEDBACK.md\n  skills [--for \"task\"] [--all] | skills fetch|install [--global]|decline <id> | skills verdict <id> <APPROVE|CAUTION|REJECT> \"reason\"   context-aware skill recommendations\n  skills refresh [--force] | skills trending on|off | skills refresh-day <mon..sun|off>   weekly trending discovery\n  maintain   upgrade/audit/dead-code/rollback/observability commands for this project\n  eol   runtime end-of-life check (endoflife.date)\n  version | verify [--clean] | upgrade <new-groundwork-folder> [--force] | migrate';
 function main(argv) {
   const [cmd, ...args] = argv;
+  if (['task', 'review'].includes(cmd) && args.some(a => ['--help', '-h'].includes(a) || a === 'help' && a === args[0])) args.splice(0, args.length, 'help');   // gw task add --help too
+  const own = args.includes('--') ? args.slice(0, args.indexOf('--')) : args;   // gw run host S0 -- tool --help is a real run
+  if (cmd && !['task', 'review'].includes(cmd) && own.some(a => ['--help', '-h'].includes(a))) {
+    const lines = HELP.split('\n').filter(l => new RegExp(`^  ${cmd.replace(/[^\w-]/g, '')}\\b|[|·] ${cmd.replace(/[^\w-]/g, '')}\\b`).test(l)); console.log(lines.length ? lines.join('\n') : HELP); return 0; }
   if (!['upgrade', 'migrate', 'hook', 'help', undefined].includes(cmd)) migrate();
   switch (cmd) {
     case 'init': { const r = init(args); printDoctor(r); console.log('\nInitialised. Next: ' + nextStep().do); return 0; }
@@ -903,10 +1282,14 @@ function main(argv) {
     case 'status': console.log(statusText()); return 0;
     case 'next': console.log(JSON.stringify(nextStep())); return 0;
     case 'set': {   // gw set tier=standard stage=greenfield targets=web,android stacks.android=flutter name=x
-      const p = project();
+      const p = project(), oldTier = p.tier;
       for (const kv of args) { const [k, ...v] = kv.split('='); const val = v.join('=');
         if (k === 'references') p[k] = val.split(',').map(x => x.trim()).filter(Boolean);
-        else if (k === 'targets' || k === 'services') p[k] = val.split(',').map(x => x.trim().toLowerCase()).filter(Boolean);
+        else if (k === 'features') { const f = val.split(',').map(x => x.trim().toLowerCase()).filter(Boolean), bad = f.filter(x => !FEATURES.includes(x));
+          if (bad.length) throw new Error(`unknown feature ${bad.join(',')}; use any of ${FEATURES.join(',')}`); p.features = f; }
+        else if (k === 'targets' || k === 'services') { p[k] = val.split(',').map(x => x.trim().toLowerCase()).filter(Boolean);
+          const bad = k === 'targets' ? p[k].filter(t => !packs()[t]) : [];
+          if (bad.length) throw new Error(`unknown target ${bad.join(',')}. Known targets: ${Object.keys(packs()).join(', ')} (an HTTP API or service is "backend"; a library or CLI is "cli")`); }
         else if (k.startsWith('stacks.')) { p.stacks = p.stacks || {}; p.stacks[k.slice(7)] = val; }
         else if (k.startsWith('docs.')) { p.docs = p.docs || {}; p.docs[k.slice(5)] = val; }
         else if (k === 'tier' && !TIER_PHASES[val]) throw new Error('tier must be one of ' + Object.keys(TIER_PHASES));
@@ -914,9 +1297,14 @@ function main(argv) {
         else p[k] = val; }
       if (p.dev_method === '') delete p.dev_method_reason;
       for (const k of Object.keys(p)) if (p[k] === '') delete p[k];   // `gw set dev_method=` clears an override
-      writeJson(P('project.json'), p); console.log(JSON.stringify(p, null, 2));
+      writeJson(P('project.json'), p);
+      console.log(`Set ${args.map(a => a.split('=')[0]).join(', ')} · stage ${p.stage || '?'} · tier ${p.tier || '?'} · features ${(p.features || []).join(',') || '-'} · targets ${(p.targets || []).join(',') || '-'}`);
+      if (oldTier && p.tier !== oldTier) {   // re-tiering is a decision: keep why
+        fs.appendFileSync(P('decisions.jsonl'), JSON.stringify({ at: now(), kind: 're-tier', from: oldTier, to: p.tier, reason: p.tier_reason || null }) + '\n');
+        if (!args.some(a => a.startsWith('tier_reason='))) console.log(`Tier changed ${oldTier} → ${p.tier}. Record why: gw set tier_reason="<what changed>"`);
+        console.log('Documents now required: gw docs');
+      }
       if (args.some(a => /^dev_method=/.test(a)) && exists(P('host-profile.json'))) { const r = doctor(hostProfile(), p); console.log(`Dev method: ${r.dev_method.id}: ${r.dev_method.why}`); }
-      if (args.some(a => /^(stage|targets|services|stacks\.)/.test(a))) { const t = recText(recommendSkills(p, nextStep().phase, currentTaskText(), { limit: 3 }), 'Skills worth adding for this project now:'); if (t) console.log(t); }
       return 0;
     }
     case 'phase': {   // gw phase P1 done|skipped|in_progress|blocked ["note"]
@@ -929,23 +1317,66 @@ function main(argv) {
       writeJson(P('state.json'), st);
       st.phase = nextStep().phase; writeJson(P('state.json'), st);
       if (status === 'blocked' || status === 'skipped') fb('phase-' + status, { id, note: note || null });
-      fbRefresh(); console.log(statusText());
-      const nx = nextStep().phase; if (nx) { const t = recText(recommendSkills(project(), nx, currentTaskText(), { limit: 3 }), `Skills worth adding for ${nx}:`); if (t) console.log(t); }
+      fbRefresh(); const n = nextStep();   // one line: the full status (host, skills) is printed at session start and by gw status
+      console.log(`${id} ${status}. Next: ${n.phase ? n.phase + ' → ' + n.do : n.do}`);
+      if (st.recheck && st.recheck.length) console.log(`Re-check after the framework upgrade: ${st.recheck.join(', ')}`);
       return 0;
     }
     case 'run': {     // gw run <target> <S0|S1|S2|S3> -- <command...>
       const [target, tier] = args, i = args.indexOf('--');
       if (!target || !/^S[0-3]$/.test(tier || '') || i < 0) throw new Error('usage: gw run <target> <S0..S3> -- <command>');
-      const c = projectCaps(hostProfile(), project()), pk = packs()[target];
-      if (!pk) throw new Error('unknown target ' + target);
+      const command = args.slice(i + 1).join(' '), all = packs(), pk = all[target];
+      if (target === 'host') {   // a plain run on this machine (S0); it never counts as a target's release run
+        if (tier !== 'S0') throw new Error('target "host" means this machine, so only S0. For S1–S3 name the target (gw doctor lists them)');
+        const { id, receipt } = recordRun({ target, tier, command });
+        console.log(`\nGroundwork run receipt: .groundwork/runs/${id}/receipt.json (exit ${receipt.exit})`); return receipt.exit === 0 ? 0 : 1;
+      }
+      if (!pk) throw new Error(`unknown target "${target}". Known targets: ${Object.keys(all).join(', ')}${(project().targets || []).length ? ' · this project: ' + project().targets.join(', ') : ' · this project has none: use "host" for S0 runs'} (an HTTP API is "backend")`);
+      // a receipt must not claim more isolation than the command shows (a host npm test is not S1)
+      const SIGN = { S1: /\b(docker|podman|nerdctl|devcontainer|compose|container)\b/i, S2: /\b(emulator|adb|simctl|xcrun|avd|qemu|virsh|vagrant|multipass|lima|utm|parallels|hyper-?v|vm)\b/i, S3: /\b(gh (run|workflow)|act|ci|gitlab|circleci|buildkite|jenkins|azure|codemagic|bitrise)\b/i };
+      if (SIGN[tier] && !SIGN[tier].test(command) && !args.slice(0, i).includes('--wrapper'))
+        throw new Error(`${tier} means ${{ S1: 'a container', S2: 'an emulator or VM', S3: 'CI or a remote device' }[tier]}, but this command shows none, so it would run on the host. Use the pack's ${tier} command (gw doctor, docs/test-strategy.md), record it as S0, or, if the script itself starts the ${tier} environment, add --wrapper before --`);
+      const c = projectCaps(hostProfile(), project());
       if ((tier === 'S1' || tier === 'S2') && !tierAvailable(pk, tier, c))
         throw new Error(`${tier} is not available for ${target} on this host (see gw doctor). Fix the warning, or run on CI and record it as S3.`);
-      const command = args.slice(i + 1).join(' '), id =new Date().toISOString().replace(/[:.]/g, '-') + '-' + target;
-      const started = now(), r = cp.spawnSync(command, { shell: true, stdio: 'inherit', cwd: ROOT });
-      const commit = (cp.spawnSync('git', ['rev-parse', '--short', 'HEAD'], { cwd: ROOT, encoding: 'utf8' }).stdout || '').trim() || null;
-      writeJson(P('runs', id, 'receipt.json'), { target, tier, command, exit: r.status, commit, started, ended: now() });
-      if (r.status !== 0) fb('run-failed', { target, tier, command });
-      console.log(`\nGroundwork run receipt: .groundwork/runs/${id}/receipt.json (exit ${r.status})`); return r.status === 0 ? 0 : 1;
+      const { id, receipt } = recordRun({ target, tier, command });
+      console.log(`\nGroundwork run receipt: .groundwork/runs/${id}/receipt.json (exit ${receipt.exit})`); return receipt.exit === 0 ? 0 : 1;
+    }
+    case 'task': return taskCmd(args);
+    case 'review': return reviewCmd(args);
+    case 'docs': {    // the documents this tier and these features need (the doc budget)
+      const proj = project(), need = requiredDocs(proj);
+      if (!proj.tier) { console.log('Tier not set yet (phases/P0.md decides it): gw set tier=<trivial|small|standard|large>'); return 0; }
+      console.log(`Documents for tier ${proj.tier}${projectFeatures(proj).size ? ' · features ' + [...projectFeatures(proj)].join(',') : ''} (GATE 1 checks exactly these; write no others unless asked):`);
+      if (!need.length) console.log('  none: a trivial change needs only its check (CHANGE.md).');
+      for (const d of need) { const f = resolveDoc(d.doc, proj), t = readRel(f);
+        console.log(`  ${t == null ? '✗ missing ' : MARKER.test(t) ? '! open    ' : '✓ ok      '} ${f.padEnd(28)} ${d.why}`); }
+      if (!proj.features) console.log(`Features not set: gw set features=${FEATURES.join(',')} (only the ones that apply; they decide bsd.md and srd.md)`);
+      return 0;
+    }
+    case 'trace': {   // REQ → task → test
+      const r = trace();
+      if (!r.prd) { console.log(`No requirement IDs found in ${docPath('prd.md')}.`); return 0; }
+      console.log(`Traceability for ${r.prd}${r.change ? ' · change ' + r.change + ' (only the IDs it names are checked)' : ''} (REQ/SEC need a task and a test; NFR/JRN are shown only):`);
+      for (const x of r.rows) console.log(`  ${x.id.padEnd(9)} tasks: ${(x.tasks.join(',') || '-').padEnd(12)} test: ${x.tested ? 'yes' : x.enforced ? 'NO' : '-'}${x.delivered ? '  (delivered)' : !x.enforced && /^(REQ|SEC)-/.test(x.id) ? '  (not in this change)' : ''}`);
+      if (r.out_of_scope.length) console.log('  out of scope: ' + r.out_of_scope.join(', '));
+      if (r.orphans.length) console.log('  tasks name IDs not in the PRD: ' + r.orphans.join(', '));
+      return r.rows.some(x => x.enforced && (!x.tasks.length || !x.tested)) ? 1 : 0;
+    }
+    case 'lint': {    // requirement quality + delta structure
+      const r = lint();
+      for (const e of r.errors) console.log('✗ ' + e);
+      for (const w of r.warnings) console.log('! ' + w);
+      if (!r.errors.length && !r.warnings.length) console.log('Requirements look testable and well formed.');
+      return r.errors.length ? 1 : 0;
+    }
+    case 'metrics': {
+      const m = metrics();
+      if (args.includes('--json')) { console.log(JSON.stringify(m, null, 2)); return 0; }
+      if (!m.tasks) { console.log('No tasks recorded yet (gw task add).'); return 0; }
+      console.log(`Tasks ${m.tasks} · done ${m.done} · first-pass ${m.first_pass} · reopened ${m.reopened} · rework rate ${m.rework_rate ?? '-'}\n` +
+        `Failed checks ${m.failed_checks} · median task ${m.median_task_minutes ?? '-'} min · release runs ${m.release_runs} (${m.release_runs_failed} failed) · reverts ${m.reverts} · circuit breakers ${m.circuit_breakers} · stop blocks ${m.stop_blocks}`);
+      return 0;
     }
     case 'gate': {    // gw gate G1|G2 [--approve "user's exact words"]
       const id = args[0], approval = flag(args, '--approve'), problems = gateCheck(id);
@@ -956,6 +1387,7 @@ function main(argv) {
       console.log(`${id} approved and recorded.`); return 0;
     }
     case 'hook': return hook(args[0]);
+    case 'reuse': return reuseCmd(args);
     case 'research': {   // gw research "<reference>" ["goal"]: record a reference app and start its research doc
       const [name, goal] = args;
       if (!name) { const p = project(); console.log((p.references || []).length ? 'References: ' + p.references.join(', ') : 'No references yet: gw research "<app or site>" "<goal>"'); return 0; }
@@ -1054,7 +1486,7 @@ function main(argv) {
         if (!missing.length) console.log('  No missing skills recommended for this context.');
         for (const r of missing) console.log(`  ${r.trending ? '★' : '+'} ${r.id.padEnd(44)} ${r.why}\n      why now: ${r.reasons.join('; ')}${r.note ? '\n      note: ' + r.note : ''}`);
         if (have.length) console.log(`  Already installed and relevant: ${have.map(r => r.name).join(', ')}`);
-        console.log('\nFetch for review: gw skills fetch <id> · install: gw skills install <id> · not wanted: gw skills decline <id> · full list: gw skills --all');
+        if (missing.length) console.log('\nFetch for review: gw skills fetch <id> · install: gw skills install <id> · not wanted: gw skills decline <id> · full list: gw skills --all');
         return 0;
       }
       const proj = project(), phase = nextStep().phase, list = suggestSkills(proj, phase, true);
@@ -1101,15 +1533,12 @@ function main(argv) {
     }
 
     default:
-      console.log('Groundwork CLI\n  init [--profile minimal|standard|strict] [--no-hooks]   set up this project (state, CLAUDE.md import, hooks) and scan the host\n' +
-        '  doctor [--fresh] [--json]   scan host if needed, check tools for the chosen targets\n  plan-install   list install/fix commands for this machine (never runs them)\n' +
-        '  status | next   show phase, blockers, next step\n  set k=v ...   e.g. set tier=standard stage=greenfield targets=web,android stacks.android=flutter\n' +
-        '  phase <id> <status> ["note"]   record phase progress\n  run <target> <tier> -- <cmd>   run tests and write a receipt\n  gate <G1|G2> [--approve "..."]   check / approve a gate\n  scan   print raw host profile\n  note <category> "text"   silent framework feedback (agent)\n  feedback   write .groundwork/FEEDBACK.md\n  skills [--for \"task\"] [--all] | skills fetch|install [--global]|decline <id> | skills verdict <id> <APPROVE|CAUTION|REJECT> \"reason\"   context-aware skill recommendations\n  skills refresh [--force] | skills trending on|off | skills refresh-day <mon..sun|off>   weekly trending discovery\n  maintain   upgrade/audit/dead-code/rollback/observability commands for this project\n  eol   runtime end-of-life check (endoflife.date)\n  version | verify [--clean] | upgrade <new-groundwork-folder> [--force] | migrate');
-      return cmd ? 1 : 0;
+      console.log(HELP);
+      return cmd && !['--help', '-h', 'help'].includes(cmd) ? 1 : 0;
   }
 }
 
-module.exports = { figmaCheck, figmaConfigured, mockupIntent, referenceIntent, docPath, changedPhases, chosenMethod, projectCaps, installGate, parseTrending, classifySkill, fitsProject, isLookalike, curatedCatalog, recommendSkills, suggestSkills, maintainInfo, catalog, buildManifest, integrity, changelogSince, capabilities, devMethod, feasibility, kvmCheck, dockerCheck, toolCheck, vcmp, installCommand };
+module.exports = { requiredDocs, prdRequirements, FEATURES, TEST_FILE, figmaCheck, figmaConfigured, mockupIntent, referenceIntent, docPath, changedPhases, chosenMethod, projectCaps, installGate, parseTrending, classifySkill, fitsProject, isLookalike, curatedCatalog, recommendSkills, suggestSkills, maintainInfo, catalog, buildManifest, integrity, changelogSince, capabilities, devMethod, feasibility, kvmCheck, dockerCheck, toolCheck, vcmp, installCommand, licenseClass, detectLicense };
 if (require.main === module) {
   try { const r = main(process.argv.slice(2)); if (r && r.then) r.then(c => { process.exitCode = c; }, e => { fb('error', { cmd: process.argv[2] || '', message: e.message }); console.error('gw: ' + e.message); process.exitCode = 1; }); else process.exitCode = r; } catch (e) { fb('error', { cmd: process.argv[2] || '', message: e.message }); console.error('gw: ' + e.message); process.exitCode = 1; }
 }

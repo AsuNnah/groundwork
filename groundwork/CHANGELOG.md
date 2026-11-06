@@ -1,5 +1,72 @@
 # Changelog
 
+## 0.5.0 (2026-11-05)
+Verification-first: a task is done when its check passes, not when the agent says so. Based on the workflow research (spec-driven, harness and verification patterns) and real headless agent runs before and after.
+
+### Added
+- **Tasks with checks** (`gw task add|start|done|block|reopen|list`):
+  - `gw task done <id>` runs the task's `verify` command and records a receipt; only a pass marks it done;
+  - one task in progress at a time;
+  - a circuit breaker after 3 failed checks (`attempt_limit`): stop and talk to the user;
+  - a diff-budget note over 400 changed lines (`diff_budget`).
+- **Stop hook:** the turn doesn't end while a started task has no passing check, or a done task has no passing receipt. It blocks once per change, never loops, and is off with `profile minimal` or `gw set stop_hook=off`. Existing projects get it on upgrade.
+- **Traceability** (`gw trace`):
+  - GATE 1 fails on an in-scope REQ/SEC with no task;
+  - GATE 2 fails on one that no test names (or waive it with a reason).
+- **Doc budget** (`gw docs`, `gw set features=ui,api,db,auth,pii,payments,public`):
+  - the documents the tier and features need, and GATE 1 checks exactly that list;
+  - re-tiering is logged with `tier_reason`.
+- **Requirement lint** (`gw lint`):
+  - errors: duplicate IDs; delta requirements without SHALL/MUST or without a scenario;
+  - warnings: no EARS or Given/When/Then criterion, over-long rows, scenarios without WHEN/THEN, removals without a reason.
+- **Fresh-context review** (`gw review add|done`): required at standard and above, and GATE 2 fails on an open CRITICAL/HIGH finding.
+- **Delivery metrics** (`gw metrics`, also in FEEDBACK.md):
+  - first-pass rate, rework, failed checks and median task time;
+  - reverts, circuit breakers and stop blocks.
+- **Quality sensors** in P8:
+  - Semgrep and jscpd in `tools.json`;
+  - a `mutation` command per stack in the packs (Stryker, mutmut, gremlins, cargo-mutants, PIT, dotnet-stryker).
+- MOCKUP: what to do when the Figma editor has no WebGL (hardware acceleration off, or a virtual display without the GPU).
+- **Reuse proven open source** (`phases/REUSE.md`, `gw reuse <git-url>`): before writing a non-trivial part from scratch, look for a maintained project that does it. `gw reuse` makes a shallow, git-ignored clone in `.groundwork/reuse/<name>`, names its license and commit, and prints the credit row. Reused code is credited in `docs/credits.md` (`templates/credits.md`). GATE 2 fails on a row with no source or license, a license that doesn't allow reuse (none, SSPL, BUSL, …), or GPL/AGPL code in a project that isn't GPL, unless the row records the user's decision.
+
+### Changed
+- GROUNDWORK.md is 44% smaller (about 1,500 tokens, from 2,700). Skill vetting and recommendation details moved to `phases/P4.md`.
+- **Lower token cost per run:**
+  - `gw phase` and `gw set` print one line with the next step, not the full status, project.json and skill list. Skill suggestions show at session start and in `gw skills --for`, and never for the large tier only or, at the trivial tier, without a match in the task;
+  - check output is saved to `.groundwork/runs/<id>/logs/output.txt`. The terminal shows its last 12 lines on a pass and 60 on a failure;
+  - at the trivial tier `gw status` gives the whole P7 step (task, check, done), and P8 for a project with no targets, so neither phase file needs reading;
+  - in a change to an existing project, `gw status` says P2–P4 need reading only if the change adds a target, stack or dependency;
+  - GROUNDWORK.md shows the exact task commands, and says to type the CLI in full: runs that put it in a shell variable were blocked by permission checks and lost turns;
+  - CHANGE and P6–P10 no longer repeat what the CLI prints when it matters (circuit breaker, diff budget, gate lists). P0's guide for existing projects moved to `phases/FIT.md`.
+- GATE 1: one review packet and one approval (intent, mockup, plan), after a consistency pass that asks two-option questions. Mockup steps are feedback rounds.
+- CHANGE: every change, even a trivial one, is a task with a check. Tests that already failed are reported as pre-existing.
+- P1/PRD template: EARS acceptance criteria. At small tier the REQs go in the plan, with no separate PRD.
+- Plan template: decisions, not code. P9 and MAINTAIN: a converge check (the user picks docs or code; tasks are appended).
+
+### Fixed from the real agent runs (before/after benchmark)
+- **Brownfield doc budget:** a change to an existing system needs its change folder (`proposal.md` + `delta.md`, or `bugfix.md`), plus the SRD or DBD only when triggered. Before this fix, one new endpoint asked for 8 new documents.
+- **Traceability in brownfield:** `gw trace` and GATE 1 check only the REQ IDs the active change names. A PRD row marked `delivered` needs no new task. (A run had to attach already-built REQs to a new task to pass G1.)
+- `gw task verify <id> "<cmd>"` changes a task's check and logs it as a decision. CHANGE tells the agent to scope the check to its change when the baseline is already red. (A run edited `tasks.json` with sed.)
+- `gw task --help`, `gw review --help` and `gw --help` print usage and exit 0. (A run hit a CLI error.)
+- `gw set targets=` rejects unknown targets and lists the known ones (an HTTP API is `backend`). (A v0.4.0 run logged this.)
+- **Run receipts can't overstate isolation:** `gw run <target> S1 -- npm test` is refused, because S1 needs a container command (S2 an emulator or VM, S3 CI). A script that starts the environment itself passes with `--wrapper`. (A v0.4.0 run got an S1 receipt for a host test.)
+- `gw run host S0 -- <cmd>` works for projects with no targets (libraries, scripts). Unknown targets list the known ones. (Every CLI error in the final runs was a target name.)
+- A change to an existing project skips P1 and P5 in `gw status`, since the change folder replaces them. (A run was told to do P1 after finishing P7.)
+- `gw set` prints no skill suggestions at the trivial tier. A first failed check hints at scoping it to the task's own tests when the baseline is red.
+- The Stop hook's message defers to the user: if they asked to stop or skip checks, the agent says which task is unverified instead of carrying on.
+- The fresh-context reviewer is skipped below standard tier unless the user asks.
+- P6 and P8 follow `gw docs` for a change: no separate plan, test strategy or UAT. Those go in the proposal. (Runs wrote 7 documents for one additive endpoint, against 3 required.)
+- CHANGE puts the baseline run before the task, so a red baseline shapes the check from the start. When a check passes, the agent is told to report what ran with its real counts and to name pre-existing failures. (One run took a silent `grep` as "tests pass".)
+- The backend pack has a concrete S1 recipe for a service without dependencies (`docker run … <pinned runtime image> <test command>`).
+- Every command answers `--help` with its usage line and exit 0 (a run hit `gw run --help`; a `--help` after `--` still goes to the command being run). `gw task add --help` prints usage. A duplicate task ID says how to change its check. `gw run host S0` works in any project as a plain host run, which never counts as a target's release run. (These three came from the last measured round; they change only error and help paths and were not re-measured.)
+- **The framework's selftest moved to `groundwork/bin/selftest.js`.** In `groundwork/test/`, a project's bare `node --test` ran it as one of the project's tests, and it failed inside a container. Run it with `node groundwork/bin/selftest.js`. A selftest now checks that no framework file looks like a test to node --test, jest, vitest or mocha. (Seen in the trimmed f4 run.)
+- **`delivered` in a change:** a requirement marked `delivered` needs a new task only when the change's `delta.md` or `bugfix.md` names it. A mention in `proposal.md` (e.g. "the REQ-001 tests still pass") no longer makes GATE 1 ask for one. (A run lost 6 turns reading the CLI to find this.)
+- Rollback: a forced downgrade sets the state version, so the older CLI runs without "newer framework" warnings, and prints the command to come back.
+
+### Upgrade notes
+- Tasks already `done` are marked `legacy` and need no receipt. Reopened tasks need a new passing check.
+- Rollback to 0.4.0: see UPGRADING.md.
+
 ## 0.4.0 (2026-11-05)
 From real-run feedback (3 projects: a Discord/Telegram bot workspace, a web+backend app, a Rust server) and user requests.
 
