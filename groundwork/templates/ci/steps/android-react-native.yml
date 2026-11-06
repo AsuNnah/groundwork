@@ -1,5 +1,5 @@
 # React Native / Expo on Android: JS tests, release APK (bundled JS, debug-signed), Maestro flows on an emulator when .maestro/ exists
-# verified: no
+# verified: 2026-11-06 ubuntu-latest
 # timeout: 60
 __INCLUDE node-setup__
       - run: npm test

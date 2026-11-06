@@ -1,5 +1,25 @@
 # Changelog
 
+## 0.6.1 (2026-11-06)
+Four more CI fragments verified on real projects, and `gw ci` says which runners a fragment hasn't been proven on.
+
+### Fixed
+- **.NET MAUI on Linux:** a template project lists iOS and Mac Catalyst too, and restore needs every listed platform's workload (NETSDK1178). The fragment now builds the runner's platform alone (`-p:TargetFrameworks=…`).
+- **Unity:** the workflow stops with a clear error naming the secrets it needs (`UNITY_EMAIL`, `UNITY_PASSWORD`, and `UNITY_LICENSE` for Personal or `UNITY_SERIAL` for Pro) instead of failing inside GameCI, and it passes `UNITY_SERIAL` through.
+
+### Changed
+- `gw ci` names the runners a workflow uses that its fragment hasn't been verified on (`gw ci list`: "not yet on macos-latest"; the generated file says to watch the first run there).
+- React Native on Android: Maestro runs with its usage analytics turned off.
+
+### Verified
+23 of 29 fragments are now verified by the sample projects in `tests/ci-fixtures/` on GitHub runners. New in this release:
+- Tauri 2 on Linux and Windows (frontend test, `cargo test`, app build);
+- React Native (Expo) on Android (Jest, release APK, a Maestro flow on the emulator);
+- .NET MAUI on Android and Windows (app build, xUnit tests);
+- Zephyr (twister on `native_sim`, with Zephyr's west manifest imported).
+
+Not yet verified: Unity (it needs a Unity licence in the repository secrets), Flutter on Android, and the iOS/macOS fragments (Flutter, React Native, KMP, Xcode), which wait for the macOS roadmap item.
+
 ## 0.6.0 (2026-11-06)
 The roadmap items after 0.5.0: CI workflows per pack, devcontainers per stack, more packs and presets, and a scanner verified on Windows.
 

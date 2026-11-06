@@ -1199,7 +1199,9 @@ function gitDefaultBranch(top) {
 function ciRender(e) {
   const fr = ciFragment(e.fragment), sub = e.dir && e.dir !== '.';
   const services = e.services ? fs.readFileSync(path.join(CI_DIR, 'services', e.services + '.yml'), 'utf8').replace(/\r/g, '').trimEnd() : '';
-  const verified = fr.verified === 'no' ? 'Not yet verified by Groundwork on a real runner: watch the first run.' : 'Verified by Groundwork on real runners: ' + fr.verified;
+  const untested = fr.verified === 'no' ? [] : e.os.filter(o => !fr.verified.split(/[\s,]+/).includes(o));   // runners this workflow uses that the fragment hasn't been proven on
+  const verified = fr.verified === 'no' ? 'Not yet verified by Groundwork on a real runner: watch the first run.'
+    : `Verified by Groundwork on real runners: ${fr.verified}${untested.length ? `. Not yet on ${untested.join(', ')}: watch the first run there.` : ''}`;
   let y = fs.readFileSync(path.join(CI_DIR, 'workflow.yml'), 'utf8').replace(/\r/g, '');
   const vals = { VERSION: VERSION, TARGET: e.target, STACK: e.stack, FRAGMENT: fr.id, VERIFIED: verified, NAME: JSON.stringify(`${sub ? e.dir + ' · ' : ''}${e.target} (${e.stack})`), BRANCH: gitDefaultBranch(e.top),
     OS: '[' + e.os.join(', ') + ']', TIMEOUT: fr.timeout, SERVICES: services, STEPS: fr.body.join('\n'), DIR: sub ? e.dir + '/' : '', WORKDIR: sub ? JSON.stringify(e.dir) : '.' };
@@ -1212,7 +1214,7 @@ function ciRender(e) {
   for (const [k, v] of Object.entries({ ...vals, ...e.vars })) y = y.split(`__${k}__`).join(v);
   const left = y.match(/__[A-Za-z][\w]*__/);
   if (left) throw new Error(`CI template for ${e.target}/${e.stack} needs ${left[0]}: add it to packs/${e.target}.json ci.vars`);
-  return { yaml: y, verified: fr.verified, about: Object.entries(e.vars).reduce((a, [k, v]) => a.split(`__${k}__`).join(v), fr.about) };
+  return { yaml: y, verified: fr.verified, untested, about: Object.entries(e.vars).reduce((a, [k, v]) => a.split(`__${k}__`).join(v), fr.about) };
 }
 function ciCmd(args) {
   const [sub = 'list', ...rest] = args, osArg = flag(rest, '--os'), force = rest.includes('--force');
@@ -1224,7 +1226,7 @@ function ciCmd(args) {
   for (const e of plan) {
     if (!e.fragment) { console.log(`- ${e.target}: ${e.why}`); continue; }
     const r = ciRender(e), file = path.join(e.top, e.out), there = exists(file);
-    const label = `${e.target} (${e.stack}) → ${e.out}${e.dir !== '.' ? ' (repo root, runs in ' + e.dir + ')' : ''} · ${e.os.join(', ')} · ${r.verified === 'no' ? 'not yet verified on a runner' : 'verified ' + r.verified}`;
+    const label = `${e.target} (${e.stack}) → ${e.out}${e.dir !== '.' ? ' (repo root, runs in ' + e.dir + ')' : ''} · ${e.os.join(', ')} · ${r.verified === 'no' ? 'not yet verified on a runner' : 'verified ' + r.verified + (r.untested.length ? ` (not yet on ${r.untested.join(', ')})` : '')}`;
     if (sub === 'list') { console.log(`- ${label}${there ? ' · written' : ''}\n    ${r.about}`); continue; }
     if (there && !force) { console.log(`- ${e.target}: ${e.out} exists, kept (your edits win; --force replaces it)`); continue; }
     fs.mkdirSync(path.dirname(file), { recursive: true }); fs.writeFileSync(file, r.yaml);

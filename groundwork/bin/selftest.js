@@ -416,9 +416,13 @@ t('gw ci writes one workflow per target, narrows runners, keeps edits', () => {
   p.gw(['set', 'targets=web,android,ios', 'stacks.web=vite-react', 'stacks.android=kotlin-compose']);
   const l = p.gw(['ci']).out;
   assert.match(l, /web \(vite-react\) → \.github\/workflows\/gw-web\.yml · ubuntu-latest, windows-latest, macos-latest/); assert.match(l, /ios: set the stack first/);
+  // a runner the fragment wasn't proven on is named (the node fragment is verified on Linux and Windows; update this when macOS is)
+  assert.match(l, /web \(vite-react\).* · verified \d{4}-\d\d-\d\d ubuntu-latest, windows-latest \(not yet on macos-latest\)/);
+  assert.match(p.gw(['ci', 'print', 'web']).out, /Verified by Groundwork on real runners: .*\. Not yet on macos-latest: watch the first run there\./);
+  assert.doesNotMatch(l, /android \(kotlin-compose\).*not yet on/, 'every android runner is proven');
   assert.equal(p.gw(['ci', 'write', 'web', '--os', 'linux,windows']).code, 0);
   const y = require('fs').readFileSync(require('path').join(p.d, '.github/workflows/gw-web.yml'), 'utf8');
-  assert.match(y, /os: \[ubuntu-latest, windows-latest\]/); assert.match(y, /npm test/);
+  assert.match(y, /os: \[ubuntu-latest, windows-latest\]/); assert.match(y, /npm test/); assert.doesNotMatch(y, /Not yet on/, 'narrowed to proven runners');
   require('fs').appendFileSync(require('path').join(p.d, '.github/workflows/gw-web.yml'), '# mine\n');
   assert.match(p.gw(['ci', 'write', 'web']).out, /exists, kept/);
   assert.match(require('fs').readFileSync(require('path').join(p.d, '.github/workflows/gw-web.yml'), 'utf8'), /# mine/);

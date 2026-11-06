@@ -524,7 +524,7 @@ Code that already runs elsewhere is cheaper than code written and debugged from 
 - **A stack chosen by the targets:** when several UI targets have no stack yet, `gw set targets=…` lists the presets that cover all of them (`packs/presets.json`). P2 recommends one by the team's language, or a stack per target.
 - **Milestone status:**
   - M0a is done on Linux and Windows 11 (a VM, as SYSTEM and as a non-elevated user). macOS and WSL are still open.
-  - M3 is done: an Android Compose sample and a KMP sample run their on-device tests on the CI emulator.
-  - M4 is done for Electron on Linux and Windows, Qt, GTK, .NET on Windows, and KMP desktop. Tauri is not verified yet.
+  - M3 is done: an Android Compose sample, a KMP sample and a React Native (Expo) sample run their on-device tests on the CI emulator. .NET MAUI builds for Android.
+  - M4 is done for Electron and Tauri on Linux and Windows, Qt, GTK, .NET and .NET MAUI on Windows, and KMP desktop.
   - M5 is open (it needs a macOS runner).
-  - M6 has been started: CLI, embedded (ESP-IDF, PlatformIO), game (Godot) and browser-extension samples are verified on CI.
+  - M6 has been started: CLI, embedded (ESP-IDF, PlatformIO, Zephyr), game (Godot) and browser-extension samples are verified on CI. Unity needs a licence in the repository secrets.

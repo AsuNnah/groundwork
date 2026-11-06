@@ -197,7 +197,8 @@ Rules: keep `groundwork/` dependency-free (POSIX sh, PowerShell 5.1+, Node stdli
 - [x] Devcontainer generation per stack (0.6.0)
 - [x] More packs and presets: game engines, browser extensions, cross-platform presets with a stack chosen by the targets (0.6.0)
 - [ ] Verified macOS runs (`scan.sh` on macOS, and the macOS and iOS CI fragments)
-- [ ] Verify the remaining CI fragments on real projects (Unity, React Native, .NET MAUI, Tauri, Zephyr)
+- [x] Verify more CI fragments on real projects: React Native, .NET MAUI, Tauri, Zephyr (0.6.1)
+- [ ] Verify the Unity fragment (needs a Unity licence in the repository secrets) and Flutter on Android
 
 ## Acknowledgements
 Skill inspection by [NVIDIA SkillSpector](https://github.com/nvidia/skillspector) (Apache-2.0). Ideas borrowed (with thanks) from [ECC](https://github.com/affaan-m/ecc), [BMAD Method](https://github.com/bmad-code-org/BMAD-METHOD), [GitHub Spec Kit](https://github.com/github/spec-kit), [Superpowers](https://github.com/obra/superpowers), [GSD](https://github.com/open-gsd/gsd-core), [Kiro](https://kiro.dev), [OpenSpec](https://github.com/Fission-AI/OpenSpec), [AWS AI-DLC](https://github.com/awslabs/aidlc-workflows), and [agent-skills](https://github.com/addyosmani/agent-skills). See [`docs/FRAMEWORK-DESIGN.md`](docs/FRAMEWORK-DESIGN.md) §2 for what was taken from each.
