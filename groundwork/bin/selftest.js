@@ -16,6 +16,9 @@ const base = () => ({
 const mod = f => { const h = base(); f(h); return h; };
 const decide = h => { const c = gw.capabilities(h); return { c, m: gw.devMethod(h, c).id, t: gw.feasibility(c), kvm: gw.kvmCheck(h, c), docker: gw.dockerCheck(h) }; };
 let n = 0; const t = (name, fn) => { fn(); n++; console.log('ok', name); };
+// tests that run git itself: skipped, and said so, on a machine without git (a fresh Windows install)
+const skipped = [], hasGit = require('child_process').spawnSync('git', ['--version']).status === 0;
+const tg = (name, fn) => hasGit ? t(name, fn) : (skipped.push(name), console.log('skip', name, '(git not on PATH)'));
 
 t('linux workstation with docker + kvm', () => {
   const d = decide(base());
@@ -347,7 +350,7 @@ t('gw run: no S1 receipt for a host command; host target for projects without ta
   assert.equal(JSON.parse(p.gw(['next']).out).phase, 'P2', 'a change skips P1 (the change folder replaces it)');
   assert.match(JSON.parse(p.gw(['next']).out).do, /only if the change adds a target, stack or dependency/, 'a change reads P2 only when the stack changes');
 });
-t('reuse: license classes, shallow clone with credit row, G2 checks docs/credits.md', () => {
+tg('reuse: license classes, shallow clone with credit row, G2 checks docs/credits.md', () => {
   const fs = require('fs'), os = require('os'), path = require('path'), cp = require('child_process'), url = require('url');
   for (const [id, cls] of [['MIT', 'permissive'], ['Apache-2.0', 'permissive'], ['LGPL-3.0', 'weak'], ['MPL-2.0', 'weak'], ['GPL-3.0-only', 'strong'], ['AGPL-3.0', 'strong'],
     ['MIT OR GPL-3.0', 'permissive'], ['', 'none'], ['BUSL-1.1', 'restricted'], ['Artistic-2.0', 'unknown']]) assert.equal(gw.licenseClass(id), cls, id);
@@ -418,7 +421,7 @@ t('gw ci writes one workflow per target, narrows runners, keeps edits', () => {
   const bad = p.gw(['ci', 'write', 'android', '--os', 'windows']); assert.equal(bad.code, 1); assert.match(bad.out, /runs on ubuntu-latest/);
   assert.match(p.gw(['ci', 'print', 'android']).out, /android-emulator-runner@/);
 });
-t('a project in a subfolder of the repo gets its workflow at the repo root, scoped to the folder', () => {
+tg('a project in a subfolder of the repo gets its workflow at the repo root, scoped to the folder', () => {
   const fs = require('fs'), os = require('os'), path = require('path'), cp = require('child_process');
   const top = fs.mkdtempSync(path.join(os.tmpdir(), 'gw-mono-')), app = path.join(top, 'apps', 'web');
   fs.mkdirSync(path.join(app, '.groundwork'), { recursive: true }); cp.spawnSync('git', ['init', '-q'], { cwd: top });
@@ -498,4 +501,4 @@ t('host profiles with a UTF-8 BOM (Windows PowerShell 5.1) still parse', () => {
   assert.match(ps, /elseif \(\$LASTEXITCODE -eq 0\) \{ 'present' \} else \{ \$null \}/, 'a failing stub (WindowsApps python.exe) is not a tool');
   assert.match(ps, /WSL_UTF8/); assert.match(ps, /Test-Path \$wslExe/, 'never runs the System32 stub (60 s offline)'); assert.ok(!/wsl='--version'/.test(ps), 'the inbox wsl.exe stub is not WSL');
 });
-console.log(`\n${n} checks passed`);
+console.log(`\n${n} checks passed${skipped.length ? `, ${skipped.length} skipped (git not on PATH)` : ''}`);

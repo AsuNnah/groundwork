@@ -57,7 +57,7 @@ node groundwork/bin/gw.js upgrade .groundwork/backups/groundwork-0.4.0-<time> --
 - The state version is set to the older version, so it runs without warnings.
 - Hooks added by the newer version (0.5.0: the Stop hook) stay in `.claude/settings.json` and do nothing under the older CLI. You can delete that entry.
 - To return to the newer version later, run a normal `gw upgrade` again. It re-runs the newer migrations, which are safe to repeat. The command is printed when you roll back.
-- Tested path: 0.4.0 → 0.5.0 → 0.4.0 → 0.5.0, with tasks, receipts and hooks intact.
+- Tested paths: 0.4.0 → 0.5.0 → 0.4.0 → 0.5.0 and 0.5.0 → 0.6.0 → 0.5.0 → 0.6.0, with tasks, receipts and hooks intact.
 
 **From v0.2.0** (no `upgrade` command yet): replace the folder by hand.
 ```sh

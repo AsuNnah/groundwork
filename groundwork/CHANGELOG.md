@@ -41,7 +41,7 @@ The roadmap items after 0.5.0: CI workflows per pack, devcontainers per stack, m
   - the WindowsApps `python.exe` stub (exit 9009) counted as Python. A tool with no version and a failing exit is not reported now;
   - PowerShell 5.1 aliases (`curl`, `wget`) no longer count as tools.
 - `gw init` / `gw doctor` crashed (`Cannot read properties of null`) when the scan output was not a readable profile. They now say so and show how to run the scanner by hand.
-- The selftest assumed `node` on PATH (task checks call it), and failed on a fresh Windows machine with a portable Node.
+- The selftest assumed `node` and `git` on PATH, and failed on a fresh Windows machine with a portable Node. Task checks now use the Node running the selftest. Without git, the two tests that run git are skipped, and the summary says so.
 
 ## 0.5.0 (2026-11-05)
 Verification-first: a task is done when its check passes, not when the agent says so. Based on the workflow research (spec-driven, harness and verification patterns) and real headless agent runs before and after.
