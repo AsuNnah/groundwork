@@ -1,0 +1,7 @@
+tests:
+  fixture.add:
+    platform_allow:
+      - native_sim
+    integration_platforms:
+      - native_sim
+    tags: fixture

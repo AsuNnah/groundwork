@@ -1,0 +1,9 @@
+{
+  "name": "embedded-zephyr",
+  "targets": [
+    "embedded"
+  ],
+  "stacks": {
+    "embedded": "zephyr"
+  }
+}

@@ -80,7 +80,7 @@
     "templates/ci/steps/qt-cmake.yml": "fe1b8a8d38704940",
     "templates/ci/steps/rust.yml": "d69142765fe85d7f",
     "templates/ci/steps/tauri.yml": "40427f8cf88d64ae",
-    "templates/ci/steps/unity.yml": "ede7937e82cff7c0",
+    "templates/ci/steps/unity.yml": "59da316da3870607",
     "templates/ci/steps/xcode.yml": "e807e81413b83fc0",
     "templates/ci/steps/zephyr.yml": "2aa684e7151d4375",
     "templates/ci/workflow.yml": "1b9132949748ad9e",

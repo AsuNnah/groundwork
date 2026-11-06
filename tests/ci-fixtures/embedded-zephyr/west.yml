@@ -1,0 +1,11 @@
+# This application is the west manifest repository (T2). Only Zephyr itself: native_sim needs no HAL modules.
+manifest:
+  self:
+    path: app
+  remotes:
+    - name: zephyrproject-rtos
+      url-base: https://github.com/zephyrproject-rtos
+  projects:
+    - name: zephyr
+      remote: zephyrproject-rtos
+      revision: v4.5.0

@@ -1,0 +1,5 @@
+# on the emulator: the release APK starts and shows its greeting
+appId: fixture.rn
+---
+- launchApp
+- assertVisible: "Hello from React Native"

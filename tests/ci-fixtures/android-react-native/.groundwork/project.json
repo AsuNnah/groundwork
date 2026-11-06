@@ -1,0 +1,9 @@
+{
+  "name": "android-react-native",
+  "targets": [
+    "android"
+  ],
+  "stacks": {
+    "android": "react-native"
+  }
+}
