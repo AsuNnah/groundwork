@@ -104,6 +104,8 @@ t('skill suggestions follow targets, stacks and phase', () => {
   assert.ok(ids.includes('agent-skills/test-driven-development'));
   const inc = gw.suggestSkills({ targets: ['backend'], stacks: { backend: 'go' }, stage: 'incident' }, 'P0').map(s => s.id);
   assert.ok(inc.includes('agent-skills/observability-and-instrumentation'));
+  const imp = gw.suggestSkills({ targets: ['web'], stacks: {}, stage: 'improve' }, 'P0').map(s => s.id);
+  assert.ok(imp.includes('ecc/brownfield-retrospective') && imp.includes('ecc/codebase-onboarding'), 'the improve stage brings the IMPROVE playbook skills');
 });
 t('every pack stack with an ecosystem has maintain commands, and every pack has rollback', () => {
   for (const id of Object.keys(gw.packs())) {
@@ -202,14 +204,14 @@ t('feedback 0.4.0: docs location, dev method override, phase re-check', () => {
   assert.strictEqual(gw.installCommand({ os: { package_managers: 'apt' }, toolchains: { npm: '10.9' } }, 'rea').via, 'npm', 'npm install route');
   assert.deepStrictEqual(gw.changedPhases(oldM, newM, { phases: { P2: { status: 'done' }, P3: { status: 'done' }, P4: { status: 'in_progress' } } }), ['P2'], 'only done phases whose file changed');
 });
-t('reference-app intent (English + Indonesian)', () => {
-  for (const s of ['pelajari aplikasi Splitwise', 'learn how Notion handles offline sync', 'learn Splitwise', 'i want app like Duolingo', 'use Linear for reference',
-    'aku mau aplikasi seperti gojek', 'bikin bot kayak MEE6', 'pakai Mobbin sebagai acuan', 'reverse engineer this APK', 'make a clone of Wordle']) assert.ok(gw.referenceIntent(s), s);
-  for (const s of ['fix the login bug', 'do it like this', 'I would like to add dark mode', 'it looks like a bug', 'sepertinya gagal', 'based on the PRD write the plan',
-    'learn python basics first', 'the app crashes like before', 'perbaiki error di bot']) assert.ok(!gw.referenceIntent(s), s);
+t('reference-app intent', () => {
+  for (const s of ['learn how Notion handles offline sync', 'learn Splitwise', 'i want app like Duolingo', 'use Linear for reference',
+    'build a bot similar to MEE6', 'use Mobbin as a reference', 'reverse engineer this APK', 'make a clone of Wordle']) assert.ok(gw.referenceIntent(s), s);
+  for (const s of ['fix the login bug', 'do it like this', 'I would like to add dark mode', 'it looks like a bug', 'based on the PRD write the plan',
+    'learn python basics first', 'the app crashes like before', 'fix the error in the bot']) assert.ok(!gw.referenceIntent(s), s);
 });
 t('mockup intent', () => {
-  for (const s of ['bikin mockup dulu', 'show me a wireframe', 'can we do it in Figma', 'gimana tampilan aplikasi nya', 'I want to see how it looks', 'UI/UX design first']) assert.ok(gw.mockupIntent(s), s);
+  for (const s of ['make a mockup first', 'show me a wireframe', 'can we do it in Figma', 'how will the app look', 'I want to see how it looks', 'UI/UX design first']) assert.ok(gw.mockupIntent(s), s);
   for (const s of ['fix the login bug', 'the prototype pollution advisory'.replace('prototype', 'proto'), 'deploy the bot']) assert.ok(!gw.mockupIntent(s), s);
 });
 t('figma detection: plugin config, UI targets only', () => {
@@ -320,6 +322,7 @@ t('brownfield change: change-folder docs, trace scoped to the change, delivered 
   const d = gw.requiredDocs({ tier: 'standard', stage: 'feature', features: ['api', 'public'], targets: ['backend'] }, {}).map(x => x.doc);
   assert.deepEqual(d, ['changes/<id>/proposal.md', 'changes/<id>/delta.md', 'srd.md'], 'no new PRD/FSD/TRD set for a change');
   assert.deepEqual(gw.requiredDocs({ tier: 'small', stage: 'bugfix', targets: [] }, {}).map(x => x.doc), ['changes/<id>/bugfix.md']);
+  assert.deepEqual(gw.requiredDocs({ tier: 'small', stage: 'improve', targets: [] }, {}).map(x => x.doc), ['changes/<id>/audit.md', 'changes/<id>/proposal.md', 'changes/<id>/delta.md'], 'an improve change starts with its audit');
   const prd = '| ID | R | P | AC |\n|---|---|---|---|\n| REQ-001 | list | must | WHEN GET /notes, the system SHALL list |\n| REQ-002 | add | must | delivered |\n| REQ-003 | csv | must | WHEN GET /notes.csv, the system SHALL return CSV |\n';
   const p = proj({ 'docs/prd.md': prd, 'docs/srd.md': 'x', '.groundwork/env-report.json': { ready: true }, '.groundwork/tasks.json': [{ id: 'T01', title: 'csv', req: ['REQ-003'], verify: 'node -e "0"', status: 'todo' }] });
   p.put('.groundwork/project.json', { ...p.read('.groundwork/project.json'), stage: 'feature', features: ['api', 'public'] });

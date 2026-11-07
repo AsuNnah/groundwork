@@ -1,0 +1,1 @@
+src/invoice.js has grown hard to read and to change. Refactor it so the next person can work on it easily. The behaviour must stay exactly the same, including the rounding and the text output.

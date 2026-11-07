@@ -1,0 +1,11 @@
+{
+  "title": "Question only, no changes",
+  "kind": "question",
+  "lang": "node",
+  "repo": "01-trivial-bugfix",
+  "suffix": false,
+  "visible": null,
+  "hidden": "hidden.test.js",
+  "budget_usd": 3,
+  "hidden_passes_at_start": true
+}

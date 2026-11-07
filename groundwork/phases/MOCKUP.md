@@ -1,6 +1,6 @@
 # MOCKUP: see the app before it's built
 
-Use this in P5 for every target with screens (web, mobile, desktop), at small tier and above. Also use it when the user asks to "see it", "mockup", "wireframe", "desain", "tampilan", "Figma", or "UI/UX". It comes after the DBD (`templates/dbd.md`) and before GATE 1.
+Use this in P5 for every target with screens (web, mobile, desktop), at small tier and above. Also use it when the user asks to "see it", "mockup", "wireframe", "Figma", or "UI/UX". It comes after the DBD (`templates/dbd.md`) and before GATE 1.
 
 **Goal:** the user sees and approves how the app looks and flows, before any feature code exists. Changing a mockup costs minutes; changing built screens costs days.
 

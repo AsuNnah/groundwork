@@ -1,0 +1,5 @@
+Build a command-line bookmark manager in Node.js, without npm dependencies, as bm.js in the project root.
+- `node bm.js add <url> [--tag <tag>]...` saves a bookmark to bookmarks.json in the current folder, or to the file named in the BM_FILE environment variable when it is set. Each bookmark has an id, the url, its tags and the date it was added. Ids are whole numbers starting at 1 and are never reused, even after a bookmark is removed. Adding a url that is already saved does not add it again: it adds any new tags to the existing bookmark.
+- `node bm.js list [--tag <tag>]` prints one line per bookmark, oldest first, as `<id> <url> [<tags joined by ", ">]`, for example `3 https://example.com [news, tech]`, or `[]` when it has no tags. With --tag it prints only the bookmarks with that tag. An empty list prints nothing.
+- `node bm.js rm <id>` removes that bookmark; an unknown id is an error.
+- Only http and https urls are accepted. Errors (an invalid url, an unknown id, an unknown command, missing arguments) print a message to stderr and exit with code 1.

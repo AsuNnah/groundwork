@@ -1,0 +1,3 @@
+# transcripts, work-folder diffs and pilot runs stay local
+results/*/raw/
+results/pilot*/

@@ -1,0 +1,1 @@
+Add priorities to todos. add(list, text, { priority }) accepts 'high', 'normal' or 'low' (default 'normal'). render() lists high items first, then normal, then low, keeping the original order inside the same priority, and puts '!' in front of the text of high items. An unknown priority throws an Error. Existing behaviour must keep working.

@@ -1,6 +1,6 @@
 # Groundwork
 
-A portable, host-adaptive development framework for AI coding agents (Claude Code first; works with any agent that reads `AGENTS.md`).
+A portable, host-adaptive development framework for AI coding agents. It is built and tested with Claude Code (see the benchmark in the repository README). Other agents that read `AGENTS.md` get the rules without the hooks, untested.
 
 **Copy one folder into any project and it works.** It scans the machine first, then picks tools, a dev method, and test sandboxes that fit that machine: laptop, PC, VM, container, Windows, Linux, macOS, WSL, x86 or ARM.
 
@@ -10,7 +10,7 @@ A portable, host-adaptive development framework for AI coding agents (Claude Cod
    - creates `.groundwork/` (project state);
    - adds `@groundwork/GROUNDWORK.md` to `CLAUDE.md` (and a pointer in `AGENTS.md` if one exists);
    - adds the `/groundwork` skill in `.claude/skills/`;
-   - adds 4 hooks to `.claude/settings.json`: a session-start status, the GATE 1 edit guard, a Stop hook that keeps the turn going while a started task has no passing check, and a prompt hook that spots reference apps ("learn X", "app like X", "pelajari X") and requests to see the design ("mockup", "wireframe", "Figma", "tampilan aplikasi"), pointing the agent at `phases/RESEARCH.md` or `phases/MOCKUP.md`. Use `--no-hooks` to skip them, or `--profile minimal` for no hooks or gate enforcement;
+   - adds 4 hooks to `.claude/settings.json`: a session-start status, the GATE 1 edit guard, a Stop hook that keeps the turn going while a started task has no passing check, and a prompt hook that spots reference apps ("learn X", "app like X") and requests to see the design ("mockup", "wireframe", "Figma"), pointing the agent at `phases/RESEARCH.md` or `phases/MOCKUP.md`. Use `--no-hooks` to skip them, or `--profile minimal` for no hooks or gate enforcement;
    - scans the machine and prints the environment report.
 3. Start your agent and say what you want to build. It follows `GROUNDWORK.md`.
 
@@ -36,11 +36,11 @@ gw gate <G1|G2> [--approve "user's words"]
 | Path | What |
 |---|---|
 | `GROUNDWORK.md` | agent entry point: rules + phase map |
-| `phases/` | one file per phase: H0 host scan → P0 intake … P10 release → P11 learn; playbooks CHANGE, UPGRADE, MAINTAIN, OPERATE, SECURITY, RESEARCH, MOCKUP, REUSE, FIT |
+| `phases/` | one file per phase: H0 host scan → P0 intake … P10 release → P11 learn; playbooks CHANGE, IMPROVE, UPGRADE, MAINTAIN, OPERATE, SECURITY, RESEARCH, MOCKUP, REUSE, FIT |
 | `scan/` | zero-dependency host scanners (`scan.sh`, `scan.ps1`) |
 | `bin/gw.js` | CLI (Node 18+, no dependencies) |
 | `packs/` | one JSON per target (web, backend, android, ios, macos, windows, linux-desktop, cli, embedded, game, browser-extension) + data files: `tools.json` (install catalogue), `presets.json` (cross-platform presets), `devcontainers.json` (devcontainer blocks) |
-| `templates/` | planning: PRD, ADR, plan, test strategy, skill requirements · design: FSD, AFD (flows), TRD, BSD (API + DB), DBD (UI brief), SRD (security), platform notes · change: system overview, proposal, delta, bugfix · research: reference app · reuse: credits · verify: UAT · after release: upgrade report, tech debt, security exceptions, incident, runbook, lessons · `ci/`: GitHub Actions skeleton, step fragments per stack and service blocks for `gw ci` |
+| `templates/` | planning: PRD, ADR, plan, test strategy, skill requirements · design: FSD, AFD (flows), TRD, BSD (API + DB), DBD (UI brief), SRD (security), platform notes · change: system overview, proposal, delta, bugfix, audit · research: reference app · reuse: credits · verify: UAT · after release: upgrade report, tech debt, security exceptions, incident, runbook, lessons · `ci/`: GitHub Actions skeleton, step fragments per stack and service blocks for `gw ci` |
 | `catalog/skills.json` | pinned skill catalogue |
 | `MANIFEST.json`, `CHANGELOG.md`, `VERSION` | release metadata used by `gw upgrade` / `gw verify` |
 | `bin/selftest.js` | `node groundwork/bin/selftest.js` (in `bin/`, so a project's test runner never picks it up) |
@@ -50,6 +50,8 @@ Groundwork maps onto what is already there instead of duplicating it (details: `
 - docs in another folder: `gw set docs_dir=<path>`, or per file `docs.prd=`, `docs.plan=`, `docs.test_strategy=`;
 - a project rule against the host's dev method (e.g. no Docker): `gw set dev_method=native-user-scope dev_method_reason="…"`;
 - several products in one folder: one `groundwork/` copy per product.
+
+A feature, bugfix or migration follows `phases/CHANGE.md`: a change folder instead of a new document set. To improve an app with no specific change in mind, `phases/IMPROVE.md` audits one slice at a time with evidence, and you pick which gaps to fix.
 
 ## Updating Groundwork in a project
 Your project data is never in this folder. It lives in `.groundwork/` and `docs/`, so an update only replaces framework files.
@@ -83,7 +85,7 @@ If a change would help every project, it belongs in the framework instead: the a
 | "Make it like X": how a reference app works | `phases/RESEARCH.md` | `templates/reference-research.md`; Scrapling and REA via `gw plan-install` |
 
 ## Skill catalogue
-`gw skills` suggests agent skills for the current phase, stage, targets and stacks. They come from `catalog/skills.json`: 69 curated skills from [ECC](https://github.com/affaan-m/ecc), [Superpowers](https://github.com/obra/superpowers) and [agent-skills](https://github.com/addyosmani/agent-skills), all MIT-licensed and pinned to exact commits.
+`gw skills` suggests agent skills for the current phase, stage, targets and stacks. They come from `catalog/skills.json`: 74 curated skills from [ECC](https://github.com/affaan-m/ecc), [Superpowers](https://github.com/obra/superpowers), [agent-skills](https://github.com/addyosmani/agent-skills) and [Ponytail](https://github.com/DietrichGebert/ponytail), all MIT-licensed and pinned to exact commits.
 - `gw skills fetch <id>` downloads one for review only.
 - `gw skills install <id>` installs it into `.claude/skills/` with its LICENSE and records it in `.groundwork/skills.lock.json`.
 

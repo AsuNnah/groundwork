@@ -1,0 +1,1 @@
+Bug report from the shop: applyDiscount(200, 10) returns 190, but a 10% discount on 200 should give 180. Please fix it.

@@ -1,0 +1,1 @@
+Implement parseDuration(text) in src/duration.js. It returns a number of seconds. It accepts combinations of hours, minutes and seconds such as '1h30m', '2h', '45m', '90s' and '1h2m3s'. A bare number like '30' means seconds. Surrounding whitespace is ignored. Anything else (empty string, '1x', 'h', negative numbers) throws an Error.

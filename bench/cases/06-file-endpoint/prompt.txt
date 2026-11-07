@@ -1,0 +1,1 @@
+Add GET /files/:name to the API. It returns the file with that name from the uploads/ folder, with the content type text/plain for .txt, application/json for .json and application/octet-stream for anything else. A file that doesn't exist gives 404.

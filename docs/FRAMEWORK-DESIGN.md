@@ -33,10 +33,10 @@ laptop, desktop PC, VM, cloud box, Windows, Linux, macOS, WSL, x86 or ARM.
 | Inventory-before-install, skill vs plugin distinction | No dev-environment readiness (SDKs, Docker, KVM, licences) |
 | Untrusted-candidate vetting (SkillSpector, manual review, block rules) | No sandbox / target-environment testing |
 | Obsidian + Graphify knowledge navigation, with privacy scoping | No size tiers — small changes get same ceremony risk |
-| Manifest template (`skill-requirements.md`) | No build/verify/review/release phases (stops at "SIAP BUILD") |
-| (was Bahasa; now English) | No hooks → every rule is prompt-only (can be skipped) |
+| Manifest template (`skill-requirements.md`) | No build/verify/review/release phases (stops at "ready to build") |
+| | No hooks → every rule is prompt-only (can be skipped) |
 
-**Decision:** the orchestrator becomes Groundwork's phases P0–P5 almost verbatim. Everything after "SIAP BUILD"
+**Decision:** the orchestrator becomes Groundwork's phases P0–P5 almost verbatim. Everything after "ready to build"
 and everything about platforms/environments/sandboxes is new.
 
 ---
@@ -80,7 +80,7 @@ and everything about platforms/environments/sandboxes is new.
 groundwork/                 # copy this folder into any project root
 ├── GROUNDWORK.md           # agent entry: always-on rules + phase map (imported from CLAUDE.md)
 ├── README.md               # human: how to copy, init, commit, update
-├── phases/                 # H0 P0 … P11 + playbooks (CHANGE, UPGRADE, MAINTAIN, OPERATE, SECURITY, RESEARCH, MOCKUP, REUSE, FIT): one file each, loaded only when reached
+├── phases/                 # H0 P0 … P11 + playbooks (CHANGE, IMPROVE, UPGRADE, MAINTAIN, OPERATE, SECURITY, RESEARCH, MOCKUP, REUSE, FIT): one file each, loaded only when reached
 ├── scan/scan.sh, scan.ps1  # zero-dependency host scanners → host-profile.json
 ├── bin/gw.js               # CLI: init doctor plan-install status set phase run gate hook
 ├── packs/<target>.json     # web backend android ios macos windows linux-desktop cli embedded
@@ -183,8 +183,8 @@ And a **target feasibility table** is computed for P2 (shown to the user while c
 | linux desktop | yes on linux/WSLg; container elsewhere | S1 Xvfb | S3 ubuntu runner |
 | embedded | yes if toolchain | S2 QEMU/Renode | HIL with real board |
 
-Output to user (Bahasa): "Mesin ini: laptop Windows 11, 16 GB RAM, WSL2 aktif, tanpa Docker. Saran metode: WSL2 + mise.
-Bisa dibangun & dites lokal: web, backend, android (emulator via Hyper-V). Perlu CI: iOS. Perlu dipasang: Git, Node 22 (WSL), Docker Desktop (opsional)."
+Output to user: "This machine: Windows 11 laptop, 16 GB RAM, WSL2 on, no Docker. Suggested method: WSL2 + mise.
+Built and tested here: web, backend, android (emulator via Hyper-V). Needs CI: iOS. To install: Git, Node 22 (WSL), Docker Desktop (optional)."
 
 ### Install plan (generated, never auto-run)
 `gw plan-install --targets android,web` merges: host profile × chosen targets × pack `toolchain:` → ordered list of
@@ -257,7 +257,7 @@ Output: `.groundwork/project.yaml` `targets:` + `stack:` + `docs/adr/0001-stack.
 - Starts from `host-profile.json` (H0) — does not re-detect what H0 already knows; adds project-specific checks only.
 - Runs `gw doctor`: common checks + each selected pack's `checks:` (see §7).
 - Each check returns JSON: `{id, status: pass|fail|warn|skip, found, required, fix, autofix_allowed}`.
-- Output: `.groundwork/env-report.json` + human summary (Bahasa).
+- Output: `.groundwork/env-report.json` + a plain-language summary.
 - **Fix policy**: show exact fix command; run it only with user approval; never `sudo`, never global installs silently; prefer project-scoped (devcontainer, `mise`/`asdf`, `sdkmanager` into project dir, `uv`, `corepack`).
 - Decide **sandbox tier per target** from host capabilities (see §8): e.g. no `/dev/kvm` ⇒ android tests go to S3 (CI/device farm) — recorded, not hidden.
 - Pin versions → `.groundwork/toolchain.lock` (`node 22.x, jdk 21, android-sdk 35, gradle 8.x`) and generate `.devcontainer/devcontainer.json` when the pack supports it.
@@ -296,7 +296,7 @@ Only those the tier + targets need:
 ### P8 — Verify in sandbox — NEW
 - `gw sandbox up <target>` → `gw sandbox test <target>` → artifacts in `.groundwork/runs/<run-id>/` (logs, junit, screenshots, video, coverage).
 - Per tier: S1 container tests every task; S2 emulator/VM per milestone; S3 CI/device-farm before release.
-- Human UAT walkthrough (GSD `verify-work` style): scripted checklist from FSD acceptance criteria, in plain Bahasa, with screenshots for non-technical users.
+- Human UAT walkthrough (GSD `verify-work` style): scripted checklist from FSD acceptance criteria, in plain language, with screenshots for non-technical users.
 
 ### P9 — Review
 - `code-review-and-quality` + pack reviewer agent + `security-audit` when auth/input/DB/FS/network/crypto/secrets touched.
@@ -429,8 +429,8 @@ docs/
 | PreCompact | save `state.json` summary for resume | all |
 
 ### Front door
-User says anything → `gw` skill reads `.groundwork/state.json`, runs P0 if missing, otherwise says (in Bahasa):
-"Fase sekarang: P3 Environment. Blocker: JDK belum ada. Langkah berikutnya: …". One entry point, not 8.
+User says anything → `gw` skill reads `.groundwork/state.json`, runs P0 if missing, otherwise says:
+"Current phase: P3 Environment. Blocker: no JDK yet. Next step: …". One entry point, not 8.
 
 ---
 
@@ -453,11 +453,11 @@ User says anything → `gw` skill reads `.groundwork/state.json`, runs P0 if mis
 
 | Current section | Goes to |
 |---|---|
-| Tujuan, Prinsip kerja | `core/rules/common/workflow.md` + `gw` front door |
-| Step 1 Pahami aplikasi | `phases/` (P0) |
-| Step 2 Rencana dokumen | `phases/` (P1) + `phases/` (P5) + `phases/` (P6) |
-| Steps 3–6 Inventaris/vetting/install | `phases/` (P4), unchanged |
-| Step 7 Gerbang SIAP BUILD | GATE 1 receipt `G1-plan.json` (+ hook enforcement) |
+| Goal, working principles | `core/rules/common/workflow.md` + `gw` front door |
+| Step 1 Understand the app | `phases/` (P0) |
+| Step 2 Plan the documents | `phases/` (P1) + `phases/` (P5) + `phases/` (P6) |
+| Steps 3–6 Inventory/vetting/install | `phases/` (P4), unchanged |
+| Step 7 Ready-to-build gate | GATE 1 receipt `G1-plan.json` (+ hook enforcement) |
 | Step 8 Development | `phases/` (P7) |
 | Obsidian + Graphify | `phases/` optional skill, triggered for large tier |
 | `preflight-manifest-template.md` | `core/templates/` (kept; gains Target, Env, Sandbox sections) |
@@ -501,7 +501,7 @@ Keep the old skill working (thin wrapper calling `gw`) until the core is stable.
 
 ## 15. Post-release lifecycle, skill catalogue, framework upgrades (v0.3.0, 2026-11-04)
 
-- **Playbooks** (not linear phases; chosen by the P0 stage): `UPGRADE`, `MAINTAIN` (reactive), `OPERATE`, `SECURITY`.
+- **Playbooks** (not linear phases; chosen by the P0 stage): `UPGRADE`, `MAINTAIN` (reactive), `IMPROVE` (an audit on request, then the fixes the user picks), `OPERATE`, `SECURITY`.
   - Stage-specific commands and rollback recipes are pack data (`maintain`, `rollback`, `observe`, `policies`).
   - Volatile facts are fetched live or carry a re-check source: runtime end of life from endoflife.date, store deadlines with an `as_of` date and the URL to check.
   - `incident` and `security` stages skip GATE 1 (mitigate first).

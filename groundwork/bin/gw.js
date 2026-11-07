@@ -391,13 +391,14 @@ function projectFeatures(proj = project(), all = packs()) {
   if ((proj.targets || []).includes('backend')) f.add('api');
   return f;
 }
-const BROWNFIELD = ['feature', 'bugfix', 'migration', 'refactor'];   // changes to an existing system: phases/CHANGE.md
+const BROWNFIELD = ['feature', 'bugfix', 'migration', 'refactor', 'improve'];   // changes to an existing system: phases/CHANGE.md (improve audits first: phases/IMPROVE.md)
 function requiredDocs(proj = project(), all = packs()) {
   const tier = proj.tier, f = projectFeatures(proj, all), out = [], add = (doc, why) => out.push({ doc, why });
   if (!tier || tier === 'trivial') return out;
   if (BROWNFIELD.includes(proj.stage)) {   // the current-truth docs already exist: write the change, not a new doc set
     if (proj.stage === 'bugfix') add('changes/<id>/bugfix.md', 'current vs expected behaviour, repro, root cause');
-    else { add('changes/<id>/proposal.md', 'why, what changes, out of scope, affected REQ IDs'); add('changes/<id>/delta.md', 'requirements ADDED / MODIFIED / REMOVED'); }
+    else { if (proj.stage === 'improve') add('changes/<id>/audit.md', 'the baseline with evidence and the gap register');
+      add('changes/<id>/proposal.md', 'why, what changes, out of scope, affected REQ IDs'); add('changes/<id>/delta.md', 'requirements ADDED / MODIFIED / REMOVED'); }
     if ((proj.features || []).includes('ui')) add('dbd.md', 'changes screens: mockup of the changed screens');
     if (tier === 'large' || ['auth', 'pii', 'payments', 'public'].some(x => f.has(x))) add('srd.md', tier === 'large' ? 'large tier' : 'touches auth, personal data, payments or a public API');
     return out;
@@ -962,8 +963,7 @@ const skillInstalled = name => skillIndex().some(s => s.name === name);   // in 
 // The index keeps each description and its categories. The task's words, the phase and the project pick categories; the best fits inside them are named.
 const STOPWORDS = new Set(['with', 'when', 'that', 'this', 'from', 'into', 'make', 'need', 'want', 'some', 'have', 'like', 'more', 'also', 'your', 'them', 'then', 'than', 'what', 'about', 'should', 'would', 'could', 'before', 'after', 'while', 'where', 'which', 'there', 'their', 'using', 'used', 'just', 'only', 'each', 'every', 'other', 'over', 'under', 'very', 'will', 'here', 'these', 'those', 'onto', 'upon', 'the', 'and', 'for', 'you', 'can', 'are', 'not', 'but', 'all', 'any', 'how', 'its', 'use', 'our', 'one', 'new', 'get', 'yet', 'please', 'pls',
   'build', 'add', 'create', 'fix', 'update', 'change', 'implement', 'work', 'run', 'show', 'give', 'set', 'let', 'try', 'help', 'thanks', 'src', 'lib', 'file', 'files', 'code', 'write', 'open', 'read', 'check', 'find', 'look', 'see', 'keep', 'move', 'put', 'take', 'done', 'good', 'sure', 'yes',   // words every task has
-  'to', 'of', 'in', 'on', 'at', 'is', 'it', 'be', 'do', 'my', 'me', 'we', 'an', 'as', 'by', 'if', 'or', 'so', 'up', 'no', 'ok', 'us', 'am', 'hi', 'ya', 'yg', 'di', 'ke', 'ga', 'gw', 'aj',
-  'tolong', 'buat', 'bikin', 'untuk', 'dan', 'yang', 'ini', 'itu', 'dengan', 'bisa', 'ada', 'tidak', 'jadi', 'dari', 'mau', 'apa', 'saya', 'kita', 'sudah', 'belum', 'juga', 'atau', 'pada', 'lagi', 'aja', 'saja', 'gimana']);   // Indonesian filler
+  'to', 'of', 'in', 'on', 'at', 'is', 'it', 'be', 'do', 'my', 'me', 'we', 'an', 'as', 'by', 'if', 'or', 'so', 'up', 'no', 'ok', 'us', 'am', 'hi', 'gw']);
 const skillCats = () => readJson(path.join(FW, 'catalog', 'skill-categories.json'), { categories: [] }), skillCategories = () => skillCats().categories;
 const isDir = f => { try { return fs.statSync(f).isDirectory(); } catch { return false; } };
 const subdirs = d => { try { return fs.readdirSync(d, { withFileTypes: true }).filter(e => e.isDirectory() || (e.isSymbolicLink() && isDir(path.join(d, e.name)))).map(e => e.name); } catch { return []; } };   // skills CLIs install by symlink
@@ -1048,7 +1048,7 @@ const dupMsg = (s, twin) => `${s.name} is already installed as ${twin.id} (${til
 const installedText = (m, header) => m.length ? header + '\n' + m.map(r => `  • ${r.id} [${r.categories.join(', ')}]: ${r.description.slice(0, 150)}${r.description.length > 150 ? '…' : ''}`).join('\n') : '';
 function suggestSkills(proj, phase, all = false) {
   const targets = proj.targets || [], stacks = Object.values(proj.stacks || {});
-  const stagePlaybook = { upgrade: 'UPGRADE', refactor: 'MAINTAIN', incident: 'OPERATE', security: 'SECURITY', feature: 'CHANGE', bugfix: 'CHANGE', migration: 'CHANGE' }[proj.stage];
+  const stagePlaybook = STAGE_PLAYBOOK[proj.stage];
   return catalog().skills.filter(s =>
     (s.targets.includes('*') || s.targets.some(t => targets.includes(t))) &&
     (s.stacks.includes('*') || s.stacks.some(t => stacks.includes(t))) &&
@@ -1071,7 +1071,7 @@ function fetchSkill(s) {
 
 // ---------- context-aware skill recommendations ----------
 const PHASE_NAMES = Object.fromEntries(PHASES);
-const STAGE_PLAYBOOK = { upgrade: 'UPGRADE', refactor: 'MAINTAIN', incident: 'OPERATE', security: 'SECURITY', feature: 'CHANGE', bugfix: 'CHANGE', migration: 'CHANGE' };
+const STAGE_PLAYBOOK = { upgrade: 'UPGRADE', refactor: 'MAINTAIN', improve: 'IMPROVE', incident: 'OPERATE', security: 'SECURITY', feature: 'CHANGE', bugfix: 'CHANGE', migration: 'CHANGE' };
 function currentTaskText() {
   const t = readJson(P('tasks.json'), []);
   const list = Array.isArray(t) ? t : (t.tasks || []);
@@ -1160,8 +1160,7 @@ const VOCAB = [
   [/\b(cli|command[- ]line|terminal tool)\b/, { targets: ['cli'], weak: true }],
   [/\b(test|tests|testing|tdd|unit test|jest|vitest)\b/, { phases: ['P7', 'P8'] }],
   [/\b(e2e|end-to-end|playwright|cypress|selenium|appium|maestro)\b/, { phases: ['P8'] }],
-  [/\b(code review|review|lint|refactor|clean code|simplif|tech debt|dead code)\b/, { phases: ['P9', 'MAINTAIN'] }],
-  [/\b(security|vulnerab|owasp|secret|auth|authentication|oauth|jwt|pentest)\b/, { phases: ['P9', 'SECURITY'] }],
+  [/\b(code review|review|lint|refactor|clean code|simplif|tech debt|dead code)\b/, { phases: ['P9', 'MAINTAIN'] }],  [/\b(security|vulnerab|owasp|secret|auth|authentication|oauth|jwt|pentest)\b/, { phases: ['P9', 'SECURITY'] }],
   [/\b(deploy|deployment|docker|kubernetes|k8s|ci\/cd|ci|github actions|pipeline|vercel|aws|azure|gcp|cloudflare|terraform)\b/, { phases: ['P10', 'OPERATE'] }],
   [/\b(monitor|observability|logging|tracing|metrics|sentry|incident)\b/, { phases: ['OPERATE'] }],
   [/\b(upgrade|migration|migrate|deprecat)\b/, { phases: ['UPGRADE'] }],
@@ -1506,21 +1505,20 @@ function init(args) {
 }
 
 // ---------- hooks ----------
-// does a user message point at a reference app to learn from? (English + Indonesian; the agent makes the final call)
-const APPWORD = String.raw`(app|apps|application|aplikasi|apk|site|website|web|situs|bot|game|tool|platform|extension|plugin|software|program)`;
+// does a user message point at a reference app to learn from? (the agent makes the final call)
+const APPWORD = String.raw`(app|apps|application|apk|site|website|web|bot|game|tool|platform|extension|plugin|software|program)`;
 const REF_PATTERNS = [
-  /\b(learn|study|research|analy[sz]e|investigate)\b.{0,30}\b(how|from|what|why|the way|cara)\b|\breverse[- ]?engineer|\b(look into|figure out|find out) how\b/,
-  /\b(pelajari|pelajarin|mempelajari|belajar dari|teliti|meneliti|analisa|analisis|bedah|tiru|niru|meniru|contek|nyontek|cari tahu cara)\b/,
+  /\b(learn|study|research|analy[sz]e|investigate)\b.{0,30}\b(how|from|what|why|the way)\b|\breverse[- ]?engineer|\b(look into|figure out|find out) how\b/,
   /\b(clone of|copy of|inspired by|modell?ed on)\b/,
-  new RegExp(String.raw`\b(like|similar to|same as|based on|seperti|mirip|kayak|kaya|ala|sejenis)\b.{0,40}\b${APPWORD}\b|\b${APPWORD}\b.{0,30}\b(like|similar to|same as|seperti|mirip|kayak|kaya|ala|sejenis)\b`),
-  /\b(for|as) (a )?reference\b|\breferen(ce|si|sinya)\b|\bacuan\b|\bcontoh(nya)? (dari|aplikasi|app|web)\b|\bpatokan\b/,
+  new RegExp(String.raw`\b(like|similar to|same as|based on)\b.{0,40}\b${APPWORD}\b|\b${APPWORD}\b.{0,30}\b(like|similar to|same as)\b`),
+  /\breference\b/,
 ];
 function referenceIntent(text) {
   const raw = String(text || ''), t = raw.toLowerCase().replace(/\b(would|'d|looks|look|seems|seem|feels|feel|sounds) like\b/g, '')
-    .replace(/\b(like|seperti|kayak) (this|that|it|before|so|usual|normal|biasa|sebelumnya|ini|itu)\b/g, '');
+    .replace(/\blike (this|that|it|before|so|usual|normal)\b/g, '');
   return REF_PATTERNS.some(r => r.test(t)) || /\b(learn|study|analy[sz]e|research)\s+[A-Z][\w.-]+/.test(raw);   // "learn Splitwise": a proper name
 }
-const mockupIntent = text => /\b(mock-?ups?|wireframes?|prototypes?|figma|ui\s*\/\s*ux|desain (ui|aplikasi|tampilan)|tampilan(nya)? (aplikasi|app|layar)|lihat tampilan|visual(isasi)? (aplikasi|app)|see (how it|what it) looks?|how (will|would) (it|the app) look)\b/i.test(String(text || ''));
+const mockupIntent = text => /\b(mock-?ups?|wireframes?|prototypes?|figma|ui\s*\/\s*ux|see (how it|what it) looks?|how (will|would) (it|the app) look)\b/i.test(String(text || ''));
 const INSTALLED_HINT = 'Groundwork: installed skills that fit this work (the skill list may not show their descriptions; invoke one by name if it helps):';
 function hook(sub) {
   const p = project(); if (!exists(P('project.json'))) return 0;   // not initialised: stay silent
@@ -1910,7 +1908,7 @@ function main(argv) {
         for (const o of m.observe) console.log(`  observe        ${o}`);
         for (const p of m.policies) console.log(`  POLICY         ${p.what} (as of ${p.as_of}; re-check ${p.check})`);
       }
-      console.log('\nPlaybooks: phases/UPGRADE.md · MAINTAIN.md · OPERATE.md · SECURITY.md · end-of-life check: gw eol');
+      console.log('\nPlaybooks: phases/UPGRADE.md · MAINTAIN.md · IMPROVE.md · OPERATE.md · SECURITY.md · end-of-life check: gw eol');
       return 0;
     }
     case 'eol': return eolCheck(hostProfile()).then(rows => {

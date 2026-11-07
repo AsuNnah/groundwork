@@ -1,0 +1,8 @@
+{
+  "title": "New CLI app from a spec",
+  "kind": "new app",
+  "lang": "node",
+  "visible": null,
+  "hidden": "hidden.test.js",
+  "budget_usd": 10
+}
