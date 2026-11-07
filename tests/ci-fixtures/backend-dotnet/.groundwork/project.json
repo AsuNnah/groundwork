@@ -1,0 +1,9 @@
+{
+  "name": "backend-dotnet",
+  "targets": [
+    "backend"
+  ],
+  "stacks": {
+    "backend": "dotnet"
+  }
+}

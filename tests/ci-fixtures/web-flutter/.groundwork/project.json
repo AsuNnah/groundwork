@@ -6,5 +6,5 @@
   "stacks": {
     "web": "flutter"
   },
-  "ci_os": "linux"
+  "ci_os": "linux,windows"
 }
