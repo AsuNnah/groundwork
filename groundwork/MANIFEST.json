@@ -1,12 +1,12 @@
 {
   "version": "0.7.0",
   "files": {
-    "CHANGELOG.md": "d2351ddf9d998620",
+    "CHANGELOG.md": "bf3c9441b187cc60",
     "GROUNDWORK.md": "47d335baa01ee1d6",
     "README.md": "9786e185f43f1e92",
     "VERSION": "967d9afb10134666",
     "bin/gw.js": "634b6cb47e495ee8",
-    "bin/selftest.js": "6429fcefd80d429f",
+    "bin/selftest.js": "0ddbcba5e824dd2c",
     "catalog/skill-categories.json": "e2b344f51b57c24e",
     "catalog/skills.json": "ec948c42ba7fb112",
     "catalog/team.json": "752642bb40ff4dcf",
@@ -67,7 +67,7 @@
     "templates/ci/steps/go.yml": "ba242e82f0929692",
     "templates/ci/steps/godot.yml": "83e83df6e0d87c90",
     "templates/ci/steps/gtk-meson.yml": "0bd448457ec91ef4",
-    "templates/ci/steps/ios-flutter.yml": "b66b53ce8152d897",
+    "templates/ci/steps/ios-flutter.yml": "90916e2ad687664d",
     "templates/ci/steps/ios-react-native.yml": "a6d74a0cf5abed04",
     "templates/ci/steps/java.yml": "43da04276c78b903",
     "templates/ci/steps/kmp-desktop.yml": "72b21fc33e7dd5f7",

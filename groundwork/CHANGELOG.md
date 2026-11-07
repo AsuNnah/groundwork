@@ -1,6 +1,6 @@
 # Changelog
 
-## 0.7.0 (2026-11-06)
+## 0.7.0 (2026-11-07)
 The main session leads a team and knows what delegating costs. The installed skills that fit the work get named even when Claude's skill list hides them. Feedback from every project reaches the framework on its own. A real run on an existing desktop app fixed requirement tracing, gates and tasks for changes to existing projects. Every CI fragment now runs on real projects, macOS and iOS included. This release includes the unreleased 0.6.1 work.
 
 ### Added
@@ -31,12 +31,14 @@ Also fixed:
 - The installed check (`gw skills`) misses no skill: skills synced from claude.ai and plugin skills on custom paths count as installed.
 - A trending skill with the same name as another catalogue entry is listed once.
 - The selftest no longer writes into the real `~/.groundwork` (its feedback inbox and caches).
+- The selftest passes on a Mac with 8 GB of RAM or more. One test assumed such a host can't run the Android emulator (since 0.6.0).
 
 CI fragments:
 - **.NET MAUI on Linux:** a template project lists iOS and Mac Catalyst too, and restore needs every listed platform's workload (NETSDK1178). The fragment now builds the runner's platform alone (`-p:TargetFrameworks=…`).
 - **.NET MAUI for iOS and Mac Catalyst:** .NET for Apple platforms accepts exactly one Xcode major.minor (`_RecommendedXcodeVersion`, which every release sets). The fragment selects that Xcode when the runner image has it. When it doesn't, it stops and says what to do: pin a workload set in `global.json` (`sdk.workloadVersion`) or use an image with that Xcode. Today the newest workload set (10.0.403) needs Xcode 27.1, which only GitHub's `xcode-27` preview image has. The sample project pins 10.0.401.
 - **Kotlin Multiplatform iOS:** the app builds for a named simulator. The generic simulator destination also builds x86_64, which needs an `iosX64()` target that current wizard projects don't have (Compose resources failed with "provider has no value").
 - **Flutter on iOS:** the integration test uses an iPhone on the newest runtime and waits until it has fully booted (`simctl bootstatus`). The first run timed out connecting to the Dart VM service.
+- **Flutter on iOS, a hang:** `flutter test` can launch the app before it reads the simulator log, then wait forever for a line it missed ([flutter/flutter#181771](https://github.com/flutter/flutter/issues/181771); fixed upstream, not yet in stable 3.47.9). It hung a run on `main` until the 45-minute job limit. Each try now gets 15 minutes and only a hang runs again, once. A failing test still fails at once. The job limit is 60 minutes.
 - **Unity:** the workflow stops with a clear error naming the secrets it needs (`UNITY_EMAIL`, `UNITY_PASSWORD`, and `UNITY_LICENSE` for Personal or `UNITY_SERIAL` for Pro) instead of failing inside GameCI, and it passes `UNITY_SERIAL` through.
 
 ### Changed
