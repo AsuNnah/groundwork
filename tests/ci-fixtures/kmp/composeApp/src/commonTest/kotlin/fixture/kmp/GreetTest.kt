@@ -3,7 +3,7 @@ package fixture.kmp
 import kotlin.test.Test
 import kotlin.test.assertTrue
 
-// runs on every target: Android (host and device), desktop JVM and Wasm in Chrome
+// runs on every target: Android (host and device), iOS simulator, desktop JVM and Wasm in Chrome
 class GreetTest {
     @Test
     fun greetsFromThisPlatform() {

@@ -2,11 +2,13 @@
   "name": "desktop-electron",
   "targets": [
     "linux-desktop",
-    "windows"
+    "windows",
+    "macos"
   ],
   "stacks": {
     "linux-desktop": "electron",
-    "windows": "electron"
+    "windows": "electron",
+    "macos": "electron"
   },
   "preset": "electron"
 }

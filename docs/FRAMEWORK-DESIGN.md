@@ -289,7 +289,7 @@ Only those the tier + targets need:
 ### P7 — Build
 - Git branch/worktree per feature; check test baseline green before starting.
 - Loop per task from `gw next`: write failing test → implement → run `verify_cmd` → commit (atomic, conventional) → mark done in `tasks.json`.
-- Fresh subagent per task for large tiers (context hygiene); inline for small.
+- The main session leads (`gw team`, `catalog/team.json`): it hands work to a subagent only where the shape of the work pays for the tokens. Those cases are the fresh-context review, research across several references, and at large tier independent `parallel` tasks in their own worktrees (at most 3 at a time, integrated one by one). The rest stays inline. The evidence is in `research/README.md` (multi-agent orchestration). Coding split across agents costs 1.6–6.2× the tokens, and often scores lower once one agent does well.
 - Pack build-resolver agents on build failure (gradle, xcode, msbuild, cargo, flutter).
 - Change of scope ⇒ back to the affected phase only (re-run P2/P3 if a target or dependency changed).
 
@@ -523,8 +523,15 @@ Code that already runs elsewhere is cheaper than code written and debugged from 
 - **Devcontainers:** `gw devcontainer` merges the blocks that the project's stacks need (`packs/devcontainers.json`). The repo CI builds every block set.
 - **A stack chosen by the targets:** when several UI targets have no stack yet, `gw set targets=…` lists the presets that cover all of them (`packs/presets.json`). P2 recommends one by the team's language, or a stack per target.
 - **Milestone status:**
-  - M0a is done on Linux and Windows 11 (a VM, as SYSTEM and as a non-elevated user). macOS and WSL are still open.
-  - M3 is done: an Android Compose sample and a KMP sample run their on-device tests on the CI emulator.
-  - M4 is done for Electron on Linux and Windows, Qt, GTK, .NET on Windows, and KMP desktop. Tauri is not verified yet.
-  - M5 is open (it needs a macOS runner).
-  - M6 has been started: CLI, embedded (ESP-IDF, PlatformIO), game (Godot) and browser-extension samples are verified on CI.
+  - M0a is done on Linux, Windows 11 (a VM, as SYSTEM and as a non-elevated user) and GitHub's macOS 26 runner. A developer's own Mac and WSL are still open.
+  - M3 is done: Android Compose, KMP, React Native (Expo) and Flutter samples run their on-device tests on the CI emulator. .NET MAUI builds for Android.
+  - M4 is done for Electron and Tauri on Linux, Windows and macOS, Qt, GTK, .NET and .NET MAUI on Windows, KMP desktop on all three, Flutter and .NET MAUI (Mac Catalyst) on macOS.
+  - M5 is done on GitHub's macOS runners: SwiftUI, Flutter, React Native, KMP and .NET MAUI samples build for the iOS Simulator, and the SwiftUI and Flutter ones run their tests on it.
+  - M6 has been started: CLI, embedded (ESP-IDF, PlatformIO, Zephyr), game (Godot, Unity) and browser-extension samples are verified on CI.
+
+## 18. A team the lead runs, installed skills found again, the feedback inbox (0.7.0, 2026-11-06)
+- **Delegation by the shape of the work.** The main session is the project manager: it plans, integrates one task at a time, runs the gates and talks to the user, and is never delegated. `catalog/team.json` holds the roles (reviewer, security, backend, frontend, QA, platform, researcher, UX panel), each with when it applies, how it runs, its tools, its model and its brief. Most roles are hats the lead wears. A fresh subagent runs a review or a research question. Parallel workers in git worktrees only build independent tasks at the large tier.
+- **Cost model.** Ranges from published measurements, not from this project: parallel builds cost about 1.6–4.3× per task, a fresh review +10–30%, and breadth-first research about 3–4×. Returns turn negative once one agent already succeeds about 45% of the time. `gw team` applies them to the project's open tasks, and `gw team log` records what hand-offs really cost, so later runs can replace the ranges with measurements.
+- **Installed-skill index.** Claude Code lists every installed skill, and in a long list the later ones lose their descriptions. `gw skills index` reads every source Claude Code loads into a machine cache (`~/.groundwork/skills-index.json`, so no home paths reach a project) and files each skill into categories (`catalog/skill-categories.json`). The task's words, the stage, the features and the phase bring categories into play. A deep search inside them ranks the skills that fit, using the task's own words (double weight) and the terms of the stage and the phase. The hooks name at most three, each once per session. Duplicates are listed, a second copy is never installed, and nothing is installed or deleted without the user.
+- **Feedback inbox.** `gw feedback inbox <dir>` (once per machine) streams every project's feedback events, each tagged with the framework version, to `<dir>/<project>-<id>.jsonl`, with the project's context first. That closes the loop of §14 without copying reports by hand.
+- **Milestone status:** M7 has been started: the learn loop's input arrives on its own.

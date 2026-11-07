@@ -1,0 +1,14 @@
+{
+  "name": "desktop-tauri",
+  "targets": [
+    "linux-desktop",
+    "windows",
+    "macos"
+  ],
+  "stacks": {
+    "linux-desktop": "tauri",
+    "windows": "tauri",
+    "macos": "tauri"
+  },
+  "preset": "tauri"
+}

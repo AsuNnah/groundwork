@@ -1,5 +1,5 @@
 # Kotlin Multiplatform setup, included by the KMP fragments: JDK 21, Gradle with caching, and the project's task list (target names differ between templates)
-# verified: 2026-11-06 ubuntu-latest, windows-latest
+# verified: 2026-11-06 ubuntu-latest, windows-latest, macos-latest
       - uses: actions/setup-java@b843ebf9b913146b38da2eaa7aeddf76074ae1ad # v6.1.0
         with:
           distribution: temurin

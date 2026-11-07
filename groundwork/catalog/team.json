@@ -1,0 +1,114 @@
+{
+  "_doc": "The team the lead (the main session) can hand work to. A role is a brief and a way of working, not a standing agent: most roles are hats the lead wears. 'gw team' lists the roles this project needs, the tasks that can run in parallel, and the token cost against one agent doing everything. 'when' is a list of alternatives; every key in one alternative must match. Costs are ranges from the sources below, not measurements of this project: measure with 'gw team log'.",
+  "as_of": "2026-11-06",
+  "lead": {
+    "id": "pm",
+    "title": "Project manager (lead)",
+    "who": "the main session",
+    "does": "plans, orders the tasks, hands work off by its shape, integrates one task at a time, runs the gates and talks to the user. Never delegated."
+  },
+  "roles": [
+    {
+      "id": "reviewer",
+      "title": "Code reviewer",
+      "when": [{ "tiers": ["standard", "large"] }],
+      "phases": ["P9"],
+      "how": "one fresh subagent (required at standard and large)",
+      "tools": "read-only (Read, Grep, Glob)",
+      "model": "the session's model",
+      "cost": "review",
+      "brief": "Review the diff since the baseline against the PRD/FSD sections and the tasks you are given, not the chat. Report only real problems: correctness, security, data loss, missing or weak tests, unmet requirements. Give each one file:line, a severity and why. No style nits. Do not edit files."
+    },
+    {
+      "id": "security",
+      "title": "Security analyst",
+      "when": [{ "features": ["auth", "pii", "payments", "public"] }, { "tiers": ["large"] }],
+      "phases": ["P5", "P9"],
+      "how": "inline for the SRD (P5); one fresh subagent for the security review (P9)",
+      "tools": "read-only (Read, Grep, Glob)",
+      "model": "the session's model",
+      "cost": "review",
+      "brief": "Check the change against docs/srd.md: every SEC- requirement and TH- threat it touches, input at trust boundaries, auth, secrets, crypto, files and network. Report each finding with a severity and its SEC/TH ID. Do not edit files."
+    },
+    {
+      "id": "backend",
+      "title": "Senior backend engineer",
+      "when": [{ "features": ["api", "db"] }],
+      "phases": ["P5", "P7"],
+      "how": "inline; at large tier a worker per parallel task",
+      "tools": "edits in its own git worktree",
+      "model": "a cheaper model for small, well-specified tasks",
+      "cost": "build",
+      "brief": "Build to the contracts in docs/bsd.md. Validate input at the boundary, keep errors as documented, change schemas expand-then-contract, and test against a real database or service (S1) where practical. Name the REQ/SEC ID in each test. Run the task's check before you report."
+    },
+    {
+      "id": "frontend",
+      "title": "Senior frontend engineer",
+      "when": [{ "ui": true }],
+      "phases": ["P5", "P7"],
+      "how": "inline; at large tier a worker per parallel task",
+      "tools": "edits in its own git worktree",
+      "model": "a cheaper model for small, well-specified tasks",
+      "cost": "build",
+      "brief": "Build from the approved mockup in docs/dbd.md: every screen state (empty, loading, error, long text), keyboard and screen-reader access (WCAG 2.2 AA), the project's own components. No new design: a change to the look goes back to the mockup. Run the task's check before you report."
+    },
+    {
+      "id": "qa",
+      "title": "QA engineer",
+      "when": [{ "tiers": ["standard", "large"] }],
+      "phases": ["P6", "P8"],
+      "how": "inline (a hat the lead wears)",
+      "tools": "the lead's",
+      "model": "the session's model",
+      "cost": "inline",
+      "brief": "Own the test strategy: each task's check names its REQ/SEC ID, checks run at each target's release tier (S0-S3), a flaky test is fixed, not retried."
+    },
+    {
+      "id": "platform",
+      "title": "Platform and release engineer",
+      "when": [{ "tiers": ["large"] }, { "release_tiers": ["S2", "S3"] }],
+      "phases": ["P3", "P8", "P10"],
+      "how": "inline (a hat the lead wears)",
+      "tools": "the lead's",
+      "model": "the session's model",
+      "cost": "inline",
+      "brief": "Own the build and release path: CI per target (gw ci), the devcontainer, signing and packaging, the release tier each target needs (gw doctor), and rollback."
+    },
+    {
+      "id": "researcher",
+      "title": "Researcher",
+      "when": [{ "references": true }],
+      "phases": ["RESEARCH", "P2", "P4"],
+      "how": "one subagent per reference or option, in parallel",
+      "tools": "read-only, plus web search and fetch",
+      "model": "a cheaper model",
+      "cost": "research",
+      "brief": "Answer the research goal for one reference or option with sources (links, versions, licences), and keep facts apart from guesses. Return a summary, not raw pages."
+    },
+    {
+      "id": "ux",
+      "title": "UX panel (PRD personas)",
+      "when": [{ "ui": true }],
+      "phases": ["MOCKUP"],
+      "how": "one subagent per persona, blind to the other reviews",
+      "tools": "read-only",
+      "model": "a cheaper model",
+      "cost": "review",
+      "brief": "Review the mockup as one PRD persona, without seeing the other reviews: what this persona cannot do, finds confusing or misses. Do not redesign."
+    }
+  ],
+  "costs": {
+    "inline": { "extra": [0, 0], "basis": "the lead's own work" },
+    "review": { "extra": [0.1, 0.3], "basis": "a fresh subagent reads the diff and the doc sections it is given, not the build history (Groundwork's estimate)" },
+    "research": { "factor": [3, 4], "basis": "one subagent per reference against one agent researching alone; faster, and better on breadth-first questions", "source": "anthropic-research" },
+    "build": { "factor": [1.6, 4.3], "basis": "tokens of a task built by a parallel worker against the same task built alone, merge included", "source": "kim-scaling, caid" }
+  },
+  "sources": {
+    "anthropic-research": "Anthropic, How we built our multi-agent research system (2025): +90.2% over one Opus 4 agent on breadth-first research; agents use about 4x the tokens of chat, multi-agent systems about 15x; coding has fewer parallel parts.",
+    "kim-scaling": "Kim et al., arXiv 2512.08296 (260 configurations, 6 benchmarks): 1.6-6.2x tokens; returns turn negative once one agent already succeeds about 45% of the time; SWE-bench Verified -2.1 to -14.9%.",
+    "caid": "Geng and Neubig, CAID, arXiv 2603.21489: parallel workers in git worktrees with test-verified merges, PaperBench 57.2 to 63.3 at about 2.0x cost, Commit0-Lite 53.1 to 59.1 at about 4.3x.",
+    "mao-subagents": "Mao et al., arXiv 2606.10662: Claude Code with subagents 80.0% at $30.88 against 81.7% at $20.31 alone on Terminal-Bench (Opus 5.5).",
+    "mast": "Cemri et al., MAST, arXiv 2503.13657: multi-agent systems fail in 41-86.7% of runs; a verification step +15.6%, clearer role specification +9.4%.",
+    "claude-code-costs": "Claude Code docs, costs page: agent teams use about 7x the tokens of a standard session when teammates run in plan mode; use cheaper models for teammates and simple subagent tasks, keep teams small."
+  }
+}

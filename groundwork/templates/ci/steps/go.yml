@@ -1,5 +1,5 @@
 # Go: vet and test (go.mod sets the version; -race on Linux)
-# verified: 2026-11-06 ubuntu-latest, windows-latest
+# verified: 2026-11-06 ubuntu-latest, windows-latest, macos-latest
 # timeout: 20
       - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
         with:

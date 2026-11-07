@@ -1,5 +1,5 @@
 # Kotlin Multiplatform iOS: the shared tests on the iOS simulator (Kotlin/Native), then the Xcode app built for the simulator when iosApp/ exists
-# verified: no
+# verified: 2026-11-06 macos-latest
 # timeout: 60
 __INCLUDE kmp-setup__
       - name: iOS simulator tests
@@ -12,4 +12,6 @@ __INCLUDE kmp-setup__
         shell: bash
         run: |
           proj=$(ls -d iosApp/*.xcodeproj | head -1); scheme=$(basename "$proj" .xcodeproj)
-          xcodebuild -project "$proj" -scheme "$scheme" -destination 'generic/platform=iOS Simulator' -configuration Debug CODE_SIGNING_ALLOWED=NO build
+          # a named simulator builds only this runner's architecture: the generic destination adds x86_64, which needs an iosX64() target
+          sim=$(xcrun simctl list devices available | grep -m1 -oE 'iPhone [^(]+' | sed 's/ *$//')
+          xcodebuild -project "$proj" -scheme "$scheme" -destination "platform=iOS Simulator,name=$sim" -configuration Debug CODE_SIGNING_ALLOWED=NO build

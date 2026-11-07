@@ -1,5 +1,5 @@
 # Flutter on Android: analyze, unit and widget tests, debug APK, then integration_test on an emulator when integration_test/ exists
-# verified: no
+# verified: 2026-11-06 ubuntu-latest
 # timeout: 45
       - uses: actions/setup-java@b843ebf9b913146b38da2eaa7aeddf76074ae1ad # v6.1.0
         with:

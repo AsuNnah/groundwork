@@ -1,0 +1,9 @@
+{
+  "name": "game-unity",
+  "targets": [
+    "game"
+  ],
+  "stacks": {
+    "game": "unity"
+  }
+}

@@ -5,6 +5,5 @@
   ],
   "stacks": {
     "cli": "python"
-  },
-  "ci_os": "linux,windows"
+  }
 }

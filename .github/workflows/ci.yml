@@ -1,4 +1,4 @@
-# Framework CI: selftest plus a real host scan and CLI smoke test on each OS. macOS is an open roadmap item.
+# Framework CI: selftest plus a real host scan and CLI smoke test on each OS (macOS on a GitHub runner, not a user Mac).
 name: ci
 on:
   push:
@@ -11,7 +11,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: [ubuntu-latest, windows-latest]
+        os: [ubuntu-latest, windows-latest, macos-latest]
         node: ['18', 'lts/*']
     runs-on: ${{ matrix.os }}
     steps:

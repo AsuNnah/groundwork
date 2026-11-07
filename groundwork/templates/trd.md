@@ -37,8 +37,8 @@ Targets: <from project.json> · Stack: <ADR-0001> · Host constraints: <from env
 ## 9. Data
 <entities, storage, retention, migrations. Details: docs/bsd.md>
 
-## 10. API contracts
-<link docs/contracts/openapi.yaml; auth, errors, versioning. Projects with a real backend or DB: docs/bsd.md (templates/bsd.md)>
+## 10. Interfaces and contracts
+<an HTTP API: link docs/contracts/openapi.yaml; auth, errors, versioning. A desktop or mobile app: IPC channels between the UI and the main process, helper processes, plug-in or extension APIs. Details: docs/bsd.md (templates/bsd.md)>
 
 ## 11. Integrations
 | Service | Purpose | Auth | Limits | Failure mode |
@@ -48,8 +48,8 @@ Targets: <from project.json> · Stack: <ADR-0001> · Host constraints: <from env
 | Setting / env var (name only, never the value) | Purpose | Default | Required |
 |---|---|---|---|
 
-## 13. Network and exposure (services)
-| Port / endpoint | Protocol | Exposed to | Encryption | Auth |
+## 13. Network and exposure
+| Port / endpoint (also loopback APIs and URL schemes) | Protocol | Exposed to | Encryption | Auth |
 |---|---|---|---|---|
 
 ## 14. Quality requirements (from PRD NFR-xxx)

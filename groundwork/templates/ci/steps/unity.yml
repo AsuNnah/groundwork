@@ -1,9 +1,22 @@
-# Unity: edit-mode and play-mode tests with GameCI. Needs repository secrets UNITY_LICENSE, UNITY_EMAIL and UNITY_PASSWORD (https://game.ci/docs/github/activation)
-# verified: no
+# Unity: edit-mode and play-mode tests with GameCI. Needs repository secrets UNITY_EMAIL, UNITY_PASSWORD and UNITY_LICENSE (Personal) or UNITY_SERIAL (Pro): https://game.ci/docs/github/activation
+# verified: 2026-11-06 ubuntu-latest
 # timeout: 60
+      - name: Check the Unity licence secrets
+        shell: bash
+        env:
+          UNITY_LICENSE: ${{ secrets.UNITY_LICENSE }}
+          UNITY_SERIAL: ${{ secrets.UNITY_SERIAL }}
+          UNITY_EMAIL: ${{ secrets.UNITY_EMAIL }}
+          UNITY_PASSWORD: ${{ secrets.UNITY_PASSWORD }}
+        run: |
+          if [ -z "$UNITY_EMAIL" ] || [ -z "$UNITY_PASSWORD" ] || { [ -z "$UNITY_LICENSE" ] && [ -z "$UNITY_SERIAL" ]; }; then
+            echo "::error::Unity needs a licence on CI. Add repository secrets UNITY_EMAIL, UNITY_PASSWORD and either UNITY_LICENSE (Personal: the contents of Unity_lic.ulf) or UNITY_SERIAL (Pro). See https://game.ci/docs/github/activation"
+            exit 1
+          fi
       - uses: game-ci/unity-test-runner@fa6ced25861c16ef56187828c43f76d00df43a23 # v4.3.2
         env:
           UNITY_LICENSE: ${{ secrets.UNITY_LICENSE }}
+          UNITY_SERIAL: ${{ secrets.UNITY_SERIAL }}
           UNITY_EMAIL: ${{ secrets.UNITY_EMAIL }}
           UNITY_PASSWORD: ${{ secrets.UNITY_PASSWORD }}
         with:

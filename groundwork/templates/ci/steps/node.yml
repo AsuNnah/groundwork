@@ -1,5 +1,5 @@
 # Node.js: install from the lockfile (npm, pnpm, yarn or bun), lint, build, test (under Xvfb on Linux, so Electron and headed browsers work), Playwright when playwright.config.* exists
-# verified: 2026-11-06 ubuntu-latest, windows-latest
+# verified: 2026-11-06 ubuntu-latest, windows-latest, macos-latest
 # timeout: 30
 __INCLUDE node-setup__
       - run: npm run lint --if-present

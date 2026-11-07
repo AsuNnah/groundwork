@@ -1,0 +1,11 @@
+{
+  "name": "apple-swiftui",
+  "targets": [
+    "ios",
+    "macos"
+  ],
+  "stacks": {
+    "ios": "swiftui",
+    "macos": "swiftui"
+  }
+}

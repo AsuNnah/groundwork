@@ -1,0 +1,16 @@
+{
+  "name": "cross-maui",
+  "targets": [
+    "android",
+    "windows",
+    "ios",
+    "macos"
+  ],
+  "stacks": {
+    "android": "dotnet-maui",
+    "windows": "dotnet-maui",
+    "ios": "dotnet-maui",
+    "macos": "dotnet-maui"
+  },
+  "preset": "dotnet-maui"
+}

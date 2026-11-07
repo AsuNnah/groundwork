@@ -1,4 +1,4 @@
-// Same shape as the Kotlin Multiplatform wizard (kmp.jetbrains.com): one module, Android + desktop (JVM) + web (Wasm) targets, Compose UI
+// Same shape as the Kotlin Multiplatform wizard (kmp.jetbrains.com): one module, Android + iOS + desktop (JVM) + web (Wasm) targets, Compose UI
 import org.jetbrains.compose.desktop.application.dsl.TargetFormat
 import org.jetbrains.kotlin.gradle.ExperimentalWasmDsl
 import org.jetbrains.kotlin.gradle.dsl.JvmTarget
@@ -17,6 +17,9 @@ kotlin {
     wasmJs {
         browser { testTask { useKarma { useChromeHeadless() } } }
         binaries.executable()
+    }
+    listOf(iosArm64(), iosSimulatorArm64()).forEach {
+        it.binaries.framework { baseName = "ComposeApp"; isStatic = true }
     }
     sourceSets {
         commonMain.dependencies {

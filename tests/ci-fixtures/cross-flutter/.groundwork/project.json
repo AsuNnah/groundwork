@@ -1,0 +1,14 @@
+{
+  "name": "cross-flutter",
+  "preset": "flutter",
+  "targets": [
+    "android",
+    "ios",
+    "macos"
+  ],
+  "stacks": {
+    "android": "flutter",
+    "ios": "flutter",
+    "macos": "flutter"
+  }
+}

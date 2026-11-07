@@ -4,7 +4,7 @@
 
 - Status: draft | approved · Owner: <name> · Updated: <date> · Intent: `docs/intent.md`
 - Prototype / mockup: <link, once it exists>
-- ID scheme: REQ-xxx requirements · JRN-xxx journeys · NFR-xxx non-functional (an adopted PRD maps its own IDs here, e.g. `A1–J6 = REQ`)
+- ID scheme: REQ-xxx requirements · JRN-xxx journeys · NFR-xxx non-functional · SEC-xxx security requirements (in `docs/srd.md` when there is one) (an adopted PRD maps its own IDs here, e.g. `A1–J6 = REQ`)
 
 ## 1. Summary
 <one paragraph: the product, for whom, the core outcome>
@@ -23,7 +23,7 @@
 ## 5. Requirements
 Each requirement is **singular, unambiguous, verifiable and traceable** (ISO/IEC/IEEE 29148). One need per row, testable through its acceptance criteria.
 
-Write each acceptance criterion in EARS (`WHEN <trigger>, the system SHALL <response>`) or Given/When/Then. A row that is out of scope says `out of scope` or `deferred`; one that is already built says `delivered`.
+Write each acceptance criterion in EARS (`WHEN <trigger>, the system SHALL <response>`) or Given/When/Then. A row that is out of scope or already built says so as a marker: in a cell of its own, in parentheses, or after a full stop or dash (`(out of scope)`, `(deferred)`, `(delivered)`). The same word inside the requirement's text ("…after they are delivered") is not a status.
 
 | ID | Requirement (user story: as a …, I want …, so that …) | Priority (must/should/could) | Acceptance criteria (EARS or Given/When/Then) |
 |---|---|---|---|

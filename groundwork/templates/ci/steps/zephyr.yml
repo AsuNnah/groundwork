@@ -1,5 +1,5 @@
 # Zephyr (application as west manifest repository): west update, then twister on native_sim for tests/
-# verified: no
+# verified: 2026-11-06 ubuntu-latest
 # timeout: 60
       - name: west update and twister on native_sim
         run: |
