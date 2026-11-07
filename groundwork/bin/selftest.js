@@ -627,7 +627,8 @@ tg('a project in a subfolder of the repo gets its workflow at the repo root, sco
   assert.match(r2.stdout, /→ \.github\/workflows\/gw-apps-web-web\.yml \(repo root, runs in apps\/web\)/, r2.stdout + r2.stderr);
 });
 t('doctor points a CI-only release tier at gw ci write', () => {
-  const h = base(); h.virtualization.kvm_usable = false;
+  // the profile keeps the real OS and RAM (or doctor re-scans), and a Mac with 8 GB runs the emulator without KVM: low disk keeps it off everywhere
+  const h = base(); h.virtualization.kvm_usable = false; h.disk.free_gb_workdir = 10;
   const p = proj({ '.groundwork/host-profile.json': { ...h, scanned_at: new Date().toISOString(), memory: { total_gb: Math.floor(require('os').totalmem() / 1073741824) }, cpu: { ...h.cpu, arch: { x64: 'x86_64', arm64: 'arm64' }[process.arch] || process.arch }, os: { ...h.os, family: { linux: 'linux', darwin: 'macos', win32: 'windows' }[process.platform] } } });
   p.gw(['set', 'targets=android', 'stacks.android=kotlin-compose']);
   const r = p.gw(['doctor', '--json']).out, c = JSON.parse(r.slice(r.indexOf('{'))).checks.find(x => x.id === 'ci:android');

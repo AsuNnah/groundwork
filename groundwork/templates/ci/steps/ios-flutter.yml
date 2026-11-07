@@ -1,5 +1,5 @@
 # Flutter on iOS: analyze, test, simulator build, then integration_test on a booted iPhone simulator when integration_test/ exists
-# verified: 2026-11-06 macos-latest
+# verified: 2026-11-07 macos-latest
 # timeout: 60
 __INCLUDE flutter-setup__
       - run: flutter build ios --simulator
