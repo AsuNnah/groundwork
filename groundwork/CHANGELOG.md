@@ -31,6 +31,7 @@ Also fixed:
 - The installed check (`gw skills`) misses no skill: skills synced from claude.ai and plugin skills on custom paths count as installed.
 - A trending skill with the same name as another catalogue entry is listed once.
 - The selftest no longer writes into the real `~/.groundwork` (its feedback inbox and caches).
+- The selftest passes on a Mac with 8 GB of RAM or more. One test assumed such a host can't run the Android emulator (since 0.6.0).
 
 CI fragments:
 - **.NET MAUI on Linux:** a template project lists iOS and Mac Catalyst too, and restore needs every listed platform's workload (NETSDK1178). The fragment now builds the runner's platform alone (`-p:TargetFrameworks=…`).
