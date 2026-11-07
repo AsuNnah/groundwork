@@ -1,5 +1,5 @@
 # .NET: restore, build, test. global.json sets the SDK (default 10.0)
-# verified: 2026-11-06 windows-latest
+# verified: 2026-11-06 windows-latest, 2026-11-07 ubuntu-latest
 # timeout: 30
       - uses: actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68 # v6.0.0
         with:

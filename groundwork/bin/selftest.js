@@ -599,9 +599,11 @@ t('gw ci writes one workflow per target, narrows runners, keeps edits', () => {
   p.gw(['set', 'targets=web,android,ios,backend', 'stacks.web=vite-react', 'stacks.android=kotlin-compose', 'stacks.backend=dotnet']);
   const l = p.gw(['ci']).out;
   assert.match(l, /web \(vite-react\) → \.github\/workflows\/gw-web\.yml · ubuntu-latest, windows-latest, macos-latest/); assert.match(l, /ios: set the stack first/);
-  // a runner the fragment wasn't proven on is named (the dotnet fragment is verified on Windows only; update this when a Linux run proves it)
-  assert.match(l, /backend \(dotnet\).* · verified \d{4}-\d\d-\d\d windows-latest \(not yet on ubuntu-latest\)/);
-  assert.match(p.gw(['ci', 'print', 'backend']).out, /Verified by Groundwork on real runners: .*\. Not yet on ubuntu-latest: watch the first run there\./);
+  assert.match(l, /backend \(dotnet\).* · ubuntu-latest · verified .*ubuntu-latest/); assert.doesNotMatch(l, /backend \(dotnet\).*not yet on/, 'every backend runner is proven');
+  // a runner the fragment wasn't proven on is named in the workflow (no shipped plan has one now, so add a runner it never ran on)
+  const [be] = gw.ciPlan({ targets: ['backend'], stacks: { backend: 'dotnet' } }, [], null), br = gw.ciRender({ ...be, os: [...be.os, 'new-runner-latest'] });
+  assert.deepEqual(br.untested, ['new-runner-latest']);
+  assert.match(br.yaml, /Verified by Groundwork on real runners: .*ubuntu-latest\. Not yet on new-runner-latest: watch the first run there\./);
   assert.doesNotMatch(l, /web \(vite-react\).*not yet on/, 'every web runner is proven');
   assert.doesNotMatch(l, /android \(kotlin-compose\).*not yet on/, 'every android runner is proven');
   assert.equal(p.gw(['ci', 'write', 'web', '--os', 'linux,windows']).code, 0);

@@ -6,6 +6,7 @@
 - `IMPROVE`, a playbook for improving an app that already exists when no feature or bug is named yet ("what did we miss?"). Adapted from ECC's `brownfield-retrospective` (MIT). It works one slice at a time: a baseline with evidence, a gap register with severity and effort, the rows you pick as normal changes, then a re-audit. It is the new stage `improve`; `gw docs` asks for the change folder's `audit.md` (`templates/audit.md`). The catalogue adds `brownfield-retrospective` and recommends it with `codebase-onboarding`, `production-audit`, `ponytail-audit` and `ponytail-debt` at this stage.
 - A benchmark against plain Claude Code: 10 tasks graded by hidden tests, on Claude Sonnet 5.5, Opus 5.5 and Haiku 5.5. The cases, the runner and every run's data are in `bench/`, and the results are in the README.
 - The README shows how an app that already exists goes through Groundwork.
+- CI: every template is now verified on each runner its workflow uses. The last three were `dotnet` for `backend` on Linux, and `flutter` for `windows` and `web` on Windows. They run the new sample projects `tests/ci-fixtures/backend-dotnet` (its tests query the template's Postgres and Redis services) and `windows-flutter`.
 
 ### Fixed
 - Bug fixes.
