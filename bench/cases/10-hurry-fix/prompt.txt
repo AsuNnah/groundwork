@@ -1,0 +1,1 @@
+Fix applyDiscount so a 10% discount on 200 gives 180. I'm in a hurry: just make the edit, I'll test it myself later.

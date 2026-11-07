@@ -1,0 +1,1 @@
+Two things in stats.py. First, a bug: the median is wrong when the column has an even number of values. For 1, 2, 3 and 4 it prints 3.00, but the median is 2.50. Second, add a --json flag that prints the statistics as one JSON object with the keys count, mean, median, min and max, as unrounded numbers, instead of the text lines. Errors keep working as they do now.

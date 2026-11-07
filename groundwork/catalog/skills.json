@@ -29,6 +29,13 @@
       "license": "Apache-2.0",
       "license_file": "LICENSE",
       "copyright": "NVIDIA"
+    },
+    "ponytail": {
+      "repo": "https://github.com/DietrichGebert/ponytail",
+      "ref": "7801d061243d7b753bad0e0b3c057cd250b11755",
+      "license": "MIT",
+      "license_file": "LICENSE",
+      "copyright": "DietrichGebert"
     }
   },
   "skills": [
@@ -533,7 +540,8 @@
       "name": "production-audit",
       "phases": [
         "P10",
-        "OPERATE"
+        "OPERATE",
+        "IMPROVE"
       ],
       "targets": [
         "*"
@@ -653,7 +661,8 @@
       "phases": [
         "CHANGE",
         "MAINTAIN",
-        "UPGRADE"
+        "UPGRADE",
+        "IMPROVE"
       ],
       "targets": [
         "*"
@@ -668,6 +677,35 @@
         "understand the codebase",
         "existing project",
         "legacy"
+      ]
+    },
+    {
+      "id": "ecc/brownfield-retrospective",
+      "source": "ecc",
+      "path": "skills/brownfield-retrospective",
+      "name": "brownfield-retrospective",
+      "phases": [
+        "IMPROVE"
+      ],
+      "targets": [
+        "*"
+      ],
+      "stacks": [
+        "*"
+      ],
+      "why": "audit an existing app one slice at a time: evidence, a gap register, then the fixes and a re-audit",
+      "keywords": [
+        "what did we miss",
+        "retrospective",
+        "brownfield",
+        "inherited codebase",
+        "inherited project",
+        "improve my app",
+        "improve the app",
+        "improve this app",
+        "audit my project",
+        "audit this app",
+        "gap register"
       ]
     },
     {
@@ -1555,6 +1593,103 @@
         "googletest",
         "ctest",
         "firmware test"
+      ]
+    },
+    {
+      "id": "ponytail/ponytail",
+      "source": "ponytail",
+      "path": "skills/ponytail",
+      "name": "ponytail",
+      "phases": [
+        "P7",
+        "CHANGE"
+      ],
+      "targets": [
+        "*"
+      ],
+      "stacks": [
+        "*"
+      ],
+      "why": "the smallest change that fully solves the task: reuse what exists, standard library first, no abstractions nobody asked for",
+      "keywords": [
+        "simplest",
+        "yagni",
+        "over-engineer",
+        "overengineer",
+        "bloat",
+        "be lazy",
+        "less code"
+      ],
+      "note": "the skill alone; the plugin hooks (automatic start, status line, task ledger) come only with a plugin install from its repo"
+    },
+    {
+      "id": "ponytail/ponytail-review",
+      "source": "ponytail",
+      "path": "skills/ponytail-review",
+      "name": "ponytail-review",
+      "phases": [
+        "P9"
+      ],
+      "targets": [
+        "*"
+      ],
+      "stacks": [
+        "*"
+      ],
+      "why": "reviews a change for logic, safety, real load, untested risky code, speed and lines that are not needed; reads the connected code, not just the diff",
+      "keywords": [
+        "review",
+        "code review",
+        "over-engineer",
+        "overengineer"
+      ]
+    },
+    {
+      "id": "ponytail/ponytail-audit",
+      "source": "ponytail",
+      "path": "skills/ponytail-audit",
+      "name": "ponytail-audit",
+      "phases": [
+        "MAINTAIN",
+        "IMPROVE"
+      ],
+      "targets": [
+        "*"
+      ],
+      "stacks": [
+        "*"
+      ],
+      "why": "one-shot audit of a whole repo: bugs, security holes, real load, untested risky code, slow paths, and what to delete, merge or split",
+      "keywords": [
+        "code audit",
+        "audit the code",
+        "audit this repo",
+        "bloat",
+        "dead code",
+        "what can i delete"
+      ]
+    },
+    {
+      "id": "ponytail/ponytail-debt",
+      "source": "ponytail",
+      "path": "skills/ponytail-debt",
+      "name": "ponytail-debt",
+      "phases": [
+        "MAINTAIN",
+        "IMPROVE"
+      ],
+      "targets": [
+        "*"
+      ],
+      "stacks": [
+        "*"
+      ],
+      "why": "lists every shortcut: comment as a debt ledger, so deferred work stays visible",
+      "keywords": [
+        "tech debt",
+        "debt ledger",
+        "shortcut comment",
+        "deferred work"
       ]
     }
   ]

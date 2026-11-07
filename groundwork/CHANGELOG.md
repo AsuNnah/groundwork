@@ -1,5 +1,15 @@
 # Changelog
 
+## 0.7.1 (2026-11-07)
+### Added
+- The skill catalogue has 4 skills from [Ponytail](https://github.com/DietrichGebert/ponytail) (MIT, pinned to v5.3.3): `ponytail` for building and changes, `ponytail-review` for P9, and `ponytail-audit` and `ponytail-debt` for maintenance.
+- `IMPROVE`, a playbook for improving an app that already exists when no feature or bug is named yet ("what did we miss?"). Adapted from ECC's `brownfield-retrospective` (MIT). It works one slice at a time: a baseline with evidence, a gap register with severity and effort, the rows you pick as normal changes, then a re-audit. It is the new stage `improve`; `gw docs` asks for the change folder's `audit.md` (`templates/audit.md`). The catalogue adds `brownfield-retrospective` and recommends it with `codebase-onboarding`, `production-audit`, `ponytail-audit` and `ponytail-debt` at this stage.
+- A benchmark against plain Claude Code: 10 tasks graded by hidden tests, on Claude Sonnet 5.5, Opus 5.5 and Haiku 5.5. The cases, the runner and every run's data are in `bench/`, and the results are in the README.
+- The README shows how an app that already exists goes through Groundwork.
+
+### Fixed
+- Bug fixes.
+
 ## 0.7.0 (2026-11-07)
 The main session leads a team and knows what delegating costs. The installed skills that fit the work get named even when Claude's skill list hides them. Feedback from every project reaches the framework on its own. A real run on an existing desktop app fixed requirement tracing, gates and tasks for changes to existing projects. Every CI fragment now runs on real projects, macOS and iOS included. This release includes the unreleased 0.6.1 work.
 
@@ -182,7 +192,7 @@ From real-run feedback (3 projects: a Discord/Telegram bot workspace, a web+back
 - **Reference-app research** (`phases/RESEARCH.md`, `templates/reference-research.md`):
   - when the user says "like X", the agent works out how X works from evidence: docs → source → using it → Scrapling → REA;
   - it suggests the tool the question needs whatever it costs, with approval, and lawfully;
-  - **starts automatically:** a new `UserPromptSubmit` hook spots "learn X", "pelajari X", "I want an app like X", "X for reference", "bikin kayak X" (English + Indonesian) and points the agent at the playbook;
+  - **starts automatically:** a new `UserPromptSubmit` hook spots "learn X", "I want an app like X" and "X for reference", and points the agent at the playbook;
   - existing projects with hooks get the new hook on upgrade;
   - the agent asks for the goal if it's vague (what to learn, what for, when it's done), recommends the depth the goal needs, and after each method checks the goal, stepping up to the next method or another route until it's met;
   - `gw research "<X>" ["goal"]` records the reference, creates `docs/research/<x>.md`, and has doctor check Scrapling and REA;
@@ -191,7 +201,7 @@ From real-run feedback (3 projects: a Discord/Telegram bot workspace, a web+back
   - P5 adds wireframe → visual mockup → clickable prototype for every screen state and size;
   - built in **Figma** through the official Figma MCP when the user wants it and has connected it (editable layers, DBD tokens as variables, comments read back), otherwise as a no-account HTML clickable prototype;
   - the user's approval is a P6 pre-build check, P7 builds from the mockup, and P8/P9 compare against it;
-  - the prompt hook also spots "mockup", "wireframe", "Figma", "tampilan aplikasi".
+  - the prompt hook also spots "mockup", "wireframe" and "Figma".
   - **Figma first when the machine can use it:** packs with screens declare `"ui": true`, and doctor then checks whether a Figma plugin or MCP is set up (config files only, never credentials);
   - the agent verifies the login with `whoami` and tells the user exactly what to do, marking each **manual action**: turn it on (`claude mcp add …` or `/plugin`), restart, `/mcp` → Authenticate, a free sign-up, or logging in to figma.com plus the Claude in Chrome extension for browser steps;
   - it falls back to the HTML prototype if there's no internet, the user declines, or setup fails.

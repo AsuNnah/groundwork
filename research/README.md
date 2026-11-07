@@ -9,7 +9,7 @@
 - Best pattern: `skills/orch-pipeline/SKILL.md` — size classifier (trivial/small/standard/large), two gates, "planning docs are the handoff".
 - Hooks: profiles minimal/standard/strict (`ECC_HOOK_PROFILE`), GateGuard (`scripts/hooks/gateguard-fact-force.js`), config-protection, Stop-hook batch format/typecheck, session summaries.
 - State: `schemas/state-store.schema.json` (sessions, skillRuns, decisions, workItems), effect classes SE0–SE4 (`capsule-envelope.schema.json`).
-- Gaps: no host/env readiness, no target sandboxes (docker/ only tests ECC), coarse language modules, thin mobile/desktop, no Indonesian locale, sprawl of planning entry points.
+- Gaps: no host/env readiness, no target sandboxes (docker/ only tests ECC), coarse language modules, thin mobile/desktop, sprawl of planning entry points.
 
 ## Other frameworks (one line each)
 - BMAD (v6 stable, v7 alpha): personas, scale tracks, readiness gate, story files, modules.
@@ -58,3 +58,17 @@
 - **For Groundwork:**
   - Keep the fresh-context review and research subagents, and one writer per file.
   - Parallel builders need all three: worktrees, test-verified merges, and gw state kept off the parallel branches.
+
+## Agents from different vendors (2026-11-07)
+The question: Claude, ChatGPT, Cursor and Grok working together, against one agent.
+- **Mixing models in one pipeline:**
+  - **Self-MoA** (Li et al., arXiv 2502.00674): several samples of the one best model beat a mix of models by 6.6% on AlpacaEval 2.0, and by 3.8% on MMLU, CRUX and MATH. Mixing lowers the average quality. A mix only helped (by 0.17–0.35%) where each model was best at a different subtask.
+  - **X-MAS** (arXiv 2505.16997): a mix helps only when every role gets the model a benchmark shows is best for it. A random mix is often worse than one strong model.
+- **Review by a second vendor** (Song, arXiv 2610.01471, Oct 2026; preprint by one author; 900 review sessions, 150 planted errors):
+  - On code, the same model in a fresh session scored F1 40.7%, the other vendor 37.2% (no significant difference).
+  - On documents, the other vendor scored 42.1% against 24.5%.
+  - One review from each found 56.7% of the errors, against 42.7% for two same-model reviews (p=.006). A third reviewer added 1.3 points, and a weak second model did no better than self-review.
+- **Errors converge:** Goel et al. (ICML 2025, arXiv 2502.04313) and Kim et al. (arXiv 2506.07962) find that stronger models make more similar mistakes, across vendors too. Judges also favour models like themselves.
+- **Councils** (karpathy/llm-council; Perplexity Model Council): no independent accuracy data. One vendor's index (Suprmind, Q3 2026) found another model's correction stood on 3.4–7.4% of answers.
+- **Cost:** four subscriptions run about $90 a month at entry tiers and $700–900 at top tiers (prices conflict across sources). Cursor runs Claude and GPT models itself. A pay-per-use second opinion: PAL MCP (BeehiveInnovations/pal-mcp-server), or another vendor's CLI.
+- **For Groundwork:** for code, P9's fresh same-model reviewer is enough. A second vendor pays for GATE 1 documents and for high-stakes diffs: a strong model, two reviews at most.

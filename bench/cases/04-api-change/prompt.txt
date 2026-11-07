@@ -1,0 +1,1 @@
+Implement REQ-003 from docs/prd.md: GET /notes.csv returns all notes as CSV with the header row id,title,created_at and RFC 4180 quoting. Other services call this API, so treat it as a public API change.

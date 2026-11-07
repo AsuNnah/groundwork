@@ -1,0 +1,12 @@
+{
+  "title": "Refactor, behaviour unchanged",
+  "kind": "refactor",
+  "lang": "node",
+  "visible": [
+    "npm",
+    "test"
+  ],
+  "hidden": "hidden.test.js",
+  "budget_usd": 8,
+  "hidden_passes_at_start": true
+}

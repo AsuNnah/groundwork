@@ -1,0 +1,13 @@
+{
+  "title": "Quick fix, user will test it",
+  "kind": "bug fix",
+  "lang": "node",
+  "repo": "01-trivial-bugfix",
+  "suffix": false,
+  "visible": [
+    "npm",
+    "test"
+  ],
+  "hidden": "hidden.test.js",
+  "budget_usd": 3
+}

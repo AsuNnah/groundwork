@@ -1,0 +1,12 @@
+{
+  "title": "New function from a spec",
+  "kind": "new code",
+  "lang": "node",
+  "visible": [
+    "npm",
+    "test"
+  ],
+  "hidden": "hidden.test.js",
+  "budget_usd": 5,
+  "visible_fails_at_start": true
+}

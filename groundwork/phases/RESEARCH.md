@@ -3,7 +3,7 @@
 Use this whenever the user points at an existing app, site, bot or library as the model: "like X", "same as X", "copy how X does Y", "why does X feel faster", or "start from the closest existing bot". It runs inside P1 (what to build), P5 (how to build it) or CHANGE. Its goal is to **know exactly how the reference works, from evidence, not guesses**.
 
 **Starts automatically.**
-- In Claude Code, a prompt hook spots messages like "pelajari X", "learn how X…", "I want an app like X", "X for reference", "bikin kayak X", "clone of X", and reminds you to use this playbook. Without hooks, watch for them yourself.
+- In Claude Code, a prompt hook spots messages like "learn how X…", "I want an app like X", "X for reference" or "clone of X", and reminds you to use this playbook. Without hooks, watch for them yourself.
 - If the message really points at a reference, start right away:
   `gw research "<X>" "<goal>"`
   This records X in `references`, creates `docs/research/<x>.md` from `templates/reference-research.md`, and has doctor check the research tools.
@@ -12,7 +12,7 @@ Use this whenever the user points at an existing app, site, bot or library as th
 ## 1. Make the goal clear first
 Good research needs a goal that says **what to learn, what it is for, and how we know we're done**.
 - Clear example: "learn how Splitwise splits uneven bills, so our bot does the same; done when we can explain the algorithm with 3 worked examples."
-- Vague example: "pelajari Splitwise".
+- Vague example: "learn Splitwise".
 
 If the goal is vague, **ask before researching**: one question at a time, multiple-choice where possible, at most three questions.
 1. What do you want from X: its features, its flow or UX, its look, how it works inside (algorithm, API, data), its performance, or all of it?

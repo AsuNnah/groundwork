@@ -1,0 +1,15 @@
+{
+  "title": "Python: bug fix plus a new flag",
+  "kind": "bug fix + feature",
+  "lang": "python",
+  "visible": [
+    "python3",
+    "-m",
+    "unittest",
+    "discover",
+    "-s",
+    "tests"
+  ],
+  "hidden": "hidden_test.py",
+  "budget_usd": 5
+}

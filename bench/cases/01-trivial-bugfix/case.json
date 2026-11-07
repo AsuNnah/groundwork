@@ -1,0 +1,11 @@
+{
+  "title": "Trivial bug fix",
+  "kind": "bug fix",
+  "lang": "node",
+  "visible": [
+    "npm",
+    "test"
+  ],
+  "hidden": "hidden.test.js",
+  "budget_usd": 5
+}

@@ -10,7 +10,7 @@ CLI: `node groundwork/bin/gw.js <command>` (written `gw` below). Type it out in 
 
 ## Phases (the size tier decides which run: `phases/P0.md`)
 H0 host scan · P0 intake & sizing · P1 discover (intent, PRD) · P2 target & stack · P3 environment · P4 capability preflight (skills, tools) · P5 design docs · P6 plan + **GATE 1** · P7 build · P8 verify in sandbox · P9 review · P10 release + **GATE 2** · P11 learn. Each one is `phases/<id>.md`.
-Playbooks in `phases/`: `CHANGE` (existing project), `UPGRADE` (deps, SDKs, runtimes), `MAINTAIN` (refactor, tech debt, drift), `OPERATE` (monitoring, incident, hotfix, rollback), `SECURITY` (advisories, secrets), `RESEARCH` (a reference app), `MOCKUP` (see it before it's built), `REUSE` (open-source code), `FIT` (an existing project's own docs and process).
+Playbooks in `phases/`: `CHANGE` (existing project), `UPGRADE` (deps, SDKs, runtimes), `MAINTAIN` (refactor, tech debt, drift), `IMPROVE` (audit an existing app, then fix the gaps), `OPERATE` (monitoring, incident, hotfix, rollback), `SECURITY` (advisories, secrets), `RESEARCH` (a reference app), `MOCKUP` (see it before it's built), `REUSE` (open-source code), `FIT` (an existing project's own docs and process).
 Record progress with `gw phase <id> <done|skipped|in_progress|blocked> "note"`. Other commands: `gw --help`.
 
 ## Rules (always on)

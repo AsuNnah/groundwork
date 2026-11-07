@@ -1,0 +1,11 @@
+{
+  "title": "Public API change from a PRD",
+  "kind": "feature",
+  "lang": "node",
+  "visible": [
+    "npm",
+    "test"
+  ],
+  "hidden": "hidden.test.js",
+  "budget_usd": 10
+}

@@ -1,6 +1,6 @@
 # MAINTAIN: refactoring and tech debt (reactive)
 
-Maintenance is reactive: act when work touches the code, not on a schedule.
+Maintenance is reactive: act when work touches the code, not on a schedule. When the user asks for a review of an area ("improve my app"), use `phases/IMPROVE.md`.
 
 ## Tech-debt registry: `docs/tech-debt.md` (template `templates/tech-debt.md`)
 Add an item when any of these happens:

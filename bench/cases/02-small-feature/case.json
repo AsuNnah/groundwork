@@ -1,0 +1,11 @@
+{
+  "title": "Small feature in existing code",
+  "kind": "feature",
+  "lang": "node",
+  "visible": [
+    "npm",
+    "test"
+  ],
+  "hidden": "hidden.test.js",
+  "budget_usd": 5
+}
