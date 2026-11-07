@@ -21,7 +21,7 @@ jobs:
       matrix:
         os: [macos-latest]
     runs-on: ${{ matrix.os }}
-    timeout-minutes: 45
+    timeout-minutes: 60
     defaults:
       run:
         working-directory: "tests/ci-fixtures/cross-flutter"
@@ -43,4 +43,13 @@ jobs:
           # an iPhone on the newest iOS runtime, booted all the way (bootstatus waits; simctl boot returns early)
           UDID=$(xcrun simctl list devices available -j | python3 -c 'import json,re,sys; d=json.load(sys.stdin)["devices"]; v=lambda r: [int(n) for n in re.findall(r"\d+", r)]; print(next(x["udid"] for r in sorted((r for r in d if ".iOS-" in r), key=v, reverse=True) for x in d[r] if x["name"].startswith("iPhone")))')
           xcrun simctl bootstatus "$UDID" -b
-          flutter test integration_test -d "$UDID"
+          # shortcut: flutter can launch the app before it reads the simulator log, miss the VM Service line and wait
+          # forever (flutter/flutter#181771; fixed on master by #193142, not in stable 3.47.9). A try gets 15 minutes
+          # (SIGALRM ends it, exit 142) and only a hang runs again, once; a failing test fails at once.
+          # Drop the loop once your Flutter has the fix.
+          for try in 1 2; do
+            status=0; perl -e 'alarm shift; exec @ARGV' 900 flutter test integration_test -d "$UDID" || status=$?
+            [ "$status" -eq 142 ] || exit "$status"
+            echo "::warning::flutter test hung for 15 minutes (try $try of 2): flutter/flutter#181771"
+          done
+          exit 1

@@ -1,7 +1,7 @@
 {
   "version": "0.7.0",
   "files": {
-    "CHANGELOG.md": "d2351ddf9d998620",
+    "CHANGELOG.md": "d1ff9ca9d892058e",
     "GROUNDWORK.md": "47d335baa01ee1d6",
     "README.md": "9786e185f43f1e92",
     "VERSION": "967d9afb10134666",
@@ -67,7 +67,7 @@
     "templates/ci/steps/go.yml": "ba242e82f0929692",
     "templates/ci/steps/godot.yml": "83e83df6e0d87c90",
     "templates/ci/steps/gtk-meson.yml": "0bd448457ec91ef4",
-    "templates/ci/steps/ios-flutter.yml": "b66b53ce8152d897",
+    "templates/ci/steps/ios-flutter.yml": "84883bba6e5f3377",
     "templates/ci/steps/ios-react-native.yml": "a6d74a0cf5abed04",
     "templates/ci/steps/java.yml": "43da04276c78b903",
     "templates/ci/steps/kmp-desktop.yml": "72b21fc33e7dd5f7",
