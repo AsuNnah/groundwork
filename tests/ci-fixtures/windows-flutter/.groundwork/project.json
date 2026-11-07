@@ -1,0 +1,9 @@
+{
+  "name": "windows-flutter",
+  "targets": [
+    "windows"
+  ],
+  "stacks": {
+    "windows": "flutter"
+  }
+}

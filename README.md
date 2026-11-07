@@ -100,12 +100,7 @@ Choose them with `gw set targets=web,backend stacks.web=vite-react stacks.backen
   - `react-native`: android, ios and web;
   - `electron` and `tauri`: windows, macos and linux-desktop;
   - `dotnet-maui`: android, ios, windows and macos.
-- **Verified:** every CI template has passed with the sample projects in [`tests/ci-fixtures/`](tests/ci-fixtures/), on GitHub runners. Three runner combinations are still unverified:
-  - `backend` with `dotnet` on Linux (verified on Windows only);
-  - `flutter` for `windows`, on the Windows runner;
-  - `flutter` for `web`, on the Windows runner (verified on Linux and macOS).
-
-  `gw ci list` names any runner in a project's workflows that hasn't been verified yet.
+- **Verified:** every CI template has passed with the sample projects in [`tests/ci-fixtures/`](tests/ci-fixtures/), on every GitHub runner its workflow uses. `gw ci list` names any runner in a project's workflows that hasn't been verified yet.
 
 ## Benchmark: Groundwork vs plain Claude Code
 
@@ -321,7 +316,7 @@ Rules: keep `groundwork/` dependency-free (POSIX sh, PowerShell 5.1+, Node stdli
 - [x] Installed-skill index: categories, a search by task, stage and phase, duplicates (0.7.0)
 - [x] Feedback from every project streamed to the framework's inbox (0.7.0)
 - [ ] `scan.sh` on a developer's own Mac, beyond GitHub's runner image
-- [ ] Verify the last three CI runner combinations: `dotnet` for `backend` on Linux, and `flutter` for `windows` and `web` on the Windows runner
+- [x] Verify the last three CI runner combinations: `dotnet` for `backend` on Linux, and `flutter` for `windows` and `web` on the Windows runner (0.7.1)
 
 ## Acknowledgements
 Skill inspection by [NVIDIA SkillSpector](https://github.com/nvidia/skillspector) (Apache-2.0). Ideas borrowed (with thanks) from [ECC](https://github.com/affaan-m/ecc), [BMAD Method](https://github.com/bmad-code-org/BMAD-METHOD), [GitHub Spec Kit](https://github.com/github/spec-kit), [Superpowers](https://github.com/obra/superpowers), [GSD](https://github.com/open-gsd/gsd-core), [Kiro](https://kiro.dev), [OpenSpec](https://github.com/Fission-AI/OpenSpec), [AWS AI-DLC](https://github.com/awslabs/aidlc-workflows), and [agent-skills](https://github.com/addyosmani/agent-skills). See [`docs/FRAMEWORK-DESIGN.md`](docs/FRAMEWORK-DESIGN.md) §2 for what was taken from each.
